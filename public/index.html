@@ -1,0 +1,1167 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mapa de ayuda · Sismo del 10 de agosto</title>
+<meta name="description" content="Mapa abierto para registrar y encontrar necesidades tras el sismo del 10 de agosto de 2026: personas desaparecidas, rescate, víveres, mascotas, refugio y salud en Cali, Pereira, Manizales, Armenia, Quibdó y sus municipios vecinos.">
+<meta name="theme-color" content="#b4321e">
+<meta property="og:title" content="Mapa de ayuda · Sismo del 10 de agosto">
+<meta property="og:description" content="Registra lo que necesitas o lo que puedes ofrecer, y mira el mapa de necesidades cerca de ti.">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://unpkg.com">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+/* Tipografía de sistema: cero descarga de fuentes. Esta página se abre en la
+   calle, con mala señal y batería baja; cada KB que no se pide es tiempo. */
+:root{
+  --tinta:#16130f; --tenue:#5d574e; --papel:#f7f5f1; --tarjeta:#fff;
+  --linea:#e0dbd2; --rojo:#b4321e; --rojo-claro:#fdeceb;
+  --verde:#1d7a4c; --azul:#1b5fa8; --morado:#7a2ea8;
+  --sombra:0 1px 2px rgba(0,0,0,.05),0 4px 16px rgba(0,0,0,.06);
+  --r:10px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  background:var(--papel); color:var(--tinta); font-size:16px; line-height:1.5;
+  -webkit-text-size-adjust:100%;
+}
+h1,h2,h3{margin:0; line-height:1.25; font-weight:700; letter-spacing:-.01em}
+button{font:inherit; cursor:pointer}
+a{color:var(--azul)}
+
+.top{
+  position:sticky; top:0; z-index:900; background:var(--tarjeta);
+  border-bottom:1px solid var(--linea); padding:.6rem 1rem;
+  padding-top:calc(.6rem + env(safe-area-inset-top));
+  display:flex; align-items:center; gap:1rem; flex-wrap:wrap;
+}
+.marca{display:flex; align-items:baseline; gap:.55rem; min-width:0}
+.marca strong{font-size:1.06rem}
+.marca span{font-size:.8rem; color:var(--tenue); white-space:nowrap}
+.top-acc{margin-left:auto; display:flex; gap:.5rem; align-items:center}
+.btn{
+  border:1px solid var(--linea); background:var(--tarjeta); color:var(--tinta);
+  border-radius:var(--r); padding:.5rem .85rem; font-weight:600; font-size:.9rem;
+}
+.btn:hover{background:#f0ede8}
+.btn-pri{background:var(--rojo); border-color:var(--rojo); color:#fff}
+.btn-pri:hover{background:#9c2b1a}
+.btn-sm{padding:.34rem .6rem; font-size:.8rem}
+
+.oficial{
+  background:#fff8e6; border-bottom:1px solid #f0dfae; padding:.55rem 1rem;
+  font-size:.855rem; color:#6b5410;
+}
+.oficial b{color:#4d3c09}
+.oficial a{color:#8a5a06}
+
+/* Barra de zonas: el acceso rápido a los departamentos golpeados. */
+.zonas{
+  background:var(--tarjeta); border-bottom:1px solid var(--linea);
+  padding:.5rem 1rem; display:flex; gap:.4rem; align-items:center;
+  overflow-x:auto; -webkit-overflow-scrolling:touch; white-space:nowrap;
+}
+.zonas .rot{font-size:.78rem; color:var(--tenue); font-weight:600; flex:none}
+.zona{
+  border:1px solid var(--linea); background:var(--tarjeta); border-radius:999px;
+  padding:.3rem .7rem; font-size:.82rem; font-weight:600; color:var(--tinta); flex:none;
+}
+.zona[aria-pressed="true"]{background:var(--tinta); border-color:var(--tinta); color:#fff}
+
+.cuerpo{display:grid; grid-template-columns:minmax(0,1fr) 390px; height:calc(100dvh - 150px)}
+@supports not (height:100dvh){.cuerpo{height:calc(100vh - 150px)}}
+#mapa{width:100%; height:100%; background:#e8e4dc}
+.panel{border-left:1px solid var(--linea); background:var(--tarjeta); display:flex; flex-direction:column; min-height:0}
+.filtros{padding:.75rem 1rem; border-bottom:1px solid var(--linea)}
+.buscador{width:100%; padding:.55rem .7rem; border:1px solid var(--linea); border-radius:var(--r); font:inherit; font-size:.9rem}
+.chips{display:flex; flex-wrap:wrap; gap:.35rem; margin-top:.6rem}
+.chip{
+  border:1px solid var(--linea); background:var(--tarjeta); border-radius:999px;
+  padding:.28rem .62rem; font-size:.8rem; font-weight:600; color:var(--tenue);
+  display:inline-flex; align-items:center; gap:.32rem;
+}
+.chip[aria-pressed="true"]{background:var(--tinta); border-color:var(--tinta); color:#fff}
+.punto{width:8px; height:8px; border-radius:50%; flex:none}
+.conteo{padding:.5rem 1rem; font-size:.82rem; color:var(--tenue); border-bottom:1px solid var(--linea)}
+.lista{overflow-y:auto; flex:1; -webkit-overflow-scrolling:touch}
+
+.item{padding:.8rem 1rem; border-bottom:1px solid var(--linea); cursor:pointer; display:flex; gap:.7rem}
+.item:hover{background:#faf8f5}
+.item-txt{min-width:0; flex:1}
+.item-foto{width:64px; height:64px; border-radius:8px; object-fit:cover; flex:none; background:#efece7}
+.item-top{display:flex; align-items:center; gap:.4rem; margin-bottom:.25rem; flex-wrap:wrap}
+.etq{font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em; padding:.13rem .42rem; border-radius:5px; background:#efece7; color:var(--tenue)}
+.etq-alta{background:var(--rojo-claro); color:var(--rojo)}
+.etq-ofrezco{background:#e7f4ed; color:var(--verde)}
+.etq-busco{background:#f3e8fa; color:var(--morado)}
+.etq-ver{background:#e8f0fa; color:var(--azul)}
+.item h3{font-size:.95rem; margin-bottom:.15rem}
+.item p{margin:.2rem 0 0; font-size:.855rem; color:var(--tenue)}
+.item .meta{font-size:.78rem; color:var(--tenue); margin-top:.35rem}
+.vacio{padding:2.5rem 1.5rem; text-align:center; color:var(--tenue); font-size:.9rem}
+
+.fab{
+  display:none; position:fixed; z-index:920; left:0; right:0; bottom:0; width:100%;
+  border-radius:0; border:none; border-top:1px solid #8c2616;
+  padding:.85rem 1rem calc(.85rem + env(safe-area-inset-bottom));
+  font-size:1rem; box-shadow:0 -4px 18px rgba(20,16,12,.16);
+}
+
+.velo{position:fixed; inset:0; background:rgba(20,16,12,.55); z-index:1000; display:flex; align-items:center; justify-content:center; padding:1rem}
+.velo[hidden]{display:none}
+.modal{background:var(--tarjeta); border-radius:14px; width:100%; max-width:580px; max-height:92dvh; overflow-y:auto; box-shadow:var(--sombra)}
+@supports not (max-height:92dvh){.modal{max-height:92vh}}
+.modal-cab{position:sticky; top:0; background:var(--tarjeta); padding:1rem 1.25rem .75rem; border-bottom:1px solid var(--linea); display:flex; align-items:flex-start; gap:1rem; z-index:2}
+.modal-cab h2{font-size:1.1rem}
+.modal-cab p{margin:.2rem 0 0; font-size:.85rem; color:var(--tenue)}
+.cerrar{margin-left:auto; border:none; background:none; font-size:1.5rem; line-height:1; color:var(--tenue); padding:0 .25rem}
+.modal-cuerpo{padding:1.1rem 1.25rem 1.4rem}
+.campo{margin-bottom:1rem}
+.campo>label{display:block; font-weight:600; font-size:.88rem; margin-bottom:.32rem}
+.ayuda{font-size:.79rem; color:var(--tenue); margin:.25rem 0 0; font-weight:400}
+input[type=text],input[type=number],textarea,select{
+  width:100%; padding:.58rem .7rem; border:1px solid var(--linea); border-radius:var(--r);
+  font:inherit; font-size:.92rem; background:var(--tarjeta); color:var(--tinta);
+}
+textarea{resize:vertical; min-height:80px}
+input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid var(--azul); outline-offset:-1px}
+.rejilla{display:grid; grid-template-columns:1fr 1fr; gap:.7rem}
+
+/* Drill-down de situaciones: grupo → situación concreta. */
+.grupos{display:grid; grid-template-columns:repeat(3,1fr); gap:.5rem}
+.grupo{
+  border:1.5px solid var(--linea); background:var(--tarjeta); border-radius:var(--r);
+  padding:.7rem .6rem; text-align:left; color:var(--tinta);
+}
+.grupo b{display:block; font-size:.9rem}
+.grupo span{display:block; font-size:.74rem; color:var(--tenue); font-weight:400; margin-top:.15rem; line-height:1.3}
+.grupo[aria-pressed="true"]{border-color:var(--tinta); background:#f4f1ec}
+.sits{display:flex; flex-direction:column; gap:.35rem; margin-top:.6rem}
+.sit{
+  border:1px solid var(--linea); background:var(--tarjeta); border-radius:var(--r);
+  padding:.55rem .7rem; text-align:left; color:var(--tinta); font-size:.9rem; font-weight:600;
+  display:flex; align-items:center; gap:.5rem;
+}
+.sit[aria-pressed="true"]{border-color:var(--tinta); background:var(--tinta); color:#fff}
+.sit[aria-pressed="true"] .punto{box-shadow:0 0 0 2px #fff}
+
+.check{display:flex; gap:.55rem; align-items:flex-start; font-size:.85rem; line-height:1.45}
+.check input{margin-top:.2rem; flex:none; width:16px; height:16px}
+.nota{background:#f4f1ec; border-left:3px solid var(--tenue); padding:.65rem .8rem; border-radius:0 8px 8px 0; font-size:.83rem; color:var(--tenue); margin-bottom:1rem}
+.nota-priv{background:var(--rojo-claro); border-left-color:var(--rojo); color:#7d2415}
+.error{color:var(--rojo); font-size:.85rem; margin-top:.6rem; font-weight:600}
+#mini{height:190px; border:1px solid var(--linea); border-radius:var(--r); background:#e8e4dc}
+.ubi-acc{display:flex; gap:.5rem; margin-bottom:.5rem; flex-wrap:wrap}
+.ubi-est{font-size:.8rem; color:var(--tenue); margin-top:.4rem}
+.foto-caja{display:flex; gap:.7rem; align-items:center}
+.foto-prev{width:74px; height:74px; border-radius:8px; object-fit:cover; border:1px solid var(--linea)}
+.exito{text-align:center; padding:1rem 0}
+.exito .tick{font-size:2.4rem}
+.enlace{background:#f4f1ec; border-radius:var(--r); padding:.7rem; font-size:.78rem; word-break:break-all; margin:.7rem 0; font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.pie{padding:1.1rem 1rem calc(1.4rem + env(safe-area-inset-bottom)); font-size:.8rem; color:var(--tenue); text-align:center; border-top:1px solid var(--linea); background:var(--tarjeta)}
+.leaflet-popup-content{margin:.7rem .9rem; font-size:.88rem}
+.leaflet-popup-content h3{font-size:.95rem; margin-bottom:.3rem}
+.pop-foto{width:100%; max-height:170px; object-fit:cover; border-radius:8px; margin:.4rem 0}
+.pop-acc{display:flex; gap:.4rem; margin-top:.6rem; flex-wrap:wrap}
+
+@media (max-width:860px){
+  .cuerpo{grid-template-columns:1fr; grid-template-rows:50dvh auto; height:auto}
+  @supports not (height:50dvh){.cuerpo{grid-template-rows:50vh auto}}
+  .panel{border-left:none; border-top:1px solid var(--linea)}
+  .lista{overflow:visible}
+  .fab{display:block}
+  .top-acc .btn-reportar{display:none}
+  .rejilla{grid-template-columns:1fr}
+  .grupos{grid-template-columns:1fr}
+  /* El botón inferior tapa el final del scroll sin este colchón. */
+  body{padding-bottom:5.5rem}
+  .top{padding-top:calc(.5rem + env(safe-area-inset-top))}
+  .marca{flex-direction:column; gap:0}
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="marca">
+    <strong>Mapa de ayuda</strong>
+    <span>Sismo del 10 de agosto de 2026</span>
+  </div>
+  <div class="top-acc">
+    <a class="btn btn-sm" href="inteligencia.html">De qué habla la prensa</a>
+    <button class="btn btn-sm" id="btn-mis">Mis reportes</button>
+    <button class="btn btn-pri btn-reportar" id="btn-reportar">Registrar</button>
+  </div>
+</header>
+
+<div class="oficial">
+  <b>Esto no es un canal oficial.</b>
+  Si hay vidas en riesgo llama al <a href="tel:123">123</a>.
+  Personas desaparecidas: <a href="https://www.icrc.org/es/donde-trabajamos/americas/colombia" target="_blank" rel="noopener">Cruz Roja</a>
+  y <a href="https://www.medicinalegal.gov.co" target="_blank" rel="noopener">Medicina Legal</a>.
+</div>
+
+<nav class="zonas" id="zonas" aria-label="Ir a una zona"></nav>
+
+<main class="cuerpo">
+  <div id="mapa"></div>
+  <aside class="panel">
+    <div class="filtros">
+      <input type="text" class="buscador" id="q" placeholder="Buscar por municipio, barrio o palabra…" aria-label="Buscar reportes">
+      <div class="chips" id="chips-grupo" role="group" aria-label="Qué tipo de reporte"></div>
+      <div class="chips" id="chips-fam" role="group" aria-label="Sobre qué"></div>
+    </div>
+    <div class="conteo" id="conteo">Cargando reportes…</div>
+    <div class="lista" id="lista"></div>
+  </aside>
+</main>
+
+<button class="btn btn-pri fab" id="fab">Registrar una necesidad</button>
+
+<footer class="pie">
+  Las ubicaciones se muestran con un desplazamiento de ~100 m para proteger a quien pide ayuda.
+  Los datos se tratan según la Ley 1581 de 2012 · Escríbenos a
+  <a href="mailto:hola@ricardoruiz.co">hola@ricardoruiz.co</a>
+</footer>
+
+<!-- ══════════ modal: reportar ══════════ -->
+<div class="velo" id="velo-form" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="t-form">
+    <div class="modal-cab">
+      <div>
+        <h2 id="t-form">Registrar en el mapa</h2>
+        <p>Toma un minuto. Solo lo necesario para que alguien pueda llegar.</p>
+      </div>
+      <button class="cerrar" data-cerrar aria-label="Cerrar">&times;</button>
+    </div>
+    <div class="modal-cuerpo">
+      <form id="form" novalidate>
+        <div class="campo">
+          <label>¿Qué vas a registrar?</label>
+          <div class="grupos" id="op-grupo"></div>
+          <div class="sits" id="op-sit"></div>
+        </div>
+
+        <!-- Todo lo demás aparece solo cuando ya se eligió la situación:
+             ver 12 campos de golpe hace que la gente cierre el formulario. -->
+        <div id="resto" hidden>
+          <div class="nota nota-priv" id="nota-priv" hidden></div>
+
+          <div class="campo">
+            <label for="f-titulo">En una línea, ¿qué pasa?</label>
+            <input type="text" id="f-titulo" maxlength="140">
+          </div>
+
+          <div class="campo">
+            <label for="f-detalle">Detalles <span class="ayuda" style="display:inline">(opcional)</span></label>
+            <textarea id="f-detalle" maxlength="1200" placeholder="Señas del lugar, qué se necesita exactamente, horarios…"></textarea>
+            <p class="ayuda" id="aviso-mask">Si escribes un teléfono aquí, lo ocultaremos antes de publicarlo.</p>
+          </div>
+
+          <div class="campo" id="campo-foto" hidden>
+            <label for="f-foto">Foto <span class="ayuda" style="display:inline">(opcional, ayuda mucho)</span></label>
+            <div class="foto-caja">
+              <input type="file" id="f-foto" accept="image/*" style="border:none;padding:0;font-size:.85rem">
+              <img id="foto-prev" class="foto-prev" hidden alt="Vista previa">
+            </div>
+            <p class="ayuda" id="foto-est">Se reduce en tu teléfono antes de subirla y se le quitan los datos de ubicación.</p>
+          </div>
+
+          <div class="rejilla">
+            <div class="campo">
+              <label for="f-urgencia">Urgencia</label>
+              <select id="f-urgencia">
+                <option value="alta">Alta · hay riesgo ahora</option>
+                <option value="media" selected>Media · en el día</option>
+                <option value="baja">Baja · puede esperar</option>
+              </select>
+            </div>
+            <div class="campo" id="campo-personas">
+              <label for="f-personas">¿Cuántas personas?</label>
+              <input type="number" id="f-personas" min="0" max="9999" placeholder="Ej.: 5">
+            </div>
+          </div>
+
+          <div class="campo">
+            <label>¿Dónde?</label>
+            <div class="ubi-acc">
+              <button type="button" class="btn btn-sm" id="btn-gps">Usar mi ubicación</button>
+            </div>
+            <div class="rejilla" style="margin-bottom:.5rem">
+              <select id="f-depto" aria-label="Departamento"><option value="">Departamento…</option></select>
+              <select id="f-mun" aria-label="Municipio" disabled><option value="">Municipio…</option></select>
+            </div>
+            <select id="f-barrio" style="margin-bottom:.5rem" hidden><option value="">Barrio (opcional)…</option></select>
+            <div id="mini"></div>
+            <p class="ubi-est" id="ubi-est">Elige el municipio o toca el mapa para marcar el punto exacto.</p>
+          </div>
+
+          <div class="campo">
+            <label for="f-contacto">Tu contacto</label>
+            <input type="text" id="f-contacto" maxlength="120" placeholder="Celular o correo">
+            <p class="ayuda">Con correo te avisamos cuando alguien responda. Con celular, revisa tu enlace privado.</p>
+            <label class="check" style="margin-top:.55rem" id="wrap-pub">
+              <input type="checkbox" id="f-pub">
+              <span>Mostrar mi contacto en el mapa para que me escriban directo.
+                Si no lo marcas, los mensajes te llegan por aquí.</span>
+            </label>
+          </div>
+
+          <div class="campo">
+            <label class="check">
+              <input type="checkbox" id="f-consent">
+              <span>Autorizo publicar esta información en el mapa y que se me contacte
+                para atender lo que reporto (Ley 1581 de 2012).</span>
+            </label>
+          </div>
+
+          <div style="position:absolute; left:-9999px" aria-hidden="true">
+            <label>No llenar<input type="text" id="f-web" tabindex="-1" autocomplete="off"></label>
+          </div>
+
+          <div id="turnstile"></div>
+          <div class="error" id="form-error" hidden></div>
+
+          <button type="submit" class="btn btn-pri" id="f-enviar"
+                  style="width:100%; padding:.75rem; margin-top:.5rem; font-size:1rem">
+            Publicar en el mapa
+          </button>
+        </div>
+      </form>
+
+      <div id="exito" hidden class="exito">
+        <div class="tick">✓</div>
+        <h2 style="margin:.4rem 0">Quedó publicado</h2>
+        <p style="color:var(--tenue); font-size:.9rem; margin:.3rem 0 0">
+          Guarda este enlace privado. Con él ves los mensajes que te dejen y marcas la
+          necesidad como resuelta. Nadie más lo tiene.
+        </p>
+        <div class="enlace" id="mi-enlace"></div>
+        <button class="btn" id="btn-copiar" style="width:100%">Copiar enlace</button>
+        <button class="btn btn-pri" data-cerrar style="width:100%; margin-top:.5rem">Volver al mapa</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ modal: contactar ══════════ -->
+<div class="velo" id="velo-contacto" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="t-contacto" style="max-width:480px">
+    <div class="modal-cab">
+      <div><h2 id="t-contacto">Enviar información</h2><p id="contacto-sub"></p></div>
+      <button class="cerrar" data-cerrar aria-label="Cerrar">&times;</button>
+    </div>
+    <div class="modal-cuerpo">
+      <div class="nota">Tu mensaje le llega directo a quien publicó el reporte. No lo publicamos en el mapa.</div>
+      <form id="form-contacto" novalidate>
+        <div class="campo">
+          <label for="c-mensaje">Tu mensaje</label>
+          <textarea id="c-mensaje" maxlength="1500" placeholder="Cuenta qué sabes o cómo puedes ayudar."></textarea>
+        </div>
+        <div class="campo">
+          <label for="c-de">¿Cómo te contactan?</label>
+          <input type="text" id="c-de" maxlength="140" placeholder="Celular o correo">
+        </div>
+        <div style="position:absolute; left:-9999px" aria-hidden="true">
+          <label>No llenar<input type="text" id="c-web" tabindex="-1" autocomplete="off"></label>
+        </div>
+        <div id="turnstile-c"></div>
+        <div class="error" id="contacto-error" hidden></div>
+        <button type="submit" class="btn btn-pri" style="width:100%; padding:.7rem">Enviar mensaje</button>
+      </form>
+      <div id="contacto-ok" hidden class="exito">
+        <div class="tick">✓</div><p>Mensaje enviado.</p>
+        <button class="btn" data-cerrar style="width:100%">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ modal: mis reportes ══════════ -->
+<div class="velo" id="velo-mis" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="t-mis" style="max-width:520px">
+    <div class="modal-cab">
+      <div><h2 id="t-mis">Mis reportes</h2><p>Lo que has publicado desde este dispositivo.</p></div>
+      <button class="cerrar" data-cerrar aria-label="Cerrar">&times;</button>
+    </div>
+    <div class="modal-cuerpo" id="mis-cuerpo"></div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+/* ══════════════════════════════ configuración ══════════════════════════════ */
+const LOCAL = ['localhost', '127.0.0.1'].includes(location.hostname);
+const CONFIG = {
+  API: LOCAL ? 'http://localhost:8787' : 'https://ayuda-sismo.reruizc.workers.dev',
+  TURNSTILE: '',
+  REFRESCO_MS: 60000,
+  FOTO_LADO_MAX: 1280,
+  FOTO_CALIDAD: .82,
+};
+
+/* Catálogo de SITUACIONES — el reemplazo de la matriz tipo × categoría.
+   Antes, "Puedo ayudar" + "Mascotas" no distinguía entre buscar a mi perro y
+   haber encontrado uno. Acá cada opción es una frase que se entiende sola, y
+   las combinaciones absurdas no existen porque no están en la lista. */
+const GRUPOS = [
+  {k:'busco',    n:'Busco',        d:'A una persona o a mi mascota'},
+  {k:'necesito', n:'Necesito',     d:'Rescate, víveres, salud, techo'},
+  {k:'ofrezco',  n:'Puedo ayudar', d:'Ofrezco algo o encontré a alguien'},
+];
+
+const FAM = {
+  persona:    {n:'Personas',     c:'#7a2ea8'},
+  mascota:    {n:'Mascotas',     c:'#1d7a4c'},
+  rescate:    {n:'Rescate',      c:'#b4321e'},
+  estructural:{n:'Estructural',  c:'#c2410c'},
+  salud:      {n:'Salud',        c:'#be185d'},
+  viveres:    {n:'Víveres',      c:'#b3730c'},
+  refugio:    {n:'Alojamiento',  c:'#1b5fa8'},
+  servicios:  {n:'Servicios',    c:'#0f766e'},
+  transporte: {n:'Transporte',   c:'#4a5568'},
+  otro:       {n:'Otro',         c:'#5d574e'},
+};
+
+const SIT = {
+  'busco-persona':  {g:'busco', f:'persona', n:'Busco a una persona desaparecida',
+    priv:1, foto:1, ej:'Ej.: Buscamos a Jorge Pineda, 71 años, salió el lunes y no volvió'},
+  'busco-mascota':  {g:'busco', f:'mascota', n:'Busco a mi mascota',
+    foto:1, sinPersonas:1, ej:'Ej.: Perro criollo café, collar rojo, se perdió al evacuar'},
+
+  'nec-rescate':    {g:'necesito', f:'rescate', n:'Personas atrapadas o remoción de escombros',
+    ej:'Ej.: Vecinos escuchan voces bajo la placa caída del segundo piso'},
+  'nec-viveres':    {g:'necesito', f:'viveres', n:'Víveres, agua o ropa',
+    ej:'Ej.: Familia de 5 sin agua ni comida desde el lunes'},
+  'nec-salud':      {g:'necesito', f:'salud', n:'Atención médica o medicamentos',
+    ej:'Ej.: Señora diabética sin insulina desde el lunes'},
+  'nec-refugio':    {g:'necesito', f:'refugio', n:'Dónde dormir',
+    ej:'Ej.: 3 familias durmiendo en la calle, necesitan techo'},
+  'nec-estructural':{g:'necesito', f:'estructural', n:'Edificación en riesgo de caerse',
+    foto:1, sinPersonas:1, ej:'Ej.: Muro medianero agrietado, amenaza la casa de al lado'},
+  'nec-servicios':  {g:'necesito', f:'servicios', n:'Sin agua, luz o señal',
+    ej:'Ej.: La cuadra entera sin agua ni señal de celular'},
+  'nec-otro':       {g:'necesito', f:'otro', n:'Otra necesidad',
+    ej:'Ej.: Describe en una línea qué está pasando'},
+
+  'ofr-persona':    {g:'ofrezco', f:'persona', n:'Encontré a una persona desorientada o sin identificar',
+    priv:1, sinPersonas:1, ej:'Ej.: Señor mayor sin documentos en el puesto de salud, no recuerda su dirección'},
+  'ofr-mascota':    {g:'ofrezco', f:'mascota', n:'Encontré una mascota',
+    foto:1, sinPersonas:1, ej:'Ej.: Gato gris con collar azul, lo tengo en mi casa'},
+  'ofr-alojamiento':{g:'ofrezco', f:'refugio', n:'Ofrezco alojamiento',
+    ej:'Ej.: Tengo dos habitaciones para una familia, con baño'},
+  'ofr-viveres':    {g:'ofrezco', f:'viveres', n:'Ofrezco víveres o donaciones',
+    ej:'Ej.: Tenemos 40 mercados listos para entregar'},
+  'ofr-salud':      {g:'ofrezco', f:'salud', n:'Ofrezco atención médica',
+    ej:'Ej.: Soy enfermera, disponible en las tardes'},
+  'ofr-transporte': {g:'ofrezco', f:'transporte', n:'Ofrezco transporte o maquinaria',
+    ej:'Ej.: Camioneta de estacas para mover donaciones'},
+  'ofr-voluntario': {g:'ofrezco', f:'rescate', n:'Voluntario para remoción de escombros',
+    ej:'Ej.: Grupo de 6 personas con herramienta, fines de semana'},
+  'ofr-otro':       {g:'ofrezco', f:'otro', n:'Ofrezco otra ayuda',
+    ej:'Ej.: Describe en una línea qué puedes ofrecer'},
+};
+
+const URG = {alta:'Urgente', media:'Media', baja:'Baja'};
+
+// Municipios con capa de barrios (barrios.json). La llave casa por nombre
+// normalizado, no por código: divipola y las capas vienen de fuentes distintas.
+const BARRIOS_DE = {cali:'cali', pereira:'pereira', manizales:'manizales', quibdo:'quibdo'};
+
+/* ══════════════════════════════ estado ══════════════════════════════ */
+const S = {
+  items: [], barrios: null, geo: null, zona: '',
+  f: {grupo:new Set(), fam:new Set(), q:''},
+  capas: new Map(),
+  // Arranca en false a propósito: si el snapshot no responde, se prefiere no
+  // ofrecer la foto antes que ofrecerla y perderla.
+  caps: {fotos:false},
+};
+
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g,
+  (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// Búsqueda insensible a tildes: los nombres oficiales de municipio vienen sin
+// ellas ("Quibdo"), pero la gente escribe "Quibdó".
+const norm = (s) => String(s || '').toLowerCase()
+  .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+function hace(ts){
+  const m = Math.floor((Date.now() - ts) / 60000);
+  if (m < 1) return 'ahora';
+  if (m < 60) return `hace ${m} min`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `hace ${h} h`;
+  return `hace ${Math.floor(h / 24)} d`;
+}
+const urlFoto = (k) => `${CONFIG.API}/${k}`;
+
+/* ══════════════════════════════ mapa ══════════════════════════════ */
+const mapa = L.map('mapa', {preferCanvas:true}).setView([4.6, -75.9], 7);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+  attribution:'&copy; OpenStreetMap &copy; CARTO', maxZoom:19,
+}).addTo(mapa);
+const capaPuntos = L.layerGroup().addTo(mapa);
+
+function dibujarMapa(items){
+  capaPuntos.clearLayers();
+  S.capas.clear();
+  items.forEach((r) => {
+    const col = (FAM[r.c] || FAM.otro).c;
+    const m = L.circleMarker([r.la, r.lo], {
+      radius: r.u === 'alta' ? 9 : 7,
+      color:'#fff', weight:2, fillColor:col,
+      // Lo que se ofrece va translúcido: de un vistazo se separa la demanda
+      // (sólido) de la oferta (tenue) sin necesidad de leer la leyenda.
+      fillOpacity: r.p === 'ofrezco' ? .5 : .9,
+    });
+    m.bindPopup(() => popupHTML(r), {maxWidth:290});
+    m.addTo(capaPuntos);
+    S.capas.set(r.i, m);
+  });
+}
+
+function popupHTML(r){
+  const s = SIT[r.s] || {};
+  const fam = FAM[r.c] || FAM.otro;
+  const d = document.createElement('div');
+  d.innerHTML = `
+    <h3>${esc(r.ti)}</h3>
+    <div style="font-size:.8rem;color:#5d574e;margin-bottom:.3rem">
+      <span style="color:${fam.c};font-weight:700">${esc(s.n || fam.n)}</span>
+      · ${esc(URG[r.u] || '')}
+    </div>
+    ${r.fo ? `<img class="pop-foto" src="${esc(urlFoto(r.fo))}" alt="" loading="lazy">` : ''}
+    ${r.d ? `<p style="margin:.3rem 0">${esc(r.d)}</p>` : ''}
+    <div style="font-size:.78rem;color:#5d574e">
+      ${esc([r.b, r.mu, r.dp].filter(Boolean).join(', '))} · ${hace(r.t)}
+      ${r.n ? ` · ${r.n} persona${r.n === 1 ? '' : 's'}` : ''}
+    </div>
+    ${r.k ? `<div style="margin-top:.4rem;font-weight:600">${esc(r.k)}</div>` : ''}
+    <div style="font-size:.72rem;color:#8a8378;margin-top:.4rem">Ubicación aproximada (~100 m)</div>
+    <div class="pop-acc">
+      <button class="btn btn-sm" data-contactar="${esc(r.i)}">${r.p === 'ofrezco' ? 'Escribir' : 'Tengo información'}</button>
+      <button class="btn btn-sm" data-abuso="${esc(r.i)}">Reportar</button>
+    </div>`;
+  return d;
+}
+
+/* ══════════════════════════════ zonas (drill del mapa) ══════════════════════════════ */
+function pintarZonas(){
+  const afect = (S.geo || []).filter((d) => d.a);
+  $('#zonas').innerHTML =
+    `<span class="rot">Ir a:</span>
+     <button class="zona" data-z="" aria-pressed="${!S.zona}">Todo el país</button>` +
+    afect.map((d) => `<button class="zona" data-z="${esc(d.c)}"
+       aria-pressed="${S.zona === d.c}">${esc(d.n)}</button>`).join('');
+}
+
+/** Enfoca un departamento y filtra la lista a él. '' vuelve a nacional. */
+function irAZona(cod){
+  S.zona = cod;
+  pintarZonas();
+  const d = (S.geo || []).find((x) => x.c === cod);
+  if (d) mapa.fitBounds([[d.b[0], d.b[1]], [d.b[2], d.b[3]]], {animate:false, padding:[16, 16]});
+  else mapa.setView([4.6, -75.9], 7, {animate:false});
+  pintar();
+}
+
+/* ══════════════════════════════ filtros y lista ══════════════════════════════ */
+function filtrados(){
+  const q = norm(S.f.q.trim());
+  const dep = S.zona ? (S.geo || []).find((x) => x.c === S.zona) : null;
+  return S.items.filter((r) => {
+    if (S.f.grupo.size && !S.f.grupo.has(r.p)) return false;
+    if (S.f.fam.size && !S.f.fam.has(r.c)) return false;
+    if (dep && norm(r.dp) !== norm(dep.n)) return false;
+    if (q) {
+      const heno = norm(`${r.ti} ${r.d || ''} ${r.b || ''} ${r.mu || ''} ${r.dp || ''}`);
+      if (!heno.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+function pintar(){
+  const vis = filtrados();
+  dibujarMapa(vis);
+
+  const urg = vis.filter((r) => r.u === 'alta' && r.p !== 'ofrezco').length;
+  const ofr = vis.filter((r) => r.p === 'ofrezco').length;
+  $('#conteo').textContent = vis.length
+    ? `${vis.length} reporte${vis.length === 1 ? '' : 's'}`
+      + (urg ? ` · ${urg} urgente${urg === 1 ? '' : 's'}` : '')
+      + (ofr ? ` · ${ofr} ofrecen ayuda` : '')
+    : 'Sin reportes con estos filtros';
+
+  if (!vis.length) {
+    $('#lista').innerHTML = `<div class="vacio">No hay reportes que coincidan.<br>
+      Prueba quitando filtros o sé la primera persona en registrar aquí.</div>`;
+    return;
+  }
+
+  const orden = {alta:0, media:1, baja:2};
+  vis.sort((a, b) => (orden[a.u] - orden[b.u]) || (b.t - a.t));
+
+  $('#lista').innerHTML = vis.slice(0, 300).map((r) => {
+    const s = SIT[r.s] || {};
+    const fam = FAM[r.c] || FAM.otro;
+    return `<article class="item" data-id="${esc(r.i)}" tabindex="0">
+      ${r.fo ? `<img class="item-foto" src="${esc(urlFoto(r.fo))}" alt="" loading="lazy">` : ''}
+      <div class="item-txt">
+        <div class="item-top">
+          <span class="punto" style="background:${fam.c}"></span>
+          <span class="etq">${esc(s.n || fam.n)}</span>
+          ${r.u === 'alta' && r.p !== 'ofrezco' ? '<span class="etq etq-alta">Urgente</span>' : ''}
+          ${r.p === 'ofrezco' ? '<span class="etq etq-ofrezco">Ofrece</span>' : ''}
+          ${r.p === 'busco' ? '<span class="etq etq-busco">Busca</span>' : ''}
+          ${r.v ? '<span class="etq etq-ver">Verificado</span>' : ''}
+        </div>
+        <h3>${esc(r.ti)}</h3>
+        ${r.d ? `<p>${esc(r.d.slice(0, 140))}${r.d.length > 140 ? '…' : ''}</p>` : ''}
+        <div class="meta">${esc([r.b, r.mu].filter(Boolean).join(', ') || r.dp || 'Sin ubicación')} · ${hace(r.t)}</div>
+      </div>
+    </article>`;
+  }).join('');
+}
+
+function armarFiltros(){
+  $('#chips-grupo').innerHTML = GRUPOS.map((g) =>
+    `<button type="button" class="chip" data-k="${g.k}" aria-pressed="false">${esc(g.n)}</button>`).join('');
+  $('#chips-fam').innerHTML = Object.entries(FAM).map(([k, v]) =>
+    `<button type="button" class="chip" data-k="${k}" aria-pressed="false">
+      <span class="punto" style="background:${v.c}"></span>${esc(v.n)}</button>`).join('');
+
+  document.querySelectorAll('.chips').forEach((c) => c.addEventListener('click', (e) => {
+    const b = e.target.closest('.chip'); if (!b) return;
+    const set = c.id === 'chips-grupo' ? S.f.grupo : S.f.fam;
+    const k = b.dataset.k;
+    set.has(k) ? set.delete(k) : set.add(k);
+    b.setAttribute('aria-pressed', set.has(k));
+    pintar();
+  }));
+}
+
+/* ══════════════════════════════ carga de datos ══════════════════════════════ */
+async function cargarGeo(){
+  if (S.geo) return S.geo;
+  try {
+    const r = await fetch('geo.json');
+    S.geo = (await r.json()).d || [];
+  } catch { S.geo = []; }
+  return S.geo;
+}
+
+async function cargarBarrios(){
+  if (S.barrios) return S.barrios;
+  try { S.barrios = await (await fetch('barrios.json')).json(); }
+  catch { S.barrios = {}; }
+  return S.barrios;
+}
+
+async function cargar(){
+  try {
+    const r = await fetch(`${CONFIG.API}/snapshot.json`, {cache:'no-store'});
+    if (!r.ok) throw new Error('http ' + r.status);
+    const d = await r.json();
+    S.items = d.items || [];
+    if (d.caps) S.caps = d.caps;
+    // El formulario puede estar abierto cuando entra el refresco de 60 s.
+    if (sitSel) aplicarSituacion();
+    pintar();
+  } catch (e) {
+    console.error(e);
+    if (!S.items.length) {
+      $('#conteo').textContent = 'No pudimos cargar los reportes';
+      $('#lista').innerHTML = `<div class="vacio">Falló la conexión.
+        <br><button class="btn btn-sm" style="margin-top:.7rem" onclick="cargar()">Reintentar</button></div>`;
+    }
+  }
+}
+
+/* ══════════════════════════════ formulario ══════════════════════════════ */
+let miniMapa = null, miniPin = null, grupoSel = '', sitSel = '', fotoData = null;
+
+function abrir(id){ $(id).hidden = false; document.body.style.overflow = 'hidden'; }
+function cerrarTodo(){
+  document.querySelectorAll('.velo').forEach((v) => v.hidden = true);
+  document.body.style.overflow = '';
+}
+
+function armarForm(){
+  $('#op-grupo').innerHTML = GRUPOS.map((g) =>
+    `<button type="button" class="grupo" data-g="${g.k}" aria-pressed="false">
+      <b>${esc(g.n)}</b><span>${esc(g.d)}</span></button>`).join('');
+
+  $('#op-grupo').addEventListener('click', (e) => {
+    const b = e.target.closest('.grupo'); if (!b) return;
+    grupoSel = b.dataset.g; sitSel = '';
+    $('#op-grupo').querySelectorAll('.grupo').forEach((o) =>
+      o.setAttribute('aria-pressed', o.dataset.g === grupoSel));
+    $('#resto').hidden = true;
+    pintarSituaciones();
+  });
+
+  $('#op-sit').addEventListener('click', (e) => {
+    const b = e.target.closest('.sit'); if (!b) return;
+    sitSel = b.dataset.s;
+    $('#op-sit').querySelectorAll('.sit').forEach((o) =>
+      o.setAttribute('aria-pressed', o.dataset.s === sitSel));
+    aplicarSituacion();
+  });
+}
+
+function pintarSituaciones(){
+  const lista = Object.entries(SIT).filter(([, v]) => v.g === grupoSel);
+  $('#op-sit').innerHTML = lista.map(([k, v]) =>
+    `<button type="button" class="sit" data-s="${k}" aria-pressed="false">
+      <span class="punto" style="background:${(FAM[v.f] || FAM.otro).c}"></span>
+      ${esc(v.n)}</button>`).join('');
+}
+
+/** Ajusta el resto del formulario a la situación elegida. */
+function aplicarSituacion(){
+  const s = SIT[sitSel]; if (!s) return;
+  $('#resto').hidden = false;
+  $('#f-titulo').placeholder = s.ej || '';
+
+  // El contacto público no es una opción del usuario cuando se trata de una
+  // PERSONA: se esconde y se explica. El Worker lo vuelve a forzar del lado
+  // servidor — esto solo evita que la interfaz prometa algo distinto.
+  $('#wrap-pub').style.display = s.priv ? 'none' : '';
+  if (s.priv) $('#f-pub').checked = false;
+  $('#nota-priv').hidden = !s.priv;
+  if (s.priv) {
+    $('#nota-priv').innerHTML = s.g === 'busco'
+      ? `Aquí <strong>tu teléfono nunca se publica</strong>. Quien tenga información te
+         escribe por el mapa y a ti te llega el mensaje. Así evitamos las llamadas
+         extorsivas a familias, que es un patrón conocido después de un desastre.
+         Reporta también a Cruz Roja y Medicina Legal.`
+      : `Publica la descripción y el lugar, <strong>no fotos de la persona</strong>: quien
+         está desorientada o herida no puede dar su consentimiento. Tu contacto tampoco
+         se publica; los mensajes te llegan por el mapa.`;
+  }
+
+  const puedeFoto = !!(s.foto && S.caps.fotos);
+  $('#campo-foto').hidden = !puedeFoto;
+  if (!puedeFoto) limpiarFoto();
+  $('#campo-personas').style.display = s.sinPersonas ? 'none' : '';
+  if (s.sinPersonas) $('#f-personas').value = '';
+  $('#aviso-mask').hidden = $('#f-pub').checked;
+
+  iniciarMini();
+}
+
+/* ── foto ── */
+
+/**
+ * Reduce la imagen en el dispositivo antes de subirla.
+ *
+ * ⚠️ Esto NO es solo por peso. Una foto de celular trae EXIF con las
+ * coordenadas GPS exactas de dónde se tomó: publicarla tal cual echaría por
+ * tierra el desplazamiento de 100 m que aplicamos a la ubicación. Redibujar
+ * la imagen en un canvas y re-codificarla descarta todos los metadatos, así
+ * que el mismo paso que la aligera es el que la limpia.
+ */
+function procesarFoto(archivo){
+  return new Promise((resolve, reject) => {
+    if (!archivo.type.startsWith('image/')) return reject(new Error('no es una imagen'));
+    const lector = new FileReader();
+    lector.onerror = () => reject(new Error('no se pudo leer'));
+    lector.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('imagen dañada'));
+      img.onload = () => {
+        const escala = Math.min(1, CONFIG.FOTO_LADO_MAX / Math.max(img.width, img.height));
+        const c = document.createElement('canvas');
+        c.width = Math.round(img.width * escala);
+        c.height = Math.round(img.height * escala);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        const data = c.toDataURL('image/jpeg', CONFIG.FOTO_CALIDAD);
+        // Si el canvas quedó en blanco (algunos navegadores lo bloquean), no
+        // se sube nada en vez de mandar una imagen inservible.
+        if (!data.startsWith('data:image/jpeg')) return reject(new Error('no soportado'));
+        resolve(data);
+      };
+      img.src = lector.result;
+    };
+    lector.readAsDataURL(archivo);
+  });
+}
+
+function limpiarFoto(){
+  fotoData = null;
+  $('#f-foto').value = '';
+  $('#foto-prev').hidden = true;
+  $('#foto-est').textContent = 'Se reduce en tu teléfono antes de subirla y se le quitan los datos de ubicación.';
+}
+
+async function alElegirFoto(e){
+  const f = e.target.files && e.target.files[0];
+  if (!f) return limpiarFoto();
+  $('#foto-est').textContent = 'Preparando la imagen…';
+  try {
+    fotoData = await procesarFoto(f);
+    $('#foto-prev').src = fotoData;
+    $('#foto-prev').hidden = false;
+    const kb = Math.round(fotoData.length * 0.75 / 1024);
+    $('#foto-est').textContent = `Lista (${kb} KB). Se le quitaron los datos de ubicación.`;
+  } catch (ex) {
+    fotoData = null;
+    $('#foto-est').textContent = 'No pudimos procesar esa imagen. Puedes publicar sin foto.';
+  }
+}
+
+/* ── ubicación ── */
+function iniciarMini(){
+  if (miniMapa) { setTimeout(() => miniMapa.invalidateSize(), 60); return; }
+  miniMapa = L.map('mini', {attributionControl:false}).setView([4.6, -75.9], 6);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+    {maxZoom:19}).addTo(miniMapa);
+  miniMapa.on('click', (e) => ponerPin(e.latlng.lat, e.latlng.lng));
+  // Nace dentro de un modal oculto: sin invalidateSize mide 0 px y pinta los
+  // tiles corridos. El setTimeout espera a que asiente el layout.
+  setTimeout(() => miniMapa.invalidateSize(), 60);
+}
+
+function ponerPin(lat, lon, zoom){
+  if (!miniMapa) return;
+  if (miniPin) miniPin.setLatLng([lat, lon]);
+  else {
+    miniPin = L.marker([lat, lon], {draggable:true}).addTo(miniMapa);
+    miniPin.on('dragend', () => {
+      const p = miniPin.getLatLng();
+      $('#ubi-est').textContent = `Punto marcado: ${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}`;
+    });
+  }
+  miniMapa.setView([lat, lon], zoom || Math.max(miniMapa.getZoom(), 15));
+  $('#ubi-est').textContent = `Punto marcado: ${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+}
+
+async function armarDeptos(){
+  const geo = await cargarGeo();
+  // Los departamentos con daño reportado van primero, pero el resto del país
+  // sigue disponible: el sismo se sintió mucho más allá de esos cinco.
+  const af = geo.filter((d) => d.a), resto = geo.filter((d) => !d.a);
+  $('#f-depto').innerHTML = '<option value="">Departamento…</option>'
+    + (af.length ? `<optgroup label="Con daño reportado">${af.map((d) =>
+        `<option value="${esc(d.c)}">${esc(d.n)}</option>`).join('')}</optgroup>` : '')
+    + `<optgroup label="Resto del país">${resto.map((d) =>
+        `<option value="${esc(d.c)}">${esc(d.n)}</option>`).join('')}</optgroup>`;
+}
+
+function alCambiarDepto(){
+  const cod = $('#f-depto').value;
+  const sel = $('#f-mun');
+  const d = (S.geo || []).find((x) => x.c === cod);
+  $('#f-barrio').hidden = true;
+  if (!d) { sel.innerHTML = '<option value="">Municipio…</option>'; sel.disabled = true; return; }
+  sel.disabled = false;
+  sel.innerHTML = '<option value="">Municipio…</option>' + d.m.map((m, i) =>
+    `<option value="${i}">${esc(m[1])}</option>`).join('');
+  if (miniMapa) miniMapa.fitBounds([[d.b[0], d.b[1]], [d.b[2], d.b[3]]], {animate:false});
+}
+
+async function alCambiarMun(){
+  const d = (S.geo || []).find((x) => x.c === $('#f-depto').value);
+  const i = $('#f-mun').value;
+  if (!d || i === '') return;
+  const m = d.m[Number(i)];
+
+  if (m[2] != null) ponerPin(m[2], m[3], 13);
+  else $('#ubi-est').textContent = 'No tenemos el centro de este municipio. Marca el punto en el mapa.';
+
+  // Barrios solo donde existe la capa; en el resto se marca el punto a mano.
+  const clave = BARRIOS_DE[norm(m[1])];
+  const sel = $('#f-barrio');
+  if (!clave) { sel.hidden = true; return; }
+  const b = await cargarBarrios();
+  const ciudad = b[clave];
+  if (!ciudad || !ciudad.b.length) { sel.hidden = true; return; }
+  sel.hidden = false;
+  sel.innerHTML = '<option value="">Barrio (opcional)…</option>' + ciudad.b.map((f, j) =>
+    `<option value="${j}">${esc(f[0])}${f[1] ? ` · ${esc(f[1])}` : ''}</option>`).join('');
+  sel.dataset.clave = clave;
+}
+
+function alCambiarBarrio(){
+  const sel = $('#f-barrio');
+  if (sel.value === '' || !S.barrios) return;
+  const c = S.barrios[sel.dataset.clave];
+  if (!c) return;
+  const f = c.b[Number(sel.value)];
+  ponerPin(f[2], f[3], 16);
+}
+
+function ubicacionActual(){
+  if (!navigator.geolocation) {
+    $('#ubi-est').textContent = 'Tu navegador no permite ubicación. Marca el punto en el mapa.';
+    return;
+  }
+  $('#ubi-est').textContent = 'Buscando tu ubicación…';
+  navigator.geolocation.getCurrentPosition(
+    (p) => ponerPin(p.coords.latitude, p.coords.longitude, 16),
+    () => { $('#ubi-est').textContent = 'No pudimos obtener tu ubicación. Marca el punto en el mapa.'; },
+    {enableHighAccuracy:true, timeout:10000, maximumAge:60000});
+}
+
+/* ── envío ── */
+function guardarMio(id, token, titulo){
+  try {
+    const k = 'sismo-mis-reportes';
+    const arr = JSON.parse(localStorage.getItem(k) || '[]');
+    arr.unshift({id, token, titulo, ts:Date.now()});
+    localStorage.setItem(k, JSON.stringify(arr.slice(0, 40)));
+  } catch { /* modo privado del navegador: no es motivo para fallar el envío */ }
+}
+
+function fallo(el, msg){ el.textContent = msg; el.hidden = false; return false; }
+
+async function enviarReporte(e){
+  e.preventDefault();
+  const err = $('#form-error'); err.hidden = true;
+
+  if (!sitSel) return fallo(err, 'Elige primero qué vas a registrar.');
+  const titulo = $('#f-titulo').value.trim();
+  if (titulo.length < 5) return fallo(err, 'Escribe en una línea qué está pasando.');
+  if (!miniPin) return fallo(err, 'Falta marcar el punto en el mapa.');
+  if (!$('#f-consent').checked) return fallo(err, 'Necesitamos tu autorización para publicarlo.');
+
+  const p = miniPin.getLatLng();
+  const depSel = $('#f-depto'), munSel = $('#f-mun'), barSel = $('#f-barrio');
+  const d = (S.geo || []).find((x) => x.c === depSel.value);
+  const personas = parseInt($('#f-personas').value, 10);
+
+  const cuerpo = {
+    sit: sitSel,
+    urgencia: $('#f-urgencia').value,
+    titulo,
+    detalle: $('#f-detalle').value.trim(),
+    depto: d ? d.n : '',
+    municipio: (d && munSel.value !== '') ? d.m[Number(munSel.value)][1] : '',
+    barrio: (!barSel.hidden && barSel.value !== '' && S.barrios && S.barrios[barSel.dataset.clave])
+      ? S.barrios[barSel.dataset.clave].b[Number(barSel.value)][0] : '',
+    personas: Number.isInteger(personas) ? personas : null,
+    lat: p.lat, lon: p.lng,
+    contacto: $('#f-contacto').value.trim(),
+    contacto_pub: $('#f-pub').checked,
+    foto: (SIT[sitSel] && SIT[sitSel].foto && S.caps.fotos) ? fotoData : null,
+    web: $('#f-web').value,
+    turnstile: window.turnstile && CONFIG.TURNSTILE
+      ? (document.querySelector('#turnstile input[name="cf-turnstile-response"]') || {}).value
+      : '',
+  };
+
+  const btn = $('#f-enviar');
+  btn.disabled = true; btn.textContent = 'Publicando…';
+  try {
+    const r = await fetch(`${CONFIG.API}/reporte`, {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(cuerpo),
+    });
+    const dd = await r.json();
+    if (!r.ok || !dd.ok) throw new Error(dd.error || 'no_ok');
+
+    guardarMio(dd.id, dd.token, titulo);
+    const url = `${location.origin}${location.pathname}#/mi/${dd.id}/${dd.token}`;
+    $('#mi-enlace').textContent = url;
+    $('#btn-copiar').onclick = () => {
+      navigator.clipboard?.writeText(url);
+      $('#btn-copiar').textContent = 'Copiado ✓';
+    };
+    $('#form').hidden = true;
+    $('#exito').hidden = false;
+    cargar();
+  } catch (ex) {
+    fallo(err, ex.message === 'demasiados_reportes'
+      ? 'Ya registraste varios reportes en la última hora.'
+      : 'No pudimos publicarlo. Revisa tu conexión e intenta otra vez.');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Publicar en el mapa';
+  }
+}
+
+/* ══════════════════════════════ contacto y abuso ══════════════════════════════ */
+let contactoId = null;
+
+function abrirContacto(id){
+  const r = S.items.find((x) => x.i === id);
+  contactoId = id;
+  $('#contacto-sub').textContent = r ? r.ti : '';
+  $('#form-contacto').hidden = false;
+  $('#contacto-ok').hidden = true;
+  $('#contacto-error').hidden = true;
+  $('#c-mensaje').value = ''; $('#c-de').value = '';
+  abrir('#velo-contacto');
+}
+
+async function enviarContacto(e){
+  e.preventDefault();
+  const err = $('#contacto-error'); err.hidden = true;
+  const msg = $('#c-mensaje').value.trim();
+  if (msg.length < 10) return fallo(err, 'Escribe un poco más de detalle.');
+  try {
+    const r = await fetch(`${CONFIG.API}/contacto`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({reporte:contactoId, mensaje:msg, de:$('#c-de').value.trim(), web:$('#c-web').value}),
+    });
+    const d = await r.json();
+    if (!r.ok || !d.ok) throw new Error(d.error || 'no_ok');
+    $('#form-contacto').hidden = true;
+    $('#contacto-ok').hidden = false;
+  } catch { fallo(err, 'No pudimos enviarlo. Intenta otra vez.'); }
+}
+
+async function marcarAbuso(id){
+  if (!confirm('¿Marcar este reporte como falso o inapropiado para que lo revisemos?')) return;
+  try {
+    await fetch(`${CONFIG.API}/abuso`, {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({reporte:id}),
+    });
+    alert('Gracias. Lo vamos a revisar.');
+  } catch { /* no es una acción crítica para quien la hace */ }
+}
+
+/* ══════════════════════════════ mis reportes ══════════════════════════════ */
+function verMisReportes(){
+  let mios = [];
+  try { mios = JSON.parse(localStorage.getItem('sismo-mis-reportes') || '[]'); } catch {}
+  const cuerpo = $('#mis-cuerpo');
+  cuerpo.innerHTML = mios.length
+    ? mios.map((m) => `
+      <div style="border:1px solid var(--linea);border-radius:var(--r);margin-bottom:.6rem;padding:.8rem 1rem">
+        <h3 style="font-size:.95rem">${esc(m.titulo)}</h3>
+        <div class="meta" style="font-size:.78rem;color:var(--tenue)">${hace(m.ts)}</div>
+        <div class="pop-acc">
+          <button class="btn btn-sm" data-abrir-mio="${esc(m.id)}|${esc(m.token)}">Ver mensajes</button>
+          <button class="btn btn-sm" data-resolver="${esc(m.id)}|${esc(m.token)}">Marcar resuelto</button>
+        </div>
+      </div>`).join('')
+    : `<div class="vacio">Todavía no has publicado nada desde este dispositivo.
+       <br><br>Si guardaste tu enlace privado, ábrelo directamente.</div>`;
+  abrir('#velo-mis');
+}
+
+async function abrirMio(id, token){
+  const cuerpo = $('#mis-cuerpo');
+  cuerpo.innerHTML = '<div class="vacio">Cargando…</div>';
+  abrir('#velo-mis');
+  try {
+    const r = await fetch(`${CONFIG.API}/reporte/${encodeURIComponent(id)}?t=${encodeURIComponent(token)}`);
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.error);
+    const ms = d.mensajes || [];
+    cuerpo.innerHTML = `
+      <h3 style="margin-bottom:.3rem">${esc(d.reporte.titulo)}</h3>
+      <div style="color:var(--tenue);font-size:.82rem;margin-bottom:1rem">
+        ${esc([d.reporte.barrio, d.reporte.municipio, d.reporte.depto].filter(Boolean).join(', '))}
+        · estado: ${esc(d.reporte.estado)}
+      </div>
+      <h3 style="font-size:.95rem;margin-bottom:.5rem">Mensajes (${ms.length})</h3>
+      ${ms.length ? ms.map((m) => `
+        <div class="nota" style="margin-bottom:.6rem">
+          <div>${esc(m.mensaje)}</div>
+          ${m.de ? `<div style="margin-top:.4rem;font-weight:700">Responder a: ${esc(m.de)}</div>` : ''}
+          <div style="font-size:.75rem;margin-top:.3rem">${hace(m.ts)}</div>
+        </div>`).join('')
+        : '<div class="vacio">Nadie te ha escrito todavía.</div>'}
+      <button class="btn" style="width:100%;margin-top:.5rem"
+        data-resolver="${esc(id)}|${esc(token)}">Marcar como resuelto</button>`;
+  } catch {
+    cuerpo.innerHTML = '<div class="vacio">No pudimos abrir este reporte. Revisa el enlace.</div>';
+  }
+}
+
+async function resolver(id, token){
+  if (!confirm('¿Marcar como resuelto? Dejará de aparecer en el mapa.')) return;
+  try {
+    const r = await fetch(`${CONFIG.API}/reporte/${encodeURIComponent(id)}/estado`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({estado:'resuelto', token}),
+    });
+    if (!(await r.json()).ok) throw new Error();
+    alert('Listo, ya no aparece en el mapa.');
+    cerrarTodo(); cargar();
+  } catch { alert('No pudimos actualizarlo. Intenta otra vez.'); }
+}
+
+/* ══════════════════════════════ arranque ══════════════════════════════ */
+function rutaHash(){
+  const m = location.hash.match(/^#\/mi\/([\w-]+)\/(\w+)$/);
+  if (m) abrirMio(m[1], m[2]);
+}
+
+function abrirForm(){
+  $('#form').hidden = false;
+  $('#exito').hidden = true;
+  abrir('#velo-form');
+  if (sitSel) iniciarMini();
+}
+
+async function iniciar(){
+  armarFiltros();
+  armarForm();
+  await cargarGeo();
+  pintarZonas();
+  armarDeptos();
+  cargar();
+  setInterval(cargar, CONFIG.REFRESCO_MS);
+
+  $('#q').addEventListener('input', (e) => { S.f.q = e.target.value; pintar(); });
+  $('#zonas').addEventListener('click', (e) => {
+    const b = e.target.closest('.zona'); if (b) irAZona(b.dataset.z);
+  });
+
+  [$('#btn-reportar'), $('#fab')].forEach((b) => b.addEventListener('click', abrirForm));
+  $('#btn-mis').addEventListener('click', verMisReportes);
+  $('#btn-gps').addEventListener('click', ubicacionActual);
+  $('#f-depto').addEventListener('change', alCambiarDepto);
+  $('#f-mun').addEventListener('change', alCambiarMun);
+  $('#f-barrio').addEventListener('change', alCambiarBarrio);
+  $('#f-foto').addEventListener('change', alElegirFoto);
+  $('#f-pub').addEventListener('change', () => { $('#aviso-mask').hidden = $('#f-pub').checked; });
+  $('#form').addEventListener('submit', enviarReporte);
+  $('#form-contacto').addEventListener('submit', enviarContacto);
+
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('[data-cerrar]')) return cerrarTodo();
+    if (e.target.classList.contains('velo')) return cerrarTodo();
+
+    const c = e.target.closest('[data-contactar]');
+    if (c) return abrirContacto(c.dataset.contactar);
+    const a = e.target.closest('[data-abuso]');
+    if (a) return marcarAbuso(a.dataset.abuso);
+    const am = e.target.closest('[data-abrir-mio]');
+    if (am) { const [i, t] = am.dataset.abrirMio.split('|'); return abrirMio(i, t); }
+    const rs = e.target.closest('[data-resolver]');
+    if (rs) { const [i, t] = rs.dataset.resolver.split('|'); return resolver(i, t); }
+
+    const it = e.target.closest('.item[data-id]');
+    if (it) {
+      const m = S.capas.get(it.dataset.id);
+      if (m) { mapa.setView(m.getLatLng(), Math.max(mapa.getZoom(), 15)); m.openPopup(); }
+    }
+  });
+
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') cerrarTodo(); });
+  window.addEventListener('hashchange', rutaHash);
+  rutaHash();
+
+  if (CONFIG.TURNSTILE) {
+    const s = document.createElement('script');
+    s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
+    s.async = true; s.defer = true;
+    s.onload = () => {
+      window.turnstile?.render('#turnstile', {sitekey:CONFIG.TURNSTILE});
+      window.turnstile?.render('#turnstile-c', {sitekey:CONFIG.TURNSTILE});
+    };
+    document.head.appendChild(s);
+  }
+}
+
+iniciar();
+</script>
+</body>
+</html>

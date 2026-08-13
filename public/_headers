@@ -1,0 +1,14 @@
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(self)
+
+# A propósito NO se pone X-Frame-Options: que un medio regional pueda
+# embeber el mapa en su nota es justo lo que le da alcance. No hay sesión
+# ni cookie que robar, así que el riesgo de clickjacking es marginal.
+
+/barrios.json
+  Cache-Control: public, max-age=86400
+
+/index.html
+  Cache-Control: public, max-age=120

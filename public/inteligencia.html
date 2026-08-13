@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>De qué habla la prensa · Sismo del 10 de agosto</title>
+<meta name="description" content="Qué cubre la prensa sobre el sismo del 10 de agosto de 2026, y qué municipios no aparecen en una sola noticia. Conteo determinista sobre titulares publicados.">
+<meta name="theme-color" content="#b4321e">
+<meta property="og:title" content="De qué habla la prensa · Sismo del 10 de agosto">
+<meta property="og:description" content="Qué se cubre, qué no, y los municipios de los que nadie está hablando.">
+<style>
+:root{
+  --tinta:#16130f; --tenue:#5d574e; --papel:#f7f5f1; --tarjeta:#fff;
+  --linea:#e0dbd2; --rojo:#b4321e; --rojo-claro:#fdeceb;
+  --ambar:#b3730c; --verde:#1d7a4c; --azul:#1b5fa8; --morado:#7a2ea8;
+  --r:10px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  background:var(--papel); color:var(--tinta); font-size:16px; line-height:1.55;
+  -webkit-text-size-adjust:100%;
+}
+h1,h2,h3{margin:0; line-height:1.2; font-weight:700; letter-spacing:-.015em}
+a{color:var(--azul)}
+button{font:inherit; cursor:pointer}
+
+.top{
+  position:sticky; top:0; z-index:50; background:var(--tarjeta);
+  border-bottom:1px solid var(--linea); padding:.6rem 1rem;
+  padding-top:calc(.6rem + env(safe-area-inset-top));
+  display:flex; align-items:center; gap:1rem; flex-wrap:wrap;
+}
+.marca{display:flex; align-items:baseline; gap:.55rem; min-width:0}
+.marca strong{font-size:1.06rem}
+.marca span{font-size:.8rem; color:var(--tenue)}
+.btn{
+  border:1px solid var(--linea); background:var(--tarjeta); color:var(--tinta);
+  border-radius:var(--r); padding:.45rem .8rem; font-weight:600; font-size:.87rem;
+  text-decoration:none; display:inline-block;
+}
+.btn:hover{background:#f0ede8}
+.btn-pri{background:var(--rojo); border-color:var(--rojo); color:#fff}
+.top .der{margin-left:auto; display:flex; gap:.5rem}
+
+.env{max-width:780px; margin:0 auto; padding:0 1.15rem}
+
+/* Titular grande: el contraste deliberado con un tablero de consola. Acá
+   manda una frase, no una rejilla de cifras. */
+.hero{padding:2.6rem 0 1.6rem}
+.hero h1{font-size:clamp(1.9rem, 5.2vw, 2.9rem); margin-bottom:.7rem}
+.hero .bajada{font-size:1.06rem; color:var(--tenue); max-width:58ch}
+
+.aviso{
+  background:#fff8e6; border:1px solid #f0dfae; border-radius:var(--r);
+  padding:.85rem 1rem; font-size:.9rem; color:#6b5410; margin:1.4rem 0;
+}
+.aviso b{color:#4d3c09}
+
+.bloque{margin:2.6rem 0}
+.bloque > h2{font-size:1.32rem; margin-bottom:.3rem}
+.bloque > .sub{color:var(--tenue); font-size:.93rem; margin:0 0 1.1rem; max-width:62ch}
+
+.tarjeta{background:var(--tarjeta); border:1px solid var(--linea); border-radius:14px; padding:1.2rem}
+
+/* Hallazgo principal: una sola cifra enorme. */
+.gran{display:flex; align-items:baseline; gap:.7rem; flex-wrap:wrap}
+.gran .n{font-size:clamp(3rem, 11vw, 4.6rem); font-weight:800; letter-spacing:-.04em; line-height:1; color:var(--rojo)}
+.gran .de{font-size:1.02rem; color:var(--tenue); max-width:34ch}
+
+.ia{background:#f1f5fb; border:1px solid #d6e2f2; border-radius:14px; padding:1.1rem 1.2rem}
+.ia .etq{
+  display:inline-block; font-size:.68rem; font-weight:700; text-transform:uppercase;
+  letter-spacing:.05em; color:var(--azul); background:#e2ebf7;
+  padding:.16rem .48rem; border-radius:5px; margin-bottom:.55rem;
+}
+.ia p{margin:0; font-size:1rem}
+
+/* Barras: HTML puro, sin librería de gráficos. */
+.fila{display:grid; grid-template-columns:minmax(96px,32%) 1fr auto; gap:.7rem; align-items:center; padding:.32rem 0}
+.fila .et{font-size:.9rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.fila .et small{color:var(--tenue); font-weight:400}
+.barra{background:#efece7; border-radius:5px; height:11px; overflow:hidden}
+.barra i{display:block; height:100%; border-radius:5px; background:var(--azul)}
+.fila .v{font-size:.87rem; font-variant-numeric:tabular-nums; color:var(--tenue); min-width:3.4ch; text-align:right}
+
+.disc{display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:.7rem}
+.disc .c{border:1px solid var(--linea); border-radius:var(--r); padding:.8rem}
+.disc .c .n{font-size:1.7rem; font-weight:800; letter-spacing:-.03em; line-height:1}
+.disc .c .t{font-size:.83rem; color:var(--tenue); margin-top:.2rem}
+
+/* Curva de atención */
+.dias{display:flex; gap:.4rem; align-items:flex-end; height:130px; margin-top:.4rem}
+.dia{flex:1; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; gap:.35rem}
+.dia i{display:block; width:100%; background:var(--rojo); border-radius:4px 4px 0 0; min-height:3px}
+.dia b{font-size:.74rem; color:var(--tenue); font-weight:600}
+.dia s{font-size:.72rem; color:var(--tenue); text-decoration:none}
+
+.nubes{display:flex; flex-wrap:wrap; gap:.4rem}
+.mun-cero{
+  border:1px solid var(--linea); border-radius:999px; padding:.24rem .6rem;
+  font-size:.82rem; color:var(--tenue); background:var(--tarjeta);
+}
+
+.ej{border-top:1px solid var(--linea); padding:.6rem 0; font-size:.88rem}
+.ej a{text-decoration:none}
+.ej .m{color:var(--tenue); font-size:.8rem}
+
+details{border:1px solid var(--linea); border-radius:var(--r); background:var(--tarjeta); padding:.8rem 1rem; margin-top:.8rem}
+summary{cursor:pointer; font-weight:600; font-size:.92rem}
+details p, details ul{font-size:.88rem; color:var(--tenue)}
+details ul{padding-left:1.1rem}
+
+.pie{
+  margin-top:3rem; border-top:1px solid var(--linea); background:var(--tarjeta);
+  padding:1.3rem 1rem calc(1.6rem + env(safe-area-inset-bottom)); text-align:center;
+  font-size:.82rem; color:var(--tenue);
+}
+.cargando{padding:3rem 0; text-align:center; color:var(--tenue)}
+@media (max-width:600px){
+  .fila{grid-template-columns:minmax(84px,42%) 1fr auto}
+  .hero{padding:1.9rem 0 1.2rem}
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="marca"><strong>Mapa de ayuda</strong><span>Sismo del 10 de agosto de 2026</span></div>
+  <div class="der">
+    <a class="btn" href="index.html">← Volver al mapa</a>
+    <a class="btn btn-pri" href="index.html#registrar">Registrar</a>
+  </div>
+</header>
+
+<main class="env">
+  <div class="hero">
+    <h1>De qué habla la prensa, y de qué no</h1>
+    <p class="bajada">
+      Contamos los titulares publicados sobre el sismo para ver a qué municipios
+      llega la atención. Lo interesante casi nunca es lo que más suena.
+    </p>
+  </div>
+
+  <div class="aviso">
+    <b>Esto cuenta noticias, no necesidades.</b>
+    Que un municipio aparezca poco no significa que esté bien: puede significar que
+    nadie está mirando hacia allá. Para lo que la gente sí está pidiendo,
+    <a href="index.html">el mapa de reportes</a>.
+  </div>
+
+  <div id="cuerpo"><div class="cargando">Cargando la última lectura…</div></div>
+</main>
+
+<footer class="pie">
+  Conteo determinista sobre titulares públicos · <a href="index.html">Mapa de ayuda</a> ·
+  <a href="mailto:hola@ricardoruiz.co">hola@ricardoruiz.co</a>
+</footer>
+
+<script>
+const LOCAL = ['localhost', '127.0.0.1'].includes(location.hostname);
+const API = LOCAL ? 'http://localhost:8787' : 'https://ayuda-sismo.reruizc.workers.dev';
+
+const TEMAS = {
+  ayuda:'Ayuda y donaciones', rescate:'Rescate y escombros', personas:'Desaparecidos',
+  albergue:'Albergues', salud:'Salud y heridos', danos:'Daños y edificaciones',
+  servicios:'Servicios y vías', gestion:'Gobierno y gestión', seguridad:'Seguridad y orden',
+};
+const DISC = {
+  pide:{n:'Se pide', c:'var(--ambar)'}, promete:{n:'Se promete', c:'var(--azul)'},
+  entrega:{n:'Se entregó', c:'var(--verde)'}, reclama:{n:'Se reclama', c:'var(--rojo)'},
+  duelo:{n:'Duelo', c:'var(--morado)'},
+};
+
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g,
+  (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const num = (n) => Number(n || 0).toLocaleString('es-CO');
+
+function hace(ts){
+  const m = Math.floor((Date.now() - ts) / 60000);
+  if (m < 60) return `hace ${Math.max(m, 1)} min`;
+  const h = Math.floor(m / 60);
+  return h < 24 ? `hace ${h} h` : `hace ${Math.floor(h / 24)} d`;
+}
+
+function barras(filas, color){
+  const max = Math.max(1, ...filas.map((f) => f.v));
+  return filas.map((f) => `
+    <div class="fila">
+      <div class="et">${esc(f.n)}${f.sub ? ` <small>${esc(f.sub)}</small>` : ''}</div>
+      <div class="barra"><i style="width:${(f.v / max * 100).toFixed(1)}%;background:${color || 'var(--azul)'}"></i></div>
+      <div class="v">${num(f.v)}</div>
+    </div>`).join('');
+}
+
+function render(d){
+  const t = d.totales;
+  const pctSinIntencion = Math.round(t.sin_intencion / Math.max(1, t.notas) * 100);
+  const clasificadas = t.notas - t.sin_intencion;
+
+  const maxDia = Math.max(1, ...d.por_dia.map((x) => x.n));
+  const dias = d.por_dia.map((x) => `
+    <div class="dia">
+      <b>${num(x.n)}</b>
+      <i style="height:${(x.n / maxDia * 96).toFixed(0)}px"></i>
+      <s>${x.d === 0 ? 'día del sismo' : `+${x.d}d`}</s>
+    </div>`).join('');
+
+  const ejemplos = Object.entries(d.ejemplos || {}).slice(0, 3).map(([k, arr]) => `
+    <details>
+      <summary>${esc(TEMAS[k] || k)} · ver titulares que lo sostienen</summary>
+      ${arr.map((e) => `<div class="ej">
+        <a href="${esc(e.u)}" target="_blank" rel="noopener">${esc(e.t)}</a>
+        <div class="m">${esc(e.m)}</div></div>`).join('')}
+    </details>`).join('');
+
+  $('#cuerpo').innerHTML = `
+    ${d.lectura ? `
+    <div class="ia">
+      <span class="etq">Lectura automática</span>
+      <p>${esc(d.lectura)}</p>
+    </div>` : ''}
+
+    <section class="bloque">
+      <h2>El hallazgo</h2>
+      <p class="sub">De los ${num(t.municipios_vigilados)} municipios que vigilamos en los
+        departamentos golpeados, estos no aparecen en una sola noticia.</p>
+      <div class="tarjeta">
+        <div class="gran">
+          <span class="n">${num(d.n_sin_cobertura)}</span>
+          <span class="de">municipios sin un solo titular en esta lectura</span>
+        </div>
+        <div class="nubes" style="margin-top:1rem">
+          ${(d.sin_cobertura || []).slice(0, 40).map((m) =>
+            `<span class="mun-cero">${esc(m.n)}</span>`).join('')}
+        </div>
+      </div>
+    </section>
+
+    <section class="bloque">
+      <h2>Dónde se concentra la atención</h2>
+      <p class="sub">Titulares que nombran cada municipio. ${num(t.sin_municipio)} de las
+        ${num(t.notas)} notas no nombran ninguno y hablan del país en general.</p>
+      <div class="tarjeta">
+        ${barras((d.municipios || []).slice(0, 14).map((m) =>
+          ({n:m.n, sub:m.dep, v:m.notas})), 'var(--rojo)')}
+      </div>
+    </section>
+
+    <section class="bloque">
+      <h2>La atención con el paso de los días</h2>
+      <p class="sub">Titulares por día desde el sismo.</p>
+      <div class="tarjeta"><div class="dias">${dias}</div></div>
+    </section>
+
+    <section class="bloque">
+      <h2>Qué se dice</h2>
+      <p class="sub">
+        Solo ${num(clasificadas)} de ${num(t.notas)} titulares dicen con claridad si algo
+        se pide, se promete o se entrega. El ${pctSinIntencion}% restante no se puede
+        clasificar leyendo únicamente el titular, y no se cuenta en ninguna casilla.
+      </p>
+      <div class="tarjeta">
+        <div class="disc">
+          ${Object.entries(DISC).map(([k, v]) => `
+            <div class="c">
+              <div class="n" style="color:${v.c}">${num(d.discurso[k])}</div>
+              <div class="t">${esc(v.n)}</div>
+            </div>`).join('')}
+        </div>
+      </div>
+    </section>
+
+    <section class="bloque">
+      <h2>Sobre qué se habla</h2>
+      <p class="sub">Un titular puede tocar varios temas, así que la suma pasa del total.</p>
+      <div class="tarjeta">
+        ${barras((d.temas || []).map((x) =>
+          ({n:TEMAS[x.k] || x.k, sub:`${x.medios} medios`, v:x.n})), 'var(--verde)')}
+      </div>
+      ${ejemplos}
+    </section>
+
+    <section class="bloque">
+      <h2>Cómo se hizo</h2>
+      <p class="sub">Para que cualquiera pueda discutir el número.</p>
+      <details open>
+        <summary>Qué mide y qué no</summary>
+        <p>La unidad es el <strong>titular publicado</strong>, no el hecho. Si en un
+        municipio hay 40 titulares que piden ayuda, eso no significa que se pidieron
+        40 ayudas: significa que hubo 40 titulares. Un municipio sin periodistas se ve
+        idéntico a un municipio sin problemas, y por eso el bloque de arriba existe.</p>
+      </details>
+      <details>
+        <summary>Clasificación determinista, sin modelo de lenguaje</summary>
+        <p>Cada titular se clasifica con diccionarios de palabras y reglas fijas. No
+        interviene ningún modelo en el conteo, así que el resultado es reproducible y
+        auditable. El único texto generado por IA es el párrafo azul del comienzo, que
+        va marcado como tal y no produce ninguna cifra.</p>
+      </details>
+      <details>
+        <summary>Municipios que no se pueden contar por nombre</summary>
+        <p>${num(d.metodo.municipios_excluidos)} municipios quedan fuera de la detección
+        porque su nombre casa con países, estados de Estados Unidos, departamentos o
+        palabras comunes, y contarlos inflaría el resultado con noticias ajenas:</p>
+        <ul>${(d.metodo.excluidos_ejemplo || []).map((e) => `<li>${esc(e)}</li>`).join('')}</ul>
+      </details>
+      <details>
+        <summary>Fuente y frecuencia</summary>
+        <p>${esc(d.metodo.fuente)}, con ${num(d.metodo.consultas)} consultas por tema y
+        municipio. Se recolecta cada 3 horas. Esta lectura reunió ${num(t.notas)}
+        titulares de ${num(t.medios)} medios distintos
+        (${num(d.medios_alcance.regional)} regionales).
+        De la zona afectada, ${num(d.afectados_con_lectura)} municipios tienen al menos
+        una nota. También se vigilan Bogotá, Medellín, Barranquilla, Cartagena,
+        Bucaramanga, Neiva y Pasto para poder detectarlas en un titular, pero no
+        cuentan como zona golpeada.</p>
+      </details>
+    </section>
+
+    <p style="color:var(--tenue);font-size:.82rem;text-align:center;margin:2rem 0">
+      Última lectura ${hace(d.generado)}.
+    </p>`;
+}
+
+async function cargar(){
+  try {
+    const r = await fetch(`${API}/inteligencia.json`);
+    const d = await r.json();
+    if (!d || d.vacio) {
+      $('#cuerpo').innerHTML = `<div class="cargando">
+        Todavía no hay una lectura publicada.<br>La primera corrida entra en las próximas horas.</div>`;
+      return;
+    }
+    render(d);
+  } catch (e) {
+    console.error(e);
+    $('#cuerpo').innerHTML = `<div class="cargando">No pudimos cargar la lectura.
+      <br><button class="btn" style="margin-top:.8rem" onclick="cargar()">Reintentar</button></div>`;
+  }
+}
+cargar();
+</script>
+</body>
+</html>

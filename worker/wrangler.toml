@@ -1,0 +1,48 @@
+name = "ayuda-sismo"
+main = "src/index.js"
+compatibility_date = "2026-08-01"
+
+# Pulso de prensa: se recolecta cada 3 horas, no por visita. Así el visitante
+# nunca paga la latencia de 17 consultas a Google News ni de la lectura del
+# modelo, y el gasto no crece con el tráfico.
+[triggers]
+crons = ["17 */3 * * *"]
+
+# La base de datos se crea con:
+#   npx wrangler d1 create ayuda-sismo
+# y el id que imprime ese comando va acá abajo.
+[[d1_databases]]
+binding = "DB"
+database_name = "ayuda-sismo"
+database_id = "e7a0d228-d793-4728-94b4-da2c79d45f35"
+
+# Fotos de mascotas y de personas buscadas · DESACTIVADO al 13-ago-2026.
+#
+# R2 todavía no está habilitado en la cuenta (la API responde 10042 "Please
+# enable R2 through the Cloudflare Dashboard") y eso hay que activarlo a mano
+# en el panel. Con el binding declarado y el bucket inexistente, el deploy
+# falla entero, así que se comenta para poder publicar el mapa.
+#
+# Para activarlo: habilitar R2 en el panel de Cloudflare, luego
+#   npx wrangler r2 bucket create ayuda-sismo-fotos
+# y descomentar estas tres líneas + volver a desplegar. El Worker publica la
+# capacidad en /snapshot.json y el formulario vuelve a mostrar el campo solo.
+# [[r2_buckets]]
+# binding = "FOTOS"
+# bucket_name = "ayuda-sismo-fotos"
+
+[vars]
+# A dónde apunta el enlace privado que recibe el reportante por correo.
+SITIO = "https://sismo.ricardoruiz.co"
+# La propia URL del Worker. Se usa solo para purgar el snapshot del edge
+# cuando moderación oculta algo; si se deja vacío, el cambio entra al minuto.
+API_BASE = "https://ayuda-sismo.reruizc.workers.dev"
+RESEND_FROM = "Mapa de ayuda <hola@ricardoruiz.co>"
+
+# Secretos (NO van acá — se cargan con `wrangler secret put`):
+#   ADMIN_TOKEN        obligatorio para las rutas /admin/*
+#   IP_SALT            sal del hash de IP (cualquier cadena larga y aleatoria)
+#   TURNSTILE_SECRET   anti-bot; sin él se reciben reportes igual, marcados
+#                      `sin_captcha` para revisión
+#   RESEND_API_KEY     opcional; sin él, el aviso al reportante es solo el
+#                      enlace privado que ve al enviar
