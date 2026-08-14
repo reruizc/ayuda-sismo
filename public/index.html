@@ -578,13 +578,45 @@ function pintarPrensa(){
  * confirmado en terreno, y mandar a alguien con un mercado a una dirección
  * equivocada cuesta gasolina y tiempo que no sobran.
  */
+/**
+ * Separa los puntos que caen exactamente en la misma coordenada.
+ *
+ * Sin esto, los 10 acopios de Bogotá que no tienen coordenada propia quedan
+ * apilados en el mismo pixel del centro del municipio: se ve UN punto y los
+ * otros nueve son inalcanzables. Se abren en un círculo pequeño alrededor,
+ * en orden fijo (no aleatorio) para que no bailen entre recargas.
+ *
+ * Es un arreglo VISUAL, no de precisión: la ficha sigue diciendo que la
+ * ubicación es aproximada al municipio.
+ */
+function separarApilados(items){
+  const grupos = new Map();
+  for (const a of items) {
+    if (a.la == null) continue;
+    const k = `${a.la.toFixed(4)},${a.lo.toFixed(4)}`;
+    if (!grupos.has(k)) grupos.set(k, []);
+    grupos.get(k).push(a);
+  }
+  for (const lista of grupos.values()) {
+    if (lista.length < 2) { lista[0]._la = lista[0].la; lista[0]._lo = lista[0].lo; continue; }
+    // Radio que crece con la cantidad, para que 20 puntos no se vuelvan a tocar.
+    const r = 350 + lista.length * 45;
+    lista.forEach((a, i) => {
+      const ang = (2 * Math.PI * i) / lista.length;
+      a._la = a.la + (r * Math.cos(ang)) / 111320;
+      a._lo = a.lo + (r * Math.sin(ang)) / (111320 * Math.cos(a.la * Math.PI / 180));
+    });
+  }
+}
+
 function pintarAcopios(){
   capaAcopios.clearLayers();
   if (!S.verAcopios || !S.acopios) { mapa.removeLayer(capaAcopios); return; }
 
+  separarApilados(S.acopios);
   S.acopios.forEach((a) => {
     if (a.la == null) return;
-    const m = L.circleMarker([a.la, a.lo], {
+    const m = L.circleMarker([a._la ?? a.la, a._lo ?? a.lo], {
       radius: 8, color:'#fff', weight:2,
       fillColor:'#1d7a4c', fillOpacity:.92,
     });
@@ -594,6 +626,18 @@ function pintarAcopios(){
       ? `<span class="revok">revisado ${esc(a.rev)}</span>`
       : '<span class="sinrev">sin revisar</span>';
     const tel = (a.tel || '').replace(/[^\d+]/g, '');
+
+    /* "Cómo llegar" delega la geocodificación al mapa del propio teléfono, que
+       es el único que resuelve bien una dirección colombiana.
+       ⚠️ Medido: Nominatim no interpreta el número. Pedirle Carrera 15 #12-05,
+       #82-81 y #180-20 en Bogotá devuelve las latitudes 4.6227, 4.7065 y
+       4.5630 — o sea la #180 al SUR de la #12, cuando las calles suben hacia el
+       norte. Errores de 5 a 19 km con pinta de precisión. Por eso no se
+       geocodifica acá: se manda la dirección literal a quien sí sabe leerla. */
+    const ruta = a.d
+      ? `https://www.google.com/maps/search/?api=1&query=${
+          encodeURIComponent([a.d, a.mu, a.dp, 'Colombia'].filter(Boolean).join(', '))}`
+      : '';
 
     m.bindPopup(`
       <h3>${esc(a.n)}${badge}</h3>
@@ -605,7 +649,10 @@ function pintarAcopios(){
       ${a.vol ? '<p style="margin:.25rem 0;color:#1d7a4c;font-weight:600">Necesita voluntarios</p>' : ''}
       ${a.c ? `<p style="margin:.25rem 0">${esc(a.c)}</p>` : ''}
       ${tel ? `<p style="margin:.25rem 0"><a href="tel:${esc(tel)}">${esc(a.tel)}</a></p>` : ''}
-      ${a.ap ? '<div style="font-size:.72rem;color:#8a8378;margin-top:.4rem">Sin dirección exacta: el punto está en el centro del municipio</div>' : ''}
+      ${ruta ? `<p style="margin:.5rem 0 .1rem"><a href="${esc(ruta)}" target="_blank" rel="noopener"
+        style="font-weight:600">Cómo llegar →</a></p>` : ''}
+      ${a.ap ? `<div style="font-size:.72rem;color:#8a8378;margin-top:.4rem">
+        El punto está en el centro del municipio. Guíate por la dirección${ruta ? ', no por el pin' : ''}.</div>` : ''}
     `, {maxWidth:280});
     m.addTo(capaAcopios);
   });
