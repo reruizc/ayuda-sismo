@@ -1131,6 +1131,7 @@ async function enviarReporte(e){
     contacto_pub: $('#f-pub').checked,
     foto: (SIT[sitSel] && SIT[sitSel].foto && S.caps.fotos) ? fotoData : null,
     web: $('#f-web').value,
+    dt: formAbiertoEn ? Date.now() - formAbiertoEn : null,
     turnstile: window.turnstile && CONFIG.TURNSTILE
       ? (document.querySelector('#turnstile input[name="cf-turnstile-response"]') || {}).value
       : '',
@@ -1274,7 +1275,10 @@ function rutaHash(){
   if (m) abrirMio(m[1], m[2]);
 }
 
+let formAbiertoEn = 0;
+
 function abrirForm(){
+  formAbiertoEn = Date.now();
   $('#form').hidden = false;
   $('#exito').hidden = true;
   abrir('#velo-form');

@@ -275,6 +275,16 @@ async function crearReporte(req, env, origin, ip) {
   // Honeypot: campo invisible que solo llenan los bots.
   if (limpiar(b.web, 40)) return json({ ok: true, id: 'ok' }, 200, origin);
 
+  /* Tiempo de diligenciamiento. Una persona no llena título, ubicación y
+     consentimiento en menos de cinco segundos; un bot sí.
+     ⚠️ Esto NO reemplaza a Turnstile: frena al bot ingenuo, no a quien se tome
+     el trabajo de falsear el campo. Es defensa en profundidad mientras el
+     captcha no esté configurado. Se responde `ok` como con el honeypot, para
+     no enseñarle al atacante cuál fue la regla que lo atajó. */
+  const dt = Number(b.dt);
+  const sospechoso = !Number.isFinite(dt) || dt < 5000;
+  if (Number.isFinite(dt) && dt < 5000) return json({ ok: true, id: 'ok' }, 200, origin);
+
   const sit = SITUACIONES[b.sit] ? b.sit : null;
   if (!sit) return json({ error: 'situacion_invalida' }, 400, origin);
   const def = SITUACIONES[sit];
@@ -333,7 +343,7 @@ async function crearReporte(req, env, origin, ip) {
   `).bind(id, ahora, ahora, sit, def.tipo, def.cat, urgencia, titulo, detalle,
     depto, municipio, barrio, personas, fotoClave, lat, lon, plat, plon,
     contacto || null, contacto ? contactoTipo : null, contactoPub, token,
-    ipHash, captcha.verificado ? 0 : 1).run();
+    ipHash, (captcha.verificado && !sospechoso) ? 0 : 1).run();
 
   return json({ ok: true, id, token }, 200, origin);
 }
