@@ -90,9 +90,9 @@ const REGIONALES = new Set(['lapatria', 'eldiario', 'latarde', 'elpaiscomco', 'o
 // correr 118 expresiones regulares por título revienta el CPU del Worker.
 const MUN_1 = new Map();
 const MUN_N = [];
-for (const [clave, nombre, dep] of MUNICIPIOS) {
-  if (clave.includes(' ')) MUN_N.push([clave, nombre, dep]);
-  else MUN_1.set(clave, [nombre, dep]);
+for (const [clave, nombre, dep, , la, lo] of MUNICIPIOS) {
+  if (clave.includes(' ')) MUN_N.push([clave, nombre, dep, la, lo]);
+  else MUN_1.set(clave, [nombre, dep, la, lo]);
 }
 MUN_N.sort((a, b) => b[0].length - a[0].length);   // el más largo gana
 
@@ -165,8 +165,8 @@ async function traer(q) {
 /* ─────────────────────────── clasificación ─────────────────────────── */
 
 function detectarMunicipio(norm, palabras) {
-  for (const [clave, nombre, dep] of MUN_N) {
-    if (norm.includes(clave)) return [nombre, dep];
+  for (const [clave, nombre, dep, la, lo] of MUN_N) {
+    if (norm.includes(clave)) return [nombre, dep, la, lo];
   }
   for (const w of palabras) {
     const hit = MUN_1.get(w);
@@ -230,13 +230,23 @@ export function agregar(notas) {
       }
     }
     if (n.mun) {
-      const [nombre, dep] = n.mun;
+      const [nombre, dep, la, lo] = n.mun;
       if (!porMun.has(nombre)) {
-        porMun.set(nombre, { n: nombre, dep, notas: 0, pide: 0, promete: 0, entrega: 0, reclama: 0 });
+        porMun.set(nombre, {
+          n: nombre, dep, la, lo,
+          notas: 0, pide: 0, promete: 0, entrega: 0, reclama: 0,
+          // Titulares de muestra para que el mapa pueda enseñarlos al pasar el
+          // mouse. Se guardan pocos a propósito: el snapshot lo baja cada
+          // visitante y no es un archivo de prensa, es una muestra.
+          tit: [],
+        });
       }
       const e = porMun.get(nombre);
       e.notas++;
       for (const d of n.disc) if (e[d] !== undefined) e[d]++;
+      if (e.tit.length < 6 && n.url) {
+        e.tit.push({ t: n.titulo, m: n.medio, u: n.url, ts: n.ts });
+      }
     }
     if (n.dia != null && n.dia >= 0 && n.dia < 60) {
       porDia.set(n.dia, (porDia.get(n.dia) || 0) + 1);

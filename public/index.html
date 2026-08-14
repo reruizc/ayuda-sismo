@@ -70,6 +70,16 @@ a{color:var(--azul)}
   padding:.3rem .7rem; font-size:.82rem; font-weight:600; color:var(--tinta); flex:none;
 }
 .zona[aria-pressed="true"]{background:var(--tinta); border-color:var(--tinta); color:#fff}
+.zona-sep{width:1px; height:20px; background:var(--linea); flex:none; margin:0 .25rem}
+/* La capa de prensa se distingue del resto del filtro: no filtra reportes,
+   enciende otra fuente de información. */
+.zona.prensa[aria-pressed="true"]{background:#1b5fa8; border-color:#1b5fa8; color:#fff}
+.prensa-tip{max-width:290px}
+.prensa-tip b{display:block; font-size:.9rem; margin-bottom:.15rem}
+.prensa-tip .n{color:var(--tenue); font-size:.78rem; margin-bottom:.4rem}
+.prensa-tip ul{margin:0; padding-left:1rem; font-size:.82rem}
+.prensa-tip li{margin-bottom:.25rem}
+.prensa-tip .aprox{color:var(--tenue); font-size:.72rem; margin-top:.45rem; display:block}
 
 .cuerpo{display:grid; grid-template-columns:minmax(0,1fr) 390px; height:calc(100dvh - 150px)}
 @supports not (height:100dvh){.cuerpo{height:calc(100vh - 150px)}}
@@ -479,6 +489,7 @@ const S = {
   // Arranca en false a propósito: si el snapshot no responde, se prefiere no
   // ofrecer la foto antes que ofrecerla y perderla.
   caps: {fotos:false},
+  prensa: null, verPrensa: false,
 };
 
 const $ = (s) => document.querySelector(s);
@@ -501,10 +512,61 @@ const urlFoto = (k) => `${CONFIG.API}/${k}`;
 
 /* ══════════════════════════════ mapa ══════════════════════════════ */
 const mapa = L.map('mapa', {preferCanvas:true}).setView([4.6, -75.9], 7);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+// Base clara (Positron) en vez de Voyager: sigue siendo OpenStreetMap, pero
+// casi sin color propio. Voyager pinta verdes, ocres y azules que compiten con
+// los puntos y hacen difícil distinguir un marcador rojo de una vía naranja.
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
   attribution:'&copy; OpenStreetMap &copy; CARTO', maxZoom:19,
 }).addTo(mapa);
 const capaPuntos = L.layerGroup().addTo(mapa);
+// Capa aparte y por debajo: la prensa es contexto, los reportes son el dato.
+const capaPrensa = L.layerGroup();
+
+/**
+ * Noticias sobre el mapa.
+ *
+ * ⚠️ Un titular no trae coordenada: lo único que sabemos es de qué municipio
+ * habla. Por eso NO se dibuja un punto por noticia —serían decenas apiladas en
+ * el mismo píxel, fingiendo una precisión que no existe— sino UN círculo por
+ * municipio, de tamaño proporcional a cuántas notas lo mencionan, y el globo
+ * dice explícito que la ubicación es el centro del municipio.
+ */
+function pintarPrensa(){
+  capaPrensa.clearLayers();
+  if (!S.verPrensa || !S.prensa) { mapa.removeLayer(capaPrensa); return; }
+
+  const max = Math.max(1, ...S.prensa.map((m) => m.notas));
+  S.prensa.forEach((m) => {
+    if (m.la == null || m.lo == null) return;
+    const r = 7 + Math.sqrt(m.notas / max) * 17;
+    const c = L.circleMarker([m.la, m.lo], {
+      radius: r, color:'#1b5fa8', weight:1.6, opacity:.75,
+      fillColor:'#1b5fa8', fillOpacity:.12,
+    });
+    const tits = (m.tit || []).slice(0, 4);
+    c.bindTooltip(`<div class="prensa-tip">
+        <b>${esc(m.n)}</b>
+        <span class="n">${m.notas} titular${m.notas === 1 ? '' : 'es'} · ${esc(m.dep)}</span>
+        ${tits.length ? `<ul>${tits.map((t) =>
+          `<li>${esc(t.t.slice(0, 95))}${t.t.length > 95 ? '…' : ''}</li>`).join('')}</ul>` : ''}
+        <span class="aprox">Ubicación aproximada al centro del municipio</span>
+      </div>`, {sticky:true, direction:'top'});
+    c.on('click', () => location.href = 'inteligencia.html');
+    c.addTo(capaPrensa);
+  });
+  capaPrensa.addTo(mapa);
+  capaPrensa.eachLayer((l) => l.bringToBack && l.bringToBack());
+}
+
+async function cargarPrensa(){
+  if (S.prensa) return S.prensa;
+  try {
+    const r = await fetch(`${CONFIG.API}/inteligencia.json`);
+    const d = await r.json();
+    S.prensa = (d && !d.vacio && d.municipios) ? d.municipios.filter((m) => m.la != null) : [];
+  } catch { S.prensa = []; }
+  return S.prensa;
+}
 
 function dibujarMapa(items){
   capaPuntos.clearLayers();
@@ -552,11 +614,15 @@ function popupHTML(r){
 /* ══════════════════════════════ zonas (drill del mapa) ══════════════════════════════ */
 function pintarZonas(){
   const afect = (S.geo || []).filter((d) => d.a);
+  const nP = S.prensa ? S.prensa.length : 0;
   $('#zonas').innerHTML =
     `<span class="rot">Ir a:</span>
      <button class="zona" data-z="" aria-pressed="${!S.zona}">Todo el país</button>` +
     afect.map((d) => `<button class="zona" data-z="${esc(d.c)}"
-       aria-pressed="${S.zona === d.c}">${esc(d.n)}</button>`).join('');
+       aria-pressed="${S.zona === d.c}">${esc(d.n)}</button>`).join('') +
+    `<span class="zona-sep"></span>
+     <button class="zona prensa" id="tgl-prensa" aria-pressed="${S.verPrensa}">
+       Noticias${nP ? ` (${nP})` : ''}</button>`;
 }
 
 /** Enfoca un departamento y filtra la lista a él. '' vuelve a nacional. */
@@ -819,7 +885,7 @@ async function alElegirFoto(e){
 function iniciarMini(){
   if (miniMapa) { setTimeout(() => miniMapa.invalidateSize(), 60); return; }
   miniMapa = L.map('mini', {attributionControl:false}).setView([4.6, -75.9], 6);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
     {maxZoom:19}).addTo(miniMapa);
   miniMapa.on('click', (e) => ponerPin(e.latlng.lat, e.latlng.lng));
   // Nace dentro de un modal oculto: sin invalidateSize mide 0 px y pinta los
@@ -1110,8 +1176,17 @@ async function iniciar(){
   setInterval(cargar, CONFIG.REFRESCO_MS);
 
   $('#q').addEventListener('input', (e) => { S.f.q = e.target.value; pintar(); });
-  $('#zonas').addEventListener('click', (e) => {
-    const b = e.target.closest('.zona'); if (b) irAZona(b.dataset.z);
+  $('#zonas').addEventListener('click', async (e) => {
+    const p = e.target.closest('#tgl-prensa');
+    if (p) {
+      S.verPrensa = !S.verPrensa;
+      if (S.verPrensa) { p.textContent = 'Cargando…'; await cargarPrensa(); }
+      pintarZonas();
+      pintarPrensa();
+      return;
+    }
+    const b = e.target.closest('.zona');
+    if (b) irAZona(b.dataset.z);
   });
 
   [$('#btn-reportar'), $('#fab')].forEach((b) => b.addEventListener('click', abrirForm));
