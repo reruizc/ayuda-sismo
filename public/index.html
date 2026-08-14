@@ -75,6 +75,11 @@ a{color:var(--azul)}
    enciende otra fuente de información. */
 .zona.prensa[aria-pressed="true"]{background:#1b5fa8; border-color:#1b5fa8; color:#fff}
 .zona.acopio[aria-pressed="true"]{background:var(--verde); border-color:var(--verde); color:#fff}
+.revok{
+  display:inline-block; font-size:.66rem; font-weight:700; text-transform:uppercase;
+  letter-spacing:.04em; background:#e7f4ed; color:#1d7a4c; border:1px solid #bfe3d0;
+  padding:.1rem .38rem; border-radius:4px; margin-left:.35rem;
+}
 .sinrev{
   display:inline-block; font-size:.66rem; font-weight:700; text-transform:uppercase;
   letter-spacing:.04em; background:#fff3d6; color:#8a6410; border:1px solid #f0dfae;
@@ -583,15 +588,23 @@ function pintarAcopios(){
       radius: 8, color:'#fff', weight:2,
       fillColor:'#1d7a4c', fillOpacity:.92,
     });
+    // El badge distingue lo confirmado de lo que solo salió en prensa: es la
+    // razón de ser de la columna ULTIMA REVISION.
+    const badge = a.rev
+      ? `<span class="revok">revisado ${esc(a.rev)}</span>`
+      : '<span class="sinrev">sin revisar</span>';
+    const tel = (a.tel || '').replace(/[^\d+]/g, '');
+
     m.bindPopup(`
-      <h3>${esc(a.n)}<span class="sinrev">sin revisar</span></h3>
+      <h3>${esc(a.n)}${badge}</h3>
       <div style="font-size:.8rem;color:#5d574e;margin-bottom:.3rem">
-        ${esc([a.mu, a.dp].filter(Boolean).join(', '))}</div>
+        ${esc([a.mu, a.dp].filter(Boolean).join(', '))}${a.tipo ? ` · ${esc(a.tipo)}` : ''}</div>
       ${a.d ? `<p style="margin:.25rem 0"><strong>${esc(a.d)}</strong></p>` : ''}
       ${a.ne ? `<p style="margin:.25rem 0">Recibe: ${esc(a.ne)}</p>` : ''}
       ${a.h ? `<p style="margin:.25rem 0">Horario: ${esc(a.h)}${a.di ? ` · ${esc(a.di)}` : ''}</p>` : ''}
       ${a.vol ? '<p style="margin:.25rem 0;color:#1d7a4c;font-weight:600">Necesita voluntarios</p>' : ''}
       ${a.c ? `<p style="margin:.25rem 0">${esc(a.c)}</p>` : ''}
+      ${tel ? `<p style="margin:.25rem 0"><a href="tel:${esc(tel)}">${esc(a.tel)}</a></p>` : ''}
       ${a.ap ? '<div style="font-size:.72rem;color:#8a8378;margin-top:.4rem">Sin dirección exacta: el punto está en el centro del municipio</div>' : ''}
     `, {maxWidth:280});
     m.addTo(capaAcopios);

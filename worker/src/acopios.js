@@ -51,7 +51,18 @@ function parsearCSV(txt) {
   return filas;
 }
 
-const LIMPIO = (v) => String(v ?? '').replace(/\s+/g, ' ').trim();
+/**
+ * ⚠️ "SIN DATO" es el marcador de ausencia de la hoja, no un valor.
+ *
+ * Sin esto, una ficha diría "Horario: SIN DATO a SIN DATO" y "Contacto: SIN
+ * DATO", que es peor que no decir nada: parece un error de la página y ensucia
+ * justo la información por la que alguien la abre.
+ */
+const AUSENTE = /^(sin dato|sin datos|n\/?a|nd|-|--|n\/d|pendiente)$/i;
+const LIMPIO = (v) => {
+  const s = String(v ?? '').replace(/\s+/g, ' ').trim();
+  return AUSENTE.test(s) ? '' : s;
+};
 
 /** Normaliza el encabezado para no depender de tildes ni mayúsculas. */
 function indices(cab) {
@@ -72,6 +83,11 @@ function indices(cab) {
     dias:     buscar('todos los dias o lv', 'dias'),
     voluntarios: buscar('requiere voluntarios', 'voluntarios'),
     contacto: buscar('contacto'),
+    telefono: buscar('telefono', 'telefono de contacto', 'tel'),
+    // "cuándo se confirmó que sigue abierto". Es la columna que separa un
+    // acopio vivo de uno que cerró hace tres días y nadie ha ido a mirar.
+    revision: buscar('ultima revision', 'ultima revisión', 'revisado'),
+    tipo:     buscar('tipo de lugar', 'tipo'),
     // Opcionales: si algún día se agregan a la hoja, mandan sobre el centro
     // del municipio y el punto deja de ser aproximado.
     lat:      buscar('lat', 'latitud'),
@@ -123,6 +139,9 @@ export function normalizarFilas(filas) {
       di: g(f, ix.dias),
       vol: /^(s[ií]|x|1|true)$/i.test(g(f, ix.voluntarios)),
       c: g(f, ix.contacto),
+      tel: g(f, ix.telefono),
+      rev: g(f, ix.revision),
+      tipo: g(f, ix.tipo),
       la, lo,
       ap: aprox ? 1 : 0,     // ubicación al centro del municipio, no exacta
     });
