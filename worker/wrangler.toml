@@ -37,6 +37,9 @@ SITIO = "https://sismo.ricardoruiz.co"
 # La propia URL del Worker. Se usa solo para purgar el snapshot del edge
 # cuando moderación oculta algo; si se deja vacío, el cambio entra al minuto.
 API_BASE = "https://ayuda-sismo.reruizc.workers.dev"
+# Hoja de centros de acopio publicada como CSV. Se puede cambiar sin tocar
+# código: es lo que permite que otra organización use su propia hoja.
+ACOPIOS_CSV = "https://docs.google.com/spreadsheets/d/1dj1fNYuwGMW0zLit4I6w_5abJGxuGVZttwA1QMbvQts/export?format=csv"
 RESEND_FROM = "Mapa de ayuda <hola@ricardoruiz.co>"
 
 # Secretos (NO van acá — se cargan con `wrangler secret put`):

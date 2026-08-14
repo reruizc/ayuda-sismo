@@ -85,3 +85,12 @@ CREATE TABLE IF NOT EXISTS abuso_log (
   ts         INTEGER NOT NULL,
   PRIMARY KEY (reporte_id, ip_hash)
 );
+
+-- Copias de fuentes externas que se editan por fuera (hoja de acopios).
+-- Se guarda la última copia BUENA: si una edición deja la hoja vacía o rota,
+-- el mapa sigue mostrando lo último válido en vez de quedarse sin acopios.
+CREATE TABLE IF NOT EXISTS externos (
+  id    TEXT PRIMARY KEY,
+  ts    INTEGER NOT NULL,
+  datos TEXT NOT NULL
+);

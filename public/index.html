@@ -74,6 +74,12 @@ a{color:var(--azul)}
 /* La capa de prensa se distingue del resto del filtro: no filtra reportes,
    enciende otra fuente de información. */
 .zona.prensa[aria-pressed="true"]{background:#1b5fa8; border-color:#1b5fa8; color:#fff}
+.zona.acopio[aria-pressed="true"]{background:var(--verde); border-color:var(--verde); color:#fff}
+.sinrev{
+  display:inline-block; font-size:.66rem; font-weight:700; text-transform:uppercase;
+  letter-spacing:.04em; background:#fff3d6; color:#8a6410; border:1px solid #f0dfae;
+  padding:.1rem .38rem; border-radius:4px; margin-left:.35rem;
+}
 .prensa-tip{max-width:290px}
 .prensa-tip b{display:block; font-size:.9rem; margin-bottom:.15rem}
 .prensa-tip .n{color:var(--tenue); font-size:.78rem; margin-bottom:.4rem}
@@ -490,6 +496,7 @@ const S = {
   // ofrecer la foto antes que ofrecerla y perderla.
   caps: {fotos:false},
   prensa: null, verPrensa: false,
+  acopios: null, verAcopios: false,
 };
 
 const $ = (s) => document.querySelector(s);
@@ -521,6 +528,7 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
 const capaPuntos = L.layerGroup().addTo(mapa);
 // Capa aparte y por debajo: la prensa es contexto, los reportes son el dato.
 const capaPrensa = L.layerGroup();
+const capaAcopios = L.layerGroup();
 
 /**
  * Noticias sobre el mapa.
@@ -556,6 +564,49 @@ function pintarPrensa(){
   });
   capaPrensa.addTo(mapa);
   capaPrensa.eachLayer((l) => l.bringToBack && l.bringToBack());
+}
+
+/**
+ * Centros de acopio, desde la hoja que se edita en vivo.
+ *
+ * ⚠️ Salen SIN REVISAR y la ficha lo dice en cada punto. Nadie los ha
+ * confirmado en terreno, y mandar a alguien con un mercado a una dirección
+ * equivocada cuesta gasolina y tiempo que no sobran.
+ */
+function pintarAcopios(){
+  capaAcopios.clearLayers();
+  if (!S.verAcopios || !S.acopios) { mapa.removeLayer(capaAcopios); return; }
+
+  S.acopios.forEach((a) => {
+    if (a.la == null) return;
+    const m = L.circleMarker([a.la, a.lo], {
+      radius: 8, color:'#fff', weight:2,
+      fillColor:'#1d7a4c', fillOpacity:.92,
+    });
+    m.bindPopup(`
+      <h3>${esc(a.n)}<span class="sinrev">sin revisar</span></h3>
+      <div style="font-size:.8rem;color:#5d574e;margin-bottom:.3rem">
+        ${esc([a.mu, a.dp].filter(Boolean).join(', '))}</div>
+      ${a.d ? `<p style="margin:.25rem 0"><strong>${esc(a.d)}</strong></p>` : ''}
+      ${a.ne ? `<p style="margin:.25rem 0">Recibe: ${esc(a.ne)}</p>` : ''}
+      ${a.h ? `<p style="margin:.25rem 0">Horario: ${esc(a.h)}${a.di ? ` · ${esc(a.di)}` : ''}</p>` : ''}
+      ${a.vol ? '<p style="margin:.25rem 0;color:#1d7a4c;font-weight:600">Necesita voluntarios</p>' : ''}
+      ${a.c ? `<p style="margin:.25rem 0">${esc(a.c)}</p>` : ''}
+      ${a.ap ? '<div style="font-size:.72rem;color:#8a8378;margin-top:.4rem">Sin dirección exacta: el punto está en el centro del municipio</div>' : ''}
+    `, {maxWidth:280});
+    m.addTo(capaAcopios);
+  });
+  capaAcopios.addTo(mapa);
+}
+
+async function cargarAcopios(){
+  if (S.acopios) return S.acopios;
+  try {
+    const r = await fetch(`${CONFIG.API}/acopios.json`);
+    const d = await r.json();
+    S.acopios = (d && d.items) ? d.items.filter((a) => a.la != null) : [];
+  } catch { S.acopios = []; }
+  return S.acopios;
 }
 
 async function cargarPrensa(){
@@ -621,6 +672,8 @@ function pintarZonas(){
     afect.map((d) => `<button class="zona" data-z="${esc(d.c)}"
        aria-pressed="${S.zona === d.c}">${esc(d.n)}</button>`).join('') +
     `<span class="zona-sep"></span>
+     <button class="zona acopio" id="tgl-acopios" aria-pressed="${S.verAcopios}">
+       Acopios${S.acopios ? ` (${S.acopios.length})` : ''}</button>
      <button class="zona prensa" id="tgl-prensa" aria-pressed="${S.verPrensa}">
        Noticias${nP ? ` (${nP})` : ''}</button>`;
 }
@@ -1177,6 +1230,14 @@ async function iniciar(){
 
   $('#q').addEventListener('input', (e) => { S.f.q = e.target.value; pintar(); });
   $('#zonas').addEventListener('click', async (e) => {
+    const ac = e.target.closest('#tgl-acopios');
+    if (ac) {
+      S.verAcopios = !S.verAcopios;
+      if (S.verAcopios) { ac.textContent = 'Cargando…'; await cargarAcopios(); }
+      pintarZonas();
+      pintarAcopios();
+      return;
+    }
     const p = e.target.closest('#tgl-prensa');
     if (p) {
       S.verPrensa = !S.verPrensa;

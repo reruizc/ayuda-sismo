@@ -20,6 +20,7 @@
  *   GET  /salud                   ping
  */
 import { recolectar as recolectarPrensa, leer as leerPrensa } from './inteligencia.js';
+import { leer as leerAcopios } from './acopios.js';
 
 const ORIGENES = [
   'https://sismo.ricardoruiz.co',
@@ -576,6 +577,15 @@ export default {
 
       const mFoto = ruta.match(/^\/(fotos\/[\w.-]{6,80})$/);
       if (mFoto && req.method === 'GET') return servirFoto(mFoto[1], env, ctx, req);
+
+      if (ruta === '/acopios.json' && req.method === 'GET') {
+        const d = await leerAcopios(env);
+        return json(d, 200, origin, {
+          // Se edita en vivo, así que la ventana es corta; aun así el edge
+          // absorbe el grueso y Google no ve una petición por visitante.
+          'Cache-Control': 'public, max-age=60, s-maxage=300',
+        });
+      }
 
       if (ruta === '/inteligencia.json' && req.method === 'GET') {
         const d = await leerPrensa(env);
