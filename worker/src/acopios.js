@@ -149,7 +149,135 @@ export function normalizarFilas(filas) {
   return { items, sin_ubicar: sinUbicar };
 }
 
-export async function refrescar(env) {
+/* ─────────────────────────── geocodificación ─────────────────────────── */
+
+const NOMINATIM = 'https://nominatim.openstreetmap.org/search';
+const UA_GEO = 'MapaDeAyudaSismo/1.0 (contacto: hola@ricardoruiz.co)';
+
+// Un resultado a más de 30 km del centro del municipio es otro sitio con el
+// mismo nombre en otra ciudad. Bogotá mide ~40 km de norte a sur, así que el
+// umbral tiene que ser generoso hacia adentro y duro hacia afuera.
+const MAX_KM_DEL_CENTRO = 30;
+
+function km(la1, lo1, la2, lo2) {
+  const dy = (la2 - la1) * 111320;
+  const dx = (lo2 - lo1) * 111320 * Math.cos((la1 * Math.PI) / 180);
+  return Math.hypot(dx, dy) / 1000;
+}
+
+/**
+ * Busca el sitio POR NOMBRE en OpenStreetMap.
+ *
+ * ⚠️⚠️ Por NOMBRE y no por dirección, y la diferencia no es de estilo. Medido:
+ * pedirle a Nominatim "Carrera 15 #12-05", "#82-81" y "#180-20" en Bogotá
+ * devuelve latitudes 4.6227, 4.7065 y 4.5630 — la #180 al SUR de la #12, cuando
+ * las calles suben hacia el norte. No interpola el número; engancha segmentos
+ * arbitrarios de la vía, con errores de 5 a 19 km.
+ *
+ * Por nombre, en cambio, resuelve el PUNTO del lugar (hospital, universidad,
+ * coliseo, centro comercial): 9 de 10 en la prueba, con el tipo correcto.
+ */
+async function geocodificarNombre(nombre, municipio, centro) {
+  const q = [nombre, municipio, 'Colombia'].filter(Boolean).join(', ');
+  const url = `${NOMINATIM}?q=${encodeURIComponent(q)}&format=json&countrycodes=co&limit=1`;
+  const r = await fetch(url, { headers: { 'User-Agent': UA_GEO } });
+  if (!r.ok) throw new Error(`nominatim http ${r.status}`);
+  const d = await r.json();
+  if (!Array.isArray(d) || !d.length) return null;
+
+  const la = Number(d[0].lat), lo = Number(d[0].lon);
+  if (!Number.isFinite(la) || !Number.isFinite(lo)) return null;
+  // Sin municipio de referencia no hay con qué validar: se descarta antes que
+  // aceptar un homónimo de otra ciudad.
+  if (!centro) return null;
+  if (km(centro[0], centro[1], la, lo) > MAX_KM_DEL_CENTRO) return null;
+
+  /* ⚠️⚠️ El resultado tiene que PARECERSE al nombre que buscamos.
+     Nominatim siempre devuelve algo: pidiéndole "Café Comuna del Café" en
+     Pereira contestó una estación de POLICÍA, y "Café Consota" una vía de
+     servicio. Un pin preciso en el lugar equivocado es peor que ninguno,
+     porque nadie lo puede detectar mirando el mapa.
+     Se exige que una palabra significativa del nombre aparezca en el
+     display_name de OSM, y se rechazan los tipos que nunca son un acopio. */
+  const TIPOS_MALOS = new Set(['service', 'residential', 'primary', 'secondary',
+    'tertiary', 'unclassified', 'track', 'path', 'footway', 'yes', 'locality',
+    'suburb', 'neighbourhood', 'administrative', 'city', 'town']);
+  if (TIPOS_MALOS.has(d[0].type)) return null;
+
+  const VACIAS = new Set(['cafe', 'centro', 'punto', 'acopio', 'sede', 'sitio',
+    'lugar', 'casa', 'banco', 'fundacion', 'principal', 'nacional', 'colombia',
+    'norte', 'sur', 'este', 'oeste', 'nueva', 'nuevo', 'para', 'de', 'del',
+    'la', 'el', 'los', 'las', 'y',
+    // Genéricos de la geografía colombiana: "comuna" hizo pasar "Café Comuna
+    // del Café" como una estación de policía, porque el nombre de esa
+    // estación también lleva la palabra.
+    'comuna', 'barrio', 'vereda', 'corregimiento', 'municipio', 'ciudad',
+    'plaza', 'plazoleta', 'parque', 'calle', 'carrera', 'avenida', 'auxiliares',
+    'publica', 'publico', 'colombiana', 'colombiano']);
+  const propias = norm(nombre).split(/[^a-z0-9ñ]+/)
+    .filter((w) => w.length >= 4 && !VACIAS.has(w));
+  if (!propias.length) return null;              // nombre sin nada distintivo
+  const encontrado = norm(d[0].display_name || '');
+  if (!propias.some((w) => encontrado.includes(w))) return null;
+
+  return { la, lo, tipo: d[0].type || '' };
+}
+
+/**
+ * Resuelve por nombre los acopios que solo tienen el centro del municipio.
+ *
+ * Corre en el CRON, no en la petición: son consultas de ~1 s cada una y nadie
+ * puede esperar eso al abrir el mapa. Lo que ya está en caché se aplica
+ * instantáneo en cualquier refresco.
+ */
+async function geocodificarPendientes(env, items, max) {
+  let usados = 0;
+
+  for (const a of items) {
+    if (!a.ap || !a.n) continue;                 // ya tiene punto propio
+    const clave = `${norm(a.n)}|${norm(a.mu)}`;
+
+    let fila = null;
+    try {
+      fila = await env.DB.prepare('SELECT lat, lon, fuente FROM geocache WHERE clave = ?')
+        .bind(clave).first();
+    } catch { /* sin caché, se intenta */ }
+
+    if (fila) {
+      // lat NULL = ya se buscó y no se encontró. No se vuelve a preguntar.
+      if (fila.lat != null) {
+        a.la = fila.lat; a.lo = fila.lon; a.ap = 0; a.geo = fila.fuente || 'osm';
+      }
+      continue;
+    }
+
+    if (usados >= max) continue;                 // el resto, en la próxima corrida
+    usados++;
+    const centro = CENTRO.get(norm(a.mu));
+    let res = null;
+    try {
+      res = await geocodificarNombre(a.n, a.mu, centro ? [centro[2], centro[3]] : null);
+    } catch (e) {
+      console.error('geocode falló', a.n, e && e.message);
+      continue;                                  // sin guardar: se reintenta luego
+    }
+
+    try {
+      await env.DB.prepare(
+        'INSERT OR REPLACE INTO geocache (clave, lat, lon, fuente, ts) VALUES (?,?,?,?,?)'
+      ).bind(clave, res ? res.la : null, res ? res.lo : null,
+             res ? `osm:${res.tipo}` : null, Date.now()).run();
+    } catch { /* si no se puede cachear, igual se usa el resultado */ }
+
+    if (res) { a.la = res.la; a.lo = res.lo; a.ap = 0; a.geo = `osm:${res.tipo}`; }
+
+    // Política de Nominatim: máximo una petición por segundo.
+    if (usados < max) await new Promise((r) => setTimeout(r, 1100));
+  }
+  return usados;
+}
+
+export async function refrescar(env, opciones = {}) {
   const url = env.ACOPIOS_CSV;
   if (!url) return null;
 
@@ -167,10 +295,21 @@ export async function refrescar(env) {
   const { items, sin_ubicar, error } = normalizarFilas(parsearCSV(txt));
   if (error) throw new Error(error);
 
+  // La caché se aplica siempre (es instantánea); las búsquedas nuevas solo
+  // cuando quien llama las pide, porque cuestan ~1 s cada una.
+  let geocodificados = 0;
+  try {
+    geocodificados = await geocodificarPendientes(env, items, opciones.geocodificar || 0);
+  } catch (e) {
+    console.error('geocodificación falló entera', e && e.message);
+  }
+
   const datos = {
     generado: Date.now(),
     total: items.length,
     sin_ubicar,
+    con_punto_propio: items.filter((i) => !i.ap && i.la != null).length,
+    geocodificados_ahora: geocodificados,
     revisado: false,       // nadie los ha confirmado en terreno
     items,
   };

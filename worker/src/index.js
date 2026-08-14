@@ -20,7 +20,7 @@
  *   GET  /salud                   ping
  */
 import { recolectar as recolectarPrensa, leer as leerPrensa } from './inteligencia.js';
-import { leer as leerAcopios } from './acopios.js';
+import { leer as leerAcopios, refrescar as refrescarAcopios } from './acopios.js';
 
 const ORIGENES = [
   'https://sismo.ricardoruiz.co',
@@ -610,6 +610,11 @@ export default {
         if (!guardAdmin(req, env)) return json({ error: 'no_autorizado' }, 401, origin);
         if (ruta === '/admin/reportes' && req.method === 'GET') return adminReportes(url, env, origin);
         if (ruta === '/admin/estado' && req.method === 'POST') return adminEstado(req, env, origin, ctx);
+        if (ruta === '/admin/acopios' && req.method === 'POST') {
+          const d = await refrescarAcopios(env, { geocodificar: 25 });
+          return json({ ok: true, total: d.total, con_punto_propio: d.con_punto_propio,
+                        geocodificados_ahora: d.geocodificados_ahora }, 200, origin);
+        }
         if (ruta === '/admin/inteligencia' && req.method === 'POST') {
           const ag = await recolectarPrensa(env);
           return json({ ok: true, notas: ag.totales.notas, medios: ag.totales.medios }, 200, origin);
@@ -626,6 +631,13 @@ export default {
 
   /** Cron cada 3 horas: recolecta el pulso de prensa fuera de la visita. */
   async scheduled(evento, env, ctx) {
+    // Los acopios se geocodifican en el cron y no en la visita: cada búsqueda
+    // tarda ~1 s y nadie puede esperar eso al abrir el mapa.
+    ctx.waitUntil(
+      refrescarAcopios(env, { geocodificar: 25 })
+        .then((d) => d && console.log('acopios', d.total, '·', d.geocodificados_ahora, 'geocodificados'))
+        .catch((e) => console.error('acopios falló', e && e.message))
+    );
     ctx.waitUntil(
       recolectarPrensa(env)
         .then((ag) => console.log('prensa', ag.totales.notas, 'notas',

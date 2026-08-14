@@ -94,3 +94,14 @@ CREATE TABLE IF NOT EXISTS externos (
   ts    INTEGER NOT NULL,
   datos TEXT NOT NULL
 );
+
+-- Coordenadas resueltas por NOMBRE del sitio contra OpenStreetMap.
+-- Se cachean para siempre: la ubicación de un hospital no cambia, y volver a
+-- preguntar por cada refresco abusaría de un servicio gratuito.
+CREATE TABLE IF NOT EXISTS geocache (
+  clave  TEXT PRIMARY KEY,     -- nombre|municipio normalizados
+  lat    REAL,                 -- NULL = se buscó y no se encontró
+  lon    REAL,
+  fuente TEXT,
+  ts     INTEGER NOT NULL
+);
