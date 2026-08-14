@@ -322,6 +322,129 @@ export function agregar(notas) {
   };
 }
 
+/* ─────────────────────────── cifras del balance ─────────────────────────── */
+
+/**
+ * Extrae el balance de víctimas del propio corpus de prensa.
+ *
+ * ⚠️⚠️ ESTO NO ES "LA CIFRA OFICIAL DE LA UNGRD". Es lo que la prensa reporta
+ * citando el balance oficial, y no es lo mismo. La UNGRD **no publica un feed**:
+ * su conjunto en datos.gov.co (wwkg-r6te) tiene el esquema exacto que haría
+ * falta —fallecidos, heridos, desaparecidos, viviendas— pero su último registro
+ * es del 31-dic-2022. Por eso se lee de la prensa y se rotula así.
+ *
+ * Se publica SIEMPRE con el medio, el enlace y la hora, y con el rango cuando
+ * las fuentes no coinciden. Esa discrepancia es información, no un defecto que
+ * haya que promediar: en estos días conviven 239, 284, 285 y 287 fallecidos
+ * según el corte de cada nota.
+ */
+// El número y su sustantivo, pegados. `\d{1,3}(?:\.\d{3})+` primero para que
+// "3.975" se lea entero y no como "3" seguido de "975".
+const CANT = String.raw`(\d{1,3}(?:\.\d{3})+|\d{1,3}(?:,\d{3})+|\d{2,6})\s+(?:personas\s+)?`;
+const rx = (nucleo) => new RegExp(CANT + nucleo, 'g');
+
+const CIFRAS = {
+  fallecidos:   { n: 'Fallecidos',           rx: rx(String.raw`(?:fallecid\w*|muert\w*)`),   max: 20000 },
+  desaparecidos:{ n: 'Desaparecidos',        rx: rx(String.raw`desaparecid\w*`),             max: 20000 },
+  heridos:      { n: 'Heridos',              rx: rx(String.raw`herid\w*`),                   max: 100000 },
+  destruidas:   { n: 'Viviendas destruidas', rx: rx(String.raw`viviendas?\s+(?:destruid\w*|colapsad\w*)`), max: 500000 },
+  averiadas:    { n: 'Viviendas averiadas',  rx: rx(String.raw`viviendas?\s+(?:averiad\w*|afectad\w*|danad\w*)`), max: 900000 },
+};
+
+// "13.077" y "1,200" son miles; "7,4" es un decimal (la magnitud) y NO es una
+// cifra de víctimas. Se exige el patrón de miles de 3 dígitos.
+const NUM = /(\d{1,3}(?:\.\d{3})+|\d{1,3}(?:,\d{3})+|\d{2,6})/g;
+
+/**
+ * Normalización PROPIA del extractor de cifras: minúsculas y sin tildes, pero
+ * CONSERVANDO la puntuación.
+ *
+ * ⚠️⚠️ No se puede reusar `normalizar()`: esa convierte todo signo en espacio y
+ * parte el separador de miles. "12.584 viviendas destruidas" queda como
+ * "12 584 viviendas destruidas", y el extractor publicaría **584 viviendas
+ * destruidas** en vez de 12.584. Un cero de diferencia en una cifra de
+ * damnificados es exactamente el error que no se puede cometer.
+ */
+const normalizarNum = (s) => String(s || '').toLowerCase()
+  .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  .replace(/\s+/g, ' ').trim();
+
+/**
+ * ⚠️⚠️ Dos reglas, y las dos salieron de ver el extractor equivocarse feo.
+ *
+ * 1. EL SUSTANTIVO VA PEGADO AL NÚMERO. La primera versión aceptaba el
+ *    sustantivo "cerca" (34 caracteres) y en un titular como "Van 287 muertos,
+ *    3.975 heridos y 378 desaparecidos" todos los números quedan cerca de todos
+ *    los sustantivos: reportó 975 desaparecidos, sacados de "3.975 heridos".
+ *
+ * 2. MANDA LA CIFRA MÁS CORROBORADA, NO LA MÁS RECIENTE. Con "más reciente"
+ *    publicó 10 fallecidos, que era el conteo local de Buenaventura, mientras
+ *    veinte medios decían 287. Se exige que al menos DOS medios distintos
+ *    sostengan el mismo número; si ninguno llega a dos, no se publica nada.
+ *    Preferimos un hueco a un balance de víctimas equivocado.
+ */
+function extraerCifras(notas) {
+  const cand = {};
+  for (const k of Object.keys(CIFRAS)) cand[k] = [];
+
+  for (const n of notas) {
+    if (n.ts == null) continue;                  // sin fecha no hay corte
+    const t = normalizarNum(n.titulo);
+    for (const [k, def] of Object.entries(CIFRAS)) {
+      def.rx.lastIndex = 0;
+      let m;
+      while ((m = def.rx.exec(t)) !== null) {
+        const v = Number(m[1].replace(/[.,]/g, ''));
+        if (!Number.isFinite(v) || v < 2 || v > def.max) continue;
+        cand[k].push({ v, ts: n.ts, medio: n.medio, url: n.url, tit: n.titulo });
+      }
+    }
+  }
+
+  const out = {};
+  for (const [k, def] of Object.entries(CIFRAS)) {
+    const lista = cand[k];
+    if (!lista.length) continue;
+
+    // Ventana de 24 h desde la nota más reciente: una cifra de hace tres días
+    // ya no la sostiene nadie y solo ensancharía el rango.
+    const ultimo = Math.max(...lista.map((x) => x.ts));
+    const ventana = lista.filter((x) => ultimo - x.ts < 86400000);
+
+    // Se agrupa por valor y se cuentan MEDIOS DISTINTOS, no notas: un mismo
+    // medio republicando su nota no corrobora nada.
+    const porValor = new Map();
+    for (const x of ventana) {
+      if (!porValor.has(x.v)) porValor.set(x.v, { medios: new Set(), ej: x, ts: x.ts });
+      const g = porValor.get(x.v);
+      g.medios.add(x.medio);
+      if (x.ts > g.ts) { g.ts = x.ts; g.ej = x; }
+    }
+
+    const ranking = [...porValor.entries()]
+      .map(([v, g]) => ({ v, n: g.medios.size, ts: g.ts, ej: g.ej }))
+      .sort((a, b) => (b.n - a.n) || (b.ts - a.ts));
+
+    const mejor = ranking[0];
+    if (!mejor || mejor.n < 2) continue;         // sin corroborar, no se publica
+
+    out[k] = {
+      etiqueta: def.n,
+      valor: mejor.v,
+      medios_que_lo_sostienen: mejor.n,
+      ts: mejor.ts,
+      medio: mejor.ej.medio,
+      url: mejor.ej.url,
+      titular: mejor.ej.tit,
+      // Otros valores que circulan con al menos dos medios detrás. Es
+      // información, no ruido: dice cuánto se mueve el balance.
+      alternativas: ranking.slice(1).filter((r) => r.n >= 2)
+        .slice(0, 3).map((r) => ({ v: r.v, n: r.n })),
+    };
+  }
+  return out;
+}
+
 /* ─────────────────────────── lectura automática ─────────────────────────── */
 
 const PROMPT = `Eres analista de datos de una plataforma ciudadana colombiana tras el
@@ -401,7 +524,9 @@ export async function recolectar(env) {
     }
   }
 
-  const ag = agregar(clasificar(items));
+  const notas = clasificar(items);
+  const ag = agregar(notas);
+  ag.cifras = extraerCifras(notas);
   ag.lectura = await lecturaAutomatica(env, ag);
   ag.lectura_automatica = true;
 
