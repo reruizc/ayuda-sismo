@@ -2204,6 +2204,7 @@ function pintarOpciones(){
 function abrirFamilia(k){
   S.pt.fam = k || null;
   pintarOpciones();
+  armarHistorial();
   // Volver arriba: al entrar a "Necesito ayuda" —nueve opciones— la lista
   // arranca donde quedó el scroll del nivel anterior y la primera no se ve.
   const caja = $('#pt-caja');
@@ -2282,6 +2283,7 @@ function encabezadoPaso(){
 }
 
 function mostrarPaso(){
+  armarHistorial();
   const I = S.pt.i, paso = (S.pt.pasos || [])[S.pt.idx || 0];
   $('#pt-paso1').hidden = true;
   $('#pt-paso2').hidden = true;
@@ -2979,7 +2981,63 @@ document.addEventListener('click', (e) => {
   );
 });
 
-function abrir(id){ $(id).hidden = false; document.body.style.overflow = 'hidden'; }
+
+/* ─────────────────── el "atrás" del navegador ───────────────────
+ *
+ * En móvil —Android sobre todo— el atrás del sistema es EL gesto de
+ * navegación: la gente lo usa para deshacer, no para irse. Sin esto, tocarlo
+ * dentro del menú sacaba del sitio, y en una emergencia eso significa perder
+ * lo que la persona llevaba contestado y tener que empezar de cero.
+ *
+ * No se replica el estado en el historial: se mantiene UNA entrada centinela
+ * mientras haya a dónde volver, y cada atrás la consume, retrocede un paso y
+ * la vuelve a poner. Así el historial nunca crece y no hay que serializar una
+ * pantalla que vive repartida entre `S.pt`, la puerta y los velos.
+ *
+ * ⚠️ NO atrapa a nadie: en la raíz `retrocederUno` devuelve false, no se
+ * rearma, y el siguiente atrás sale del sitio como siempre. Que el mapa de
+ * ayuda secuestre el botón de salir sería peor que el problema que resuelve.
+ *
+ * ⚠️ Se usa `pushState` sin cambiar la URL: no hay rutas que servir ni enlaces
+ * que compartir por pantalla, y cambiarla obligaría a que Pages resolviera
+ * rutas que no existen.
+ */
+let histArmado = false;
+
+/* ⚠️ Decide por lo que se está VIENDO, no por `S.pt.i`. Una intención sin
+   pasos —donar— deja `S.pt.i` puesta aunque la pantalla ya volvió al submenú
+   al cerrar la ventana; consultándola, `atrasPaso()` "retrocedía" al mismo
+   submenú en el que ya estábamos y el atrás se sentía muerto. */
+function enPasoDePreguntas(){
+  return !$('#pt-paso2').hidden || !$('#pt-paso3').hidden;
+}
+
+function retrocederUno(){
+  const velo = [...document.querySelectorAll('.velo')].find((v) => !v.hidden);
+  if (velo) { cerrarTodo(); return true; }
+  if (!$('#puerta').hidden && S.pt) {
+    if (enPasoDePreguntas()) { atrasPaso(); return true; }
+    if (S.pt.fam) { abrirFamilia(''); return true; }   // del submenú a las tres
+  }
+  return false;                                    // raíz: que se vaya
+}
+
+function armarHistorial(){
+  if (histArmado) return;
+  const velo = [...document.querySelectorAll('.velo')].some((v) => !v.hidden);
+  const dentro = velo
+    || (!$('#puerta').hidden && S.pt && (S.pt.fam || enPasoDePreguntas()));
+  if (!dentro) return;
+  history.pushState({ rr: 1 }, '');
+  histArmado = true;
+}
+
+window.addEventListener('popstate', () => {
+  histArmado = false;
+  if (retrocederUno()) armarHistorial();
+});
+
+function abrir(id){ $(id).hidden = false; document.body.style.overflow = 'hidden'; armarHistorial(); }
 function cerrarTodo(){
   document.querySelectorAll('.velo').forEach((v) => v.hidden = true);
   document.body.style.overflow = '';
