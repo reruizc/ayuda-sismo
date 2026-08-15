@@ -75,7 +75,7 @@ lleva a la herramienta que ya existía:
 | Necesito ayuda | Qué falta, para cuántos y si alguien no puede esperar; enruta a víveres, salud u otra |
 | Hay personas atrapadas | Formulario en `nec-rescate` |
 | Busco alojamiento | Pregunta quién es y entra a `nec-refugio` con su ejemplo |
-| Busco atención médica | Pregunta para quién y qué necesita, y entra a `nec-salud` |
+| Busco atención médica | Para quién, qué necesita y si puede llegar a un puesto de salud |
 | Busco transporte | `nec-otro` con ejemplo propio (ver aviso abajo) |
 | Necesito reconstruir | Pregunta qué hace falta y entra a `nec-estructural` |
 | Busco a una persona | `busco-persona`, con su aviso de privacidad |
@@ -117,9 +117,16 @@ equivocó. Si se entró por un GRUPO (como "Necesito ayuda", que no fija la
 situación) el selector se queda: ahí todavía hay que elegir.
 
 **Una respuesta puede mover la urgencia.** En víveres, decir que hay un bebé,
-un adulto mayor o alguien enfermo sube el reporte a urgencia alta: dejarlo en
-media sería desperdiciar la respuesta. Va **propuesta, no impuesta** — el
-selector sigue ahí y se puede bajar.
+un adulto mayor o alguien enfermo sube el reporte a urgencia alta; en salud lo
+hace responder que la persona no puede moverse. Dejarlo en media sería
+desperdiciar la respuesta. Va **propuesta, no impuesta** — el selector sigue
+ahí y se puede bajar.
+
+**Y una respuesta puede quitar un campo.** Cuando el flujo ya preguntó para
+cuántas personas (`pers` en la opción), el formulario esconde su campo
+numérico: volver a pedirlo es preguntar dos veces lo mismo, que es justo lo que
+estas preguntas vinieron a quitar. Se pierde el número exacto y queda el rango
+dentro del detalle — es el precio de no repetir la pregunta.
 
 ⚠️⚠️ **El detalle auto-generado se reemplaza; lo que escribe la persona, nunca.**
 La condición no puede ser "el campo está vacío": con eso, quien abría un flujo,

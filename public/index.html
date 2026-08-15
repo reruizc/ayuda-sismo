@@ -976,11 +976,15 @@ const INTENCIONES = [
        {k:'nec-otro',    n:'Otra cosa',         d:'Cuéntame en el formulario',
         ph:'Ej.: Describe en una línea qué hace falta'},
      ]},
+     /* `pers` marca que la cuenta ya se preguntó, para que el formulario no
+        vuelva a pedirla en su campo numérico. Se pierde el número exacto y se
+        conserva el rango dentro del detalle: preguntar dos veces lo mismo es
+        peor que quedarse con una respuesta menos precisa. */
      { pregunta:'¿Para cuántas personas?', opciones:[
-       {n:'1 o 2 personas',  d:'Yo, o yo y alguien más', det:'Para 1 o 2 personas.'},
-       {n:'De 3 a 5',        d:'Una familia',            det:'Para 3 a 5 personas.'},
-       {n:'De 6 a 15',       d:'Varias familias',        det:'Para 6 a 15 personas.'},
-       {n:'Más de 15',       d:'Un albergue o un barrio', det:'Para más de 15 personas.'},
+       {n:'1 o 2 personas',  d:'Yo, o yo y alguien más', det:'Para 1 o 2 personas.', pers:1},
+       {n:'De 3 a 5',        d:'Una familia',            det:'Para 3 a 5 personas.', pers:1},
+       {n:'De 6 a 15',       d:'Varias familias',        det:'Para 6 a 15 personas.', pers:1},
+       {n:'Más de 15',       d:'Un albergue o un barrio', det:'Para más de 15 personas.', pers:1},
      ]},
      /* Esta es la que cambia lo que se carga en el camión. Un mercado para
         cuatro adultos y uno donde hay un bebé y una señora en diálisis no son
@@ -1030,21 +1034,39 @@ const INTENCIONES = [
    // saber si puede resolverlo y con qué llevar.
    subs:[
      { pregunta:'¿Para quién es?', opciones:[
-       {k:'nec-salud', n:'Para mí', d:'Lo necesito yo', det:'Es para mí.'},
-       {k:'nec-salud', n:'Para un familiar o alguien cercano',
+       {n:'Para mí', d:'Lo necesito yo', det:'Es para mí.'},
+       {n:'Para un familiar o alguien cercano',
         d:'Alguien de mi casa o del lado', det:'Es para un familiar o alguien cercano.'},
-       {k:'nec-salud', n:'Para una comunidad',
+       {n:'Para una comunidad',
         d:'Varias familias o un barrio entero', det:'Es para una comunidad.'},
      ]},
-     { pregunta:'¿Qué necesitas?', opciones:[
-       {k:'nec-salud', n:'Un medicamento', d:'Algo que se acabó o no se consigue',
+     { pregunta:'¿Qué necesita?', opciones:[
+       {n:'Un medicamento', d:'Algo que se acabó o no se consigue',
         det:'Necesita un medicamento.',
         ph:'Ej.: Señora diabética sin insulina desde el lunes'},
-       {k:'nec-salud', n:'Una revisión médica', d:'Que alguien la vea',
+       {n:'Una revisión médica', d:'Que alguien la vea',
         det:'Necesita revisión médica.',
         ph:'Ej.: Herida en la pierna que no cierra, necesita que la vean'},
-       {k:'nec-salud', n:'Otra cosa', d:'Traslado, oxígeno, otra necesidad',
+       {n:'Curación de una herida', d:'Vendas, puntos, limpieza',
+        det:'Necesita curación de una herida.',
+        ph:'Ej.: Corte en el brazo del martes, ya se ve feo'},
+       {n:'Un traslado', d:'Llevarla a un hospital o puesto',
+        det:'Necesita traslado a un centro de salud.',
+        ph:'Ej.: Hay que llevar a mi papá a diálisis y no hay cómo'},
+       {n:'Otra cosa', d:'Oxígeno, insumos, otra necesidad',
         ph:'Ej.: Describe en una línea qué se necesita'},
+     ]},
+     /* La pregunta que decide si esto lo resuelve una farmacia o hace falta
+        que alguien VAYA. Es la diferencia entre "conseguirle la fórmula" y
+        "mandar una brigada", y hasta ahora solo aparecía si a la persona se le
+        ocurría escribirla en el detalle. */
+     { pregunta:'¿Puede llegar a un puesto de salud?', opciones:[
+       {n:'Sí, puede moverse',   d:'Camina o tiene cómo ir',
+        det:'Puede desplazarse por su cuenta.'},
+       {n:'Solo con ayuda',      d:'Necesita quién la acompañe o la lleve',
+        det:'Solo puede desplazarse con ayuda.'},
+       {n:'No puede moverse',    d:'Está postrada o incomunicada',
+        det:'No puede desplazarse: hay que ir hasta donde está.', urg:'alta'},
      ]},
    ]},
 
@@ -2348,6 +2370,7 @@ function ejecutar(){
                // salga en urgencia media es desperdiciar la respuesta. Queda
                // propuesta, no impuesta: el selector sigue ahí y se puede bajar.
                urg: ult('urg'),
+               yaPers: !!ult('pers'),
                lugar:L});
   } else if (I.accion === 'url') { location.href = I.url; }
   else if (I.accion === 'acopio') { abrirAcopio(L); }
@@ -3437,6 +3460,14 @@ function abrirForm(pre){
   if (pre && pre.fijo && $('#f-urgencia')) {
     const el = $('#f-urgencia'), nueva = pre.urg || 'media';
     if (el.value === urgAuto || el.value === 'media') { el.value = nueva; urgAuto = nueva; }
+  }
+  /* Si el flujo ya preguntó para cuántas personas, el campo numérico sobra:
+     volver a pedirlo es preguntar dos veces lo mismo, que es lo que estas
+     preguntas vinieron a quitar. Va DESPUÉS de `prefijarSituacion()`, que es
+     quien decide la visibilidad normal del campo según la situación. */
+  if (pre && pre.yaPers && $('#campo-personas')) {
+    $('#campo-personas').style.display = 'none';
+    $('#f-personas').value = '';
   }
   fijarSituacion(!!(pre && pre.fijo) && !!sitSel);
   if (sitSel) iniciarMini();
