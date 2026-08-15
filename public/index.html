@@ -222,13 +222,15 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid v
 .pt-caja{max-width:820px; margin:0 auto;
   padding:1.2rem 1rem calc(2rem + env(safe-area-inset-bottom));
   padding-top:calc(1.2rem + env(safe-area-inset-top))}
-.pt-cab{display:flex; gap:1rem; align-items:flex-start; margin-bottom:1.25rem;
-  border-bottom:2px solid var(--tinta); padding-bottom:.9rem}
-.pt-cab .btn{margin-left:auto; flex:none}
+/* Centrada: es una pregunta, no un encabezado de sección. El botón de salida
+   va debajo para no empujar el título fuera del eje. */
+.pt-cab{margin-bottom:1.25rem; border-bottom:2px solid var(--tinta);
+  padding-bottom:1rem; text-align:center; position:relative}
+.pt-cab .btn{position:absolute; top:0; right:0}
 .pt-ojo{margin:0 0 .4rem; font-size:.72rem; font-weight:700; text-transform:uppercase;
   letter-spacing:.14em; color:var(--rojo)}
-.pt-caja h1{font-size:2.15rem; font-weight:800; letter-spacing:-.02em; line-height:1.08}
-.pt-sub{margin:.5rem 0 0; color:var(--tenue); font-size:.92rem; max-width:52ch}
+.pt-caja h1{font-size:clamp(1.9rem, 4.6vw, 2.7rem); font-weight:800; letter-spacing:-.02em; line-height:1.08}
+.pt-sub{margin:.6rem auto 0; color:var(--tenue); font-size:1.05rem; max-width:46ch}
 /* ── entrada: título grande al centro, telón, y ahí sí las opciones ──
    La página la va a abrir gente de 50 y 55 años en la calle. La pregunta tiene
    que llegar sola, grande y centrada, antes de que aparezca nada más: si lo
@@ -239,9 +241,9 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid v
   background:var(--trama), radial-gradient(120% 60% at 50% 0%, #fff 0%, var(--papel) 65%);
   background-color:var(--papel)}
 .pt-intro[hidden]{display:none}
-.pt-intro h1{font-size:clamp(2.1rem, 7.5vw, 3.6rem); line-height:1.05; letter-spacing:-.02em;
+.pt-intro h1{font-size:clamp(2.4rem, 8.5vw, 4.2rem); line-height:1.05; letter-spacing:-.02em;
   max-width:14ch; margin:.5rem 0 0}
-.pt-intro p.sub{font-size:clamp(1rem, 3.2vw, 1.3rem); color:var(--tenue);
+.pt-intro p.sub{font-size:clamp(1.12rem, 3.8vw, 1.5rem); color:var(--tenue);
   max-width:30ch; margin:1rem 0 0; line-height:1.45}
 .pt-intro > *{animation:sube .8s cubic-bezier(.2,.7,.3,1) both}
 .pt-intro > *:nth-child(2){animation-delay:.14s}
@@ -301,7 +303,21 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid v
   padding:.7rem .85rem; display:flex; gap:.6rem; align-items:center; margin-bottom:1rem; font-size:.92rem}
 .pt-elegido .ico{font-size:1.2rem}
 .pt-elegido button{margin-left:auto}
-.lugares{display:flex; flex-wrap:wrap; gap:.4rem; margin:.8rem 0 .2rem}
+.lugares{display:flex; flex-wrap:wrap; gap:.5rem; margin:.2rem 0}
+/* Los dos atajos son botones grandes, no chips: son el camino que queremos
+   que la mayoría tome, y compiten con una lista de 33 departamentos. */
+.lugares .zona{font-size:1rem; padding:.7rem 1.1rem; border-radius:10px;
+  border-width:1.5px; flex:1 1 auto; text-align:center}
+.pt-nivel{font-size:1.05rem; margin:1.3rem 0 .5rem; font-weight:700}
+.dispo{display:grid; grid-template-columns:1fr 1fr; gap:.6rem}
+.dispo button{border:1.5px solid var(--linea); background:var(--tarjeta);
+  border-radius:12px; padding:1rem .9rem; text-align:left; color:var(--tinta);
+  box-shadow:var(--sombra)}
+.dispo button:hover{border-color:var(--tenue)}
+.dispo b{display:block; font-size:1.1rem}
+.dispo span{display:block; font-size:.9rem; color:var(--tenue); margin-top:.15rem}
+.sitio-cerca{font-size:.8rem; font-weight:700; color:var(--verde)}
+.sitio-lejos{font-size:.8rem; color:var(--tenue)}
 .mun-lista{max-height:42vh; overflow-y:auto; border:1px solid var(--linea);
   border-radius:var(--r); background:var(--tarjeta); margin-top:.7rem}
 /* Área de toque generosa: esta lista se recorre con el pulgar y en movimiento. */
@@ -345,7 +361,7 @@ body.con-ctx .cuerpo{height:calc(100dvh - 196px)}
   .cuerpo{grid-template-columns:1fr; grid-template-rows:50dvh auto; height:auto}
   body.con-ctx .cuerpo{height:auto}
   .ops{grid-template-columns:1fr}
-  .pt-caja h1{font-size:1.75rem}
+  .pt-caja h1{font-size:1.6rem}
   /* Sin esto el rótulo parte en dos líneas al lado del botón y se ve torcido. */
   .pt-ojo{font-size:.66rem; letter-spacing:.09em}
   .mun-lista{max-height:50vh}
@@ -369,7 +385,7 @@ body.con-ctx .cuerpo{height:calc(100dvh - 196px)}
 <div class="puerta" id="puerta" hidden>
   <!-- Primera escena: la pregunta sola, grande y al centro. -->
   <div class="pt-intro" id="pt-intro" hidden>
-    <p class="pt-ojo">Sismo del 10 de agosto de 2026</p>
+    <p class="pt-ojo" id="pt-ojo-intro"></p>
     <h1>¿Qué necesitas hacer?</h1>
     <p class="sub">Elige una opción y te llevamos directo a lo que sirve.</p>
   </div>
@@ -378,7 +394,7 @@ body.con-ctx .cuerpo{height:calc(100dvh - 196px)}
   <div class="pt-caja" id="pt-caja">
     <div class="pt-cab">
       <div>
-        <p class="pt-ojo">Sismo del 10 de agosto de 2026</p>
+        <p class="pt-ojo" id="pt-ojo"></p>
         <h1 id="pt-titulo">¿Qué necesitas hacer?</h1>
         <p class="pt-sub" id="pt-sub">Elige una opción y te llevamos directo a lo que sirve.
           Puedes cambiarla en cualquier momento.</p>
@@ -392,12 +408,20 @@ body.con-ctx .cuerpo{height:calc(100dvh - 196px)}
 
     <div id="pt-paso2" hidden>
       <div class="pt-elegido" id="pt-elegido"></div>
-      <label for="pt-q" style="font-weight:600; font-size:.9rem">Busca tu municipio</label>
-      <input type="text" class="buscador" id="pt-q" style="margin-top:.35rem"
-             placeholder="Escribe: Cali, Quibdó, Dosquebradas…" autocomplete="off">
       <div class="lugares" id="pt-lugares"></div>
       <p class="ubi-est" id="pt-est"></p>
+      <h2 class="pt-nivel" id="pt-nivel">O elige un departamento</h2>
+      <input type="text" class="buscador" id="pt-q" placeholder="Buscar…" autocomplete="off">
       <div class="mun-lista" id="pt-muns"></div>
+    </div>
+
+    <!-- Paso propio del voluntariado: primero cuándo puede, y después la
+         lista de sitios. Mandarlo al mapa a buscar puntos verdes es pedirle
+         que haga el trabajo que la página debería hacer por él. -->
+    <div id="pt-paso3" hidden>
+      <div class="pt-elegido" id="pt-elegido3"></div>
+      <h2 class="pt-nivel">¿Cuándo puedes ir?</h2>
+      <div class="dispo" id="pt-dispo"></div>
     </div>
 
     <div class="pt-pie">
@@ -579,6 +603,91 @@ body.con-ctx .cuerpo{height:calc(100dvh - 196px)}
   </div>
 </div>
 
+<!-- ══════════ modal: registrar o corregir un acopio ══════════ -->
+<div class="velo" id="velo-acopio" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="t-acopio" style="max-width:540px">
+    <div class="modal-cab">
+      <div>
+        <h2 id="t-acopio">Registrar un centro de acopio</h2>
+        <p>Si ya existe y algo cambió —horario, qué reciben, si cerró— llénalo
+           igual: nos sirve para corregirlo.</p>
+      </div>
+      <button class="cerrar" data-cerrar aria-label="Cerrar">&times;</button>
+    </div>
+    <div class="modal-cuerpo">
+      <form id="form-acopio" novalidate>
+        <div class="campo">
+          <label for="a-nombre">Nombre del sitio</label>
+          <input type="text" id="a-nombre" maxlength="90" placeholder="Ej.: Coliseo del barrio El Poblado">
+        </div>
+        <div class="campo">
+          <label for="a-dir">Dirección</label>
+          <input type="text" id="a-dir" maxlength="140" placeholder="Ej.: Carrera 15 # 82-81">
+          <p class="ayuda">Es lo que más importa: por la dirección es que la gente llega.</p>
+        </div>
+        <div class="campo">
+          <label>¿Dónde queda?</label>
+          <div class="rejilla" style="margin-bottom:.5rem">
+            <select id="a-depto" aria-label="Departamento"><option value="">Departamento…</option></select>
+            <select id="a-mun" aria-label="Municipio" disabled><option value="">Municipio…</option></select>
+          </div>
+          <button type="button" class="btn btn-sm" id="a-gps">Usar mi ubicación exacta</button>
+          <p class="ubi-est" id="a-ubi">Sin tu ubicación, el punto queda en el centro del municipio
+            y la gente se guía por la dirección.</p>
+        </div>
+        <div class="campo">
+          <label for="a-recibe">¿Qué reciben?</label>
+          <textarea id="a-recibe" maxlength="300"
+            placeholder="Ej.: agua, alimentos no perecederos, pañales, cobijas"></textarea>
+        </div>
+        <div class="rejilla">
+          <div class="campo">
+            <label for="a-abre">Abre</label>
+            <input type="text" id="a-abre" maxlength="24" placeholder="Ej.: 8:00 am">
+          </div>
+          <div class="campo">
+            <label for="a-cierra">Cierra</label>
+            <input type="text" id="a-cierra" maxlength="24" placeholder="Ej.: 6:00 pm">
+          </div>
+        </div>
+        <div class="campo">
+          <label for="a-tel">Teléfono de contacto</label>
+          <input type="text" id="a-tel" maxlength="60" placeholder="Celular o fijo">
+          <p class="ayuda">Este sí se publica: es un sitio público, no una casa.</p>
+        </div>
+        <div class="campo">
+          <label class="check">
+            <input type="checkbox" id="a-vol">
+            <span>Necesitan voluntarios</span>
+          </label>
+        </div>
+        <div class="campo">
+          <label class="check">
+            <input type="checkbox" id="a-consent">
+            <span>Autorizo publicar estos datos en el mapa (Ley 1581 de 2012).</span>
+          </label>
+        </div>
+        <div style="position:absolute; left:-9999px" aria-hidden="true">
+          <label>No llenar<input type="text" id="a-web" tabindex="-1" autocomplete="off"></label>
+        </div>
+        <div class="error" id="acopio-error" hidden></div>
+        <button type="submit" class="btn btn-pri" style="width:100%; padding:.75rem; font-size:1rem">
+          Enviar el punto
+        </button>
+      </form>
+      <div id="acopio-ok" hidden class="exito">
+        <div class="tick">✓</div>
+        <h2 style="margin:.4rem 0">Recibido</h2>
+        <p style="color:var(--tenue); font-size:.95rem">
+          Queda publicado en el mapa como oferta y pasa a revisión antes de entrar
+          a la lista oficial de acopios. Gracias.
+        </p>
+        <button class="btn btn-pri" data-cerrar style="width:100%; margin-top:.6rem">Volver al mapa</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ══════════ modal: contactar ══════════ -->
 <div class="velo" id="velo-contacto" hidden>
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="t-contacto" style="max-width:480px">
@@ -708,6 +817,16 @@ const SIT = {
  * quien viene a donar casi siempre termina queriendo publicar lo que tiene.
  */
 const INTENCIONES = [
+  {k:'donar', ico:'📦', n:'Quiero donar cosas', img:'op-donar.jpg',
+   col:'#b3730c', tint:'#faf0dd',
+   d:'Dónde entregar mercados, ropa o agua',
+   accion:'acopios', ctx:'Dónde entregar donaciones', acc:'Publicar lo que ofrezco', accSit:'ofr-viveres'},
+
+  {k:'voluntario', ico:'🙋', n:'Quiero ser voluntario', img:'op-voluntario.jpg',
+   col:'#0f766e', tint:'#e3f2f0',
+   d:'Dónde hacen falta manos, y ofrecerte',
+   accion:'voluntario', ctx:'Dónde hacen falta manos', acc:'Ofrecerme como voluntario', accSit:'ofr-voluntario'},
+
   {k:'necesito', ico:'🆘', n:'Necesito ayuda', img:'op-necesito.jpg',
    col:'#b4321e', tint:'#fdeceb',
    d:'Víveres, agua o medicinas',
@@ -748,24 +867,24 @@ const INTENCIONES = [
    d:'Publícala con foto para que la reconozcan',
    accion:'form', sits:['busco-mascota','ofr-mascota'], ctx:'Mascotas', acc:'Abrir el formulario'},
 
-  {k:'donar', ico:'📦', n:'Quiero donar cosas', img:'op-donar.jpg',
-   col:'#b3730c', tint:'#faf0dd',
-   d:'Dónde entregar mercados, ropa o agua',
-   accion:'acopios', ctx:'Dónde entregar donaciones', acc:'Publicar lo que ofrezco', accSit:'ofr-viveres'},
+  {k:'registrar', ico:'📍', n:'Registrar un centro de acopio', img:'op-registrar.jpg',
+   col:'#7c3f00', tint:'#f6ece0',
+   d:'Publícalo o corrige sus datos',
+   accion:'acopio', ctx:'Registrando un punto de acopio', acc:'Abrir el formulario'},
 
-  {k:'voluntario', ico:'🙋', n:'Quiero ser voluntario', img:'op-voluntario.jpg',
-   col:'#0f766e', tint:'#e3f2f0',
-   d:'Dónde hacen falta manos, y ofrecerte',
-   accion:'voluntario', ctx:'Dónde hacen falta manos', acc:'Ofrecerme como voluntario', accSit:'ofr-voluntario'},
-
-  {k:'prensa', ico:'📰', n:'Ver qué dice la prensa', img:'op-prensa.jpg',
+  {k:'prensa', ico:'📰', n:'Qué dicen las noticias', img:'op-prensa.jpg',
    col:'#5d574e', tint:'#efece7',
-   d:'Titulares publicados sobre un lugar',
+   d:'Lo que se publica sobre un territorio',
    accion:'prensa', ctx:'Titulares publicados', acc:'Ver el informe completo', accUrl:'inteligencia.html'},
 ];
 
 const EXPLORAR = {k:'explorar', ico:'🗺️', n:'Explorar el mapa completo',
   d:'Ver todo lo publicado y filtrar a mano', accion:'mapa'};
+
+/* El rótulo del evento. Está en UN solo sitio porque la emergencia cambia:
+   empezó siendo el sismo y hoy incluye los incendios de Nariño (149
+   emergencias en 37 municipios al 14 de agosto). */
+const EVENTOS = 'Sismo del 10 de agosto · Incendios forestales en Nariño';
 
 const URG = {alta:'Urgente', media:'Media', baja:'Baja'};
 
@@ -786,7 +905,7 @@ const S = {
   // Puerta de entrada: con qué intención entró la persona y a qué lugar.
   // `listaModo` decide qué muestra el panel lateral: '' reportes · 'acopios'
   // puntos de donación · 'prensa' titulares. El mapa siempre muestra reportes.
-  intencion: null, lugar: null, listaModo: '',
+  intencion: null, lugar: null, listaModo: '', dispo: 'ya',
   pt: {i:null, l:null},
   capasAcopio: new Map(),
 };
@@ -1164,9 +1283,12 @@ function abrirPuerta(conIntro){
   S.pt = {i:null, l:null};
   $('#pt-paso1').hidden = false;
   $('#pt-paso2').hidden = true;
+  $('#pt-paso3').hidden = true;
   $('#pt-titulo').textContent = '¿Qué necesitas hacer?';
   $('#pt-sub').textContent = 'Elige una opción y te llevamos directo a lo que sirve. '
     + 'Puedes cambiarla en cualquier momento.';
+  $('#pt-ojo').textContent = EVENTOS;
+  $('#pt-ojo-intro').textContent = EVENTOS;
   pintarOpciones();
   $('#puerta').hidden = false;
   document.body.style.overflow = 'hidden';
@@ -1228,6 +1350,7 @@ function elegirIntencion(k){
   S.pt.i = I;
   $('#pt-paso1').hidden = true;
   $('#pt-paso2').hidden = false;
+  $('#pt-paso3').hidden = true;
   $('#pt-titulo').textContent = '¿En qué lugar?';
   $('#pt-sub').textContent = 'Sirve para enfocar el mapa en lo que te queda cerca. '
     + 'Si no lo tienes claro, elige todo el país.';
@@ -1236,42 +1359,67 @@ function elegirIntencion(k){
     <button type="button" class="btn btn-sm" id="pt-atras">Cambiar</button>`;
   $('#pt-q').value = '';
   $('#pt-est').textContent = '';
+  S.pt.dep = null;
   pintarChipsLugar();
-  pintarMunicipios('');
+  pintarNivel('');
   // El foco NO se pone en el buscador a propósito: en móvil abriría el teclado
   // encima de los atajos de departamento, que es el camino más rápido.
 }
 
 function pintarChipsLugar(){
-  const af = (S.geo || []).filter((d) => d.a);
-  // Bogotá entra como atajo aunque no esté golpeada: es de donde sale buena
-  // parte de la donación (19 de los 47 puntos de acopio están ahí).
-  const bog = (S.geo || []).find((d) => d.c === '16');
-  const chips = [
-    '<button type="button" class="zona" data-l="gps">📍 Usar mi ubicación</button>',
-    '<button type="button" class="zona" data-l="pais">Todo el país</button>',
-    ...af.map((d) => `<button type="button" class="zona" data-l="dep:${esc(d.c)}">${esc(d.n)}</button>`),
-    bog ? `<button type="button" class="zona" data-l="dep:16">${esc(bog.n)}</button>` : '',
-  ];
-  $('#pt-lugares').innerHTML = chips.join('');
+  $('#pt-lugares').innerHTML =
+    '<button type="button" class="zona" data-l="gps">📍 Usar mi ubicación</button>'
+    + '<button type="button" class="zona" data-l="pais">Todo el país</button>';
 }
 
-function pintarMunicipios(q){
-  const n = norm(q.trim());
-  let l = indiceMun();
-  // Sin búsqueda se listan los municipios de los departamentos con daño: es la
-  // gente que está adentro. El resto del país aparece al escribir.
-  l = n ? l.filter((x) => norm(x.m[1]).includes(n) || norm(x.d.n).includes(n))
-        : l.filter((x) => x.d.a);
-  const tot = l.length;
-  $('#pt-muns').innerHTML = tot
-    ? l.slice(0, 80).map((x) =>
-        `<button type="button" class="mun" data-l="mun:${esc(x.d.c)}:${esc(x.m[0])}">
-          ${esc(x.m[1])} <small>· ${esc(x.d.n)}</small></button>`).join('')
-      + (tot > 80 ? `<div class="ubi-est" style="padding:.6rem .8rem">
-          ${tot - 80} municipios más. Escribe para afinar.</div>` : '')
-    : `<div class="vacio" style="padding:1.4rem">No encontramos ese municipio.
-        <br>Puedes seguir con <b>todo el país</b> y marcar el punto a mano.</div>`;
+/**
+ * Lugar en dos niveles: primero el departamento, después el municipio.
+ *
+ * La primera versión listaba de una los municipios de los cinco departamentos
+ * golpeados —126 filas— y quien buscaba alojamiento se encontraba un muro de
+ * nombres sin saber por dónde empezar. Con 33 departamentos primero, el
+ * segundo nivel nunca pasa de unas decenas y siempre se sabe dónde se está.
+ */
+function pintarNivel(q){
+  const n = norm((q || '').trim());
+  const dep = S.pt.dep;
+  const caja = $('#pt-muns');
+
+  if (!dep) {
+    $('#pt-nivel').textContent = 'O elige un departamento';
+    $('#pt-q').placeholder = 'Buscar departamento o municipio…';
+    // Escribir busca municipios de todo el país: quien tiene claro su pueblo
+    // no debería tener que acordarse de a qué departamento pertenece.
+    if (n.length >= 3) {
+      const l = indiceMun().filter((x) => norm(x.m[1]).includes(n));
+      caja.innerHTML = l.length
+        ? l.slice(0, 60).map((x) =>
+            `<button type="button" class="mun" data-l="mun:${esc(x.d.c)}:${esc(x.m[0])}">
+              ${esc(x.m[1])} <small>· ${esc(x.d.n)}</small></button>`).join('')
+          + (l.length > 60 ? `<div class="ubi-est" style="padding:.7rem .85rem">
+              y ${l.length - 60} más. Escribe un poco más.</div>` : '')
+        : `<div class="vacio" style="padding:1.4rem">No encontramos ese municipio.</div>`;
+      return;
+    }
+    const deps = (S.geo || []).slice().sort((a, b) =>
+      (b.a ? 1 : 0) - (a.a ? 1 : 0) || a.n.localeCompare(b.n));
+    caja.innerHTML = deps.map((d) =>
+      `<button type="button" class="mun" data-l="dep:${esc(d.c)}">
+        ${esc(d.n)} ${d.a ? '<small>· con daño reportado</small>' : ''}</button>`).join('');
+    return;
+  }
+
+  $('#pt-nivel').textContent = `Municipios de ${dep.n}`;
+  $('#pt-q').placeholder = `Buscar en ${dep.n}…`;
+  const muns = dep.m.filter((m) => !n || norm(m[1]).includes(n));
+  caja.innerHTML =
+    `<button type="button" class="mun" data-l="volver">
+      <small>← Todos los departamentos</small></button>
+     <button type="button" class="mun" data-l="dep-todo">
+      <b>Todo ${esc(dep.n)}</b></button>`
+    + muns.map((m) =>
+        `<button type="button" class="mun" data-l="mun:${esc(dep.c)}:${esc(m[0])}">
+          ${esc(m[1])}</button>`).join('');
 }
 
 /** Ubica a la persona en el municipio cuyo centro le queda más cerca. */
@@ -1293,15 +1441,42 @@ function ubicarme(){
       if (d < dmin) { dmin = d; mejor = x; }
     });
     if (!mejor) { $('#pt-est').textContent = 'No pudimos ubicarte. Elige el municipio en la lista.'; return; }
-    elegirLugar({dep:mejor.d, mun:mejor.m});
+    // Se guarda el punto EXACTO además del municipio: es lo que permite
+    // ordenar por cercanía real y no por distancia al centro del pueblo.
+    elegirLugar({dep:mejor.d, mun:mejor.m, punto:[la, lo]});
   }, () => {
     $('#pt-est').textContent = 'No pudimos obtener tu ubicación. Elige el municipio en la lista.';
   }, {enableHighAccuracy:true, timeout:10000, maximumAge:60000});
 }
 
+/* Disponibilidad del voluntario. `dias` dice contra qué se compara la columna
+   TODOS LOS DIAS O LV de la hoja; `ahora` marca a quien puede salir ya. */
+const DISPO = [
+  {k:'ya',      n:'Ya mismo',      d:'Puedo salir en la próxima hora', ahora:1},
+  {k:'manana',  n:'Mañana',        d:'Durante el día de mañana'},
+  {k:'semana',  n:'Entre semana',  d:'De lunes a viernes', dias:'lv'},
+  {k:'finde',   n:'El fin de semana', d:'Sábado o domingo', dias:'finde'},
+];
+
 function elegirLugar(L){
   S.pt.l = L;
+  // El voluntariado pregunta una cosa más antes de mostrar nada.
+  if (S.pt.i && S.pt.i.accion === 'voluntario') return pedirDisponibilidad();
   ejecutar();
+}
+
+function pedirDisponibilidad(){
+  const I = S.pt.i;
+  $('#pt-paso2').hidden = true;
+  $('#pt-paso3').hidden = false;
+  $('#pt-titulo').textContent = '¿Cuándo puedes ir?';
+  $('#pt-sub').textContent = 'Con eso te mostramos los sitios que necesitan '
+    + 'manos y te quedan más cerca, en vez de mandarte a buscar en el mapa.';
+  $('#pt-elegido3').innerHTML = `<span class="ico" aria-hidden="true">${I.ico}</span>
+    <b>${esc(I.n)}</b> <span style="color:var(--tenue)">· ${esc(nombreLugar(S.pt.l))}</span>
+    <button type="button" class="btn btn-sm" id="pt-atras3">Cambiar</button>`;
+  $('#pt-dispo').innerHTML = DISPO.map((d) =>
+    `<button type="button" data-d="${d.k}"><b>${esc(d.n)}</b><span>${esc(d.d)}</span></button>`).join('');
 }
 
 /** Enfoca el mapa en el lugar elegido y filtra la lista a su departamento.
@@ -1352,13 +1527,19 @@ async function modoAcopios(){
   pintar();
 }
 
-/** Voluntario: el mapa y la lista se recortan a lo que alguien está pidiendo.
- *  No inventa una categoría "voluntariado": usa el filtro que ya existe. */
-function modoVoluntario(){
-  limpiarModo();
-  S.f.grupo = new Set(['necesito']);
-  S.f.fam.clear();
-  sincronizarChips();
+/** Voluntario: una LISTA de sitios que piden manos, ordenada por cercanía.
+ *  Antes dejaba el mapa filtrado y la persona tenía que ir tocando puntos
+ *  verdes a ver cuál servía; eso es hacerle a ella el trabajo de la página. */
+async function modoVoluntario(){
+  S.listaModo = 'voluntario';
+  $('#chips-grupo').hidden = true; $('#chips-fam').hidden = true;
+  $('#q').placeholder = 'Buscar un sitio…';
+  $('#conteo').textContent = 'Buscando dónde hacen falta manos…';
+  $('#lista').innerHTML = '';
+  S.verAcopios = true;
+  await cargarAcopios();
+  pintarZonas();
+  pintarAcopios();
   pintar();
 }
 
@@ -1385,7 +1566,8 @@ function ejecutar(){
 
   if (I.accion === 'form') {
     abrirForm({sit:I.sit, grupo:I.grupo, sits:I.sits, ph:I.ph, lugar:L});
-  } else if (I.accion === 'acopios') { modoAcopios(); }
+  } else if (I.accion === 'acopio') { abrirAcopio(L); }
+  else if (I.accion === 'acopios') { modoAcopios(); }
   else if (I.accion === 'voluntario') { modoVoluntario(); }
   else if (I.accion === 'prensa') { modoPrensa(); }
   else { limpiarModo(); pintar(); }
@@ -1416,6 +1598,7 @@ function accionContexto(){
   const I = S.intencion;
   if (!I) return;
   if (I.accUrl) { location.href = I.accUrl; return; }
+  if (I.accion === 'acopio') { abrirAcopio(S.lugar); return; }
   abrirForm({sit:I.accSit || I.sit, grupo:I.grupo, sits:I.sits,
              ph:I.accSit ? '' : I.ph, lugar:S.lugar});
 }
@@ -1458,6 +1641,7 @@ function pintar(){
   // Lo que cambia con el modo es el panel lateral.
   dibujarMapa(vis);
   if (S.listaModo === 'acopios') return listaAcopios();
+  if (S.listaModo === 'voluntario') return listaVoluntario();
   if (S.listaModo === 'prensa') return listaPrensa();
 
   const urg = vis.filter((r) => r.u === 'alta' && r.p !== 'ofrezco').length;
@@ -1563,6 +1747,83 @@ function listaAcopios(){
             ${tel ? `<a href="tel:${esc(tel)}">Llamar</a>` : ''}
           </div>
           ${a.ap ? '<p class="ac-m" style="color:#8a8378">El punto del mapa es el centro del municipio: guíate por la dirección.</p>' : ''}
+        </div>
+      </article>`;
+    }).join('');
+}
+
+/**
+ * Sitios que necesitan voluntarios, del más cerca al más lejos.
+ *
+ * ⚠️ La disponibilidad NO filtra: la hoja guarda el horario como texto libre
+ * ("Hasta las 9pm", "YA MISMO") y solo a veces dice si abre todos los días o
+ * de lunes a viernes. Filtrar con eso escondería sitios buenos por no saber su
+ * horario. Se usa para ORDENAR —primero los que sí casan— y cada tarjeta dice
+ * lo que sabemos y lo que no.
+ */
+function listaVoluntario(){
+  const dep = S.lugar && S.lugar.dep;
+  const dispo = DISPO.find((d) => d.k === S.dispo) || DISPO[0];
+  const q = norm(S.f.q.trim());
+  let l = (S.acopios || []).slice();
+  if (dep) l = l.filter((a) => casaDep(a.dp, dep.n));
+  const piden = l.filter((a) => a.vol);
+  // Si en esa zona nadie marcó que pide voluntarios, se muestran los acopios
+  // igual, avisando: un acopio con donaciones casi siempre necesita manos.
+  const ampliado = !piden.length;
+  l = ampliado ? l : piden;
+  if (q) l = l.filter((a) => norm(`${a.n} ${a.mu} ${a.d || ''}`).includes(q));
+
+  const ref = (S.lugar && S.lugar.punto)
+    || (S.lugar && S.lugar.mun && S.lugar.mun[2] != null
+        ? [S.lugar.mun[2], S.lugar.mun[3]] : null);
+  const casa = (a) => !dispo.dias || !a.di
+    || (dispo.dias === 'lv' ? true : /todos/i.test(a.di));
+  l.sort((a, b) => (casa(b) - casa(a))
+    || (ref ? dist2(a, ref) - dist2(b, ref) : 0)
+    || (b.rev ? 1 : 0) - (a.rev ? 1 : 0));
+
+  // Con ubicación exacta se muestran pocos y cercanos; con departamento, todos.
+  const cerca = S.lugar && S.lugar.punto;
+  const vis = cerca ? l.slice(0, 6) : l;
+
+  $('#conteo').textContent = vis.length
+    ? `${vis.length} sitio${vis.length === 1 ? '' : 's'}`
+      + (cerca ? ' cerca de ti' : (dep ? ` en ${dep.n}` : ' en el país'))
+      + ` · ${dispo.n.toLowerCase()}`
+    : 'Sin sitios registrados aquí';
+
+  if (!vis.length) {
+    $('#lista').innerHTML = `<div class="vacio">Todavía no tenemos sitios que pidan
+      voluntarios por acá.<br><br>Puedes publicarte como voluntario y que te
+      escriban: usa el botón de abajo.</div>`;
+    return;
+  }
+
+  $('#lista').innerHTML =
+    (ampliado ? `<div class="conteo">Ninguno marcó que necesite voluntarios.
+       Estos son los acopios de la zona: casi siempre hacen falta manos, pero
+       confirma por teléfono antes de ir.</div>` : '')
+    + vis.map((a) => {
+      const tel = (a.tel || '').replace(/[^\d+]/g, '');
+      const ruta = a.d ? `https://www.google.com/maps/search/?api=1&query=${
+        encodeURIComponent([a.d, a.mu, a.dp, 'Colombia'].filter(Boolean).join(', '))}` : '';
+      const km = ref && a.la != null
+        ? Math.round(Math.sqrt(dist2(a, ref)) * 111.32 * 10) / 10 : null;
+      return `<article class="item" data-ac="${a._ix}" tabindex="0">
+        ${iconoAcopio(a, 34)}
+        <div class="item-txt">
+          <div class="ac-cab"><h3>${esc(a.n)}</h3>
+            ${km != null ? `<span class="${km <= 5 ? 'sitio-cerca' : 'sitio-lejos'}">a ${km} km</span>` : ''}
+          </div>
+          <div class="ac-m">${esc([a.mu, a.dp].filter(Boolean).join(', '))}</div>
+          ${a.d ? `<p class="ac-d"><strong>${esc(a.d)}</strong></p>` : ''}
+          <p class="ac-m">${a.h ? `Horario: ${esc(a.h)}${a.di ? ` · ${esc(a.di)}` : ''}`
+            : 'No sabemos su horario: confirma por teléfono antes de ir.'}</p>
+          <div class="ac-acc">
+            ${ruta ? `<a href="${esc(ruta)}" target="_blank" rel="noopener">Cómo llegar →</a>` : ''}
+            ${tel ? `<a href="tel:${esc(tel)}">Llamar</a>` : ''}
+          </div>
         </div>
       </article>`;
     }).join('');
@@ -2038,6 +2299,138 @@ async function enviarReporte(e){
   }
 }
 
+/* ══════════════════════════════ registrar un acopio ══════════════════════════════ */
+
+/**
+ * Un acopio registrado desde la página.
+ *
+ * ⚠️ Viaja por /reporte como `ofr-viveres` con el título prefijado `[ACOPIO]`,
+ * porque el servidor solo acepta las situaciones de su catálogo y no hay
+ * endpoint propio para acopios. O sea: entra al mapa como oferta —que es
+ * verdad— y queda identificable para pasarlo a la hoja oficial. El día que el
+ * Worker tenga una ruta propia, lo único que cambia es este envío.
+ *
+ * La hoja la edita gente con práctica; este formulario existe para quien no
+ * tiene por qué saber llenar trece columnas.
+ */
+let acopioAbiertoEn = 0, acopioPunto = null;
+
+function abrirAcopio(L){
+  acopioAbiertoEn = Date.now();
+  acopioPunto = null;
+  $('#form-acopio').hidden = false;
+  $('#acopio-ok').hidden = true;
+  $('#acopio-error').hidden = true;
+  ['a-nombre', 'a-dir', 'a-recibe', 'a-abre', 'a-cierra', 'a-tel']
+    .forEach((id) => { $('#' + id).value = ''; });
+  $('#a-vol').checked = false; $('#a-consent').checked = false;
+  $('#a-ubi').textContent = 'Sin tu ubicación, el punto queda en el centro del '
+    + 'municipio y la gente se guía por la dirección.';
+  armarDeptosAcopio().then(() => {
+    if (!L || !L.dep) return;
+    $('#a-depto').value = L.dep.c;
+    alCambiarDeptoAcopio();
+    if (L.mun) {
+      const i = L.dep.m.indexOf(L.mun);
+      if (i >= 0) $('#a-mun').value = String(i);
+    }
+  });
+  abrir('#velo-acopio');
+}
+
+async function armarDeptosAcopio(){
+  const geo = await cargarGeo();
+  const af = geo.filter((d) => d.a), resto = geo.filter((d) => !d.a);
+  $('#a-depto').innerHTML = '<option value="">Departamento…</option>'
+    + `<optgroup label="Con daño reportado">${af.map((d) =>
+        `<option value="${esc(d.c)}">${esc(d.n)}</option>`).join('')}</optgroup>`
+    + `<optgroup label="Resto del país">${resto.map((d) =>
+        `<option value="${esc(d.c)}">${esc(d.n)}</option>`).join('')}</optgroup>`;
+}
+
+function alCambiarDeptoAcopio(){
+  const d = (S.geo || []).find((x) => x.c === $('#a-depto').value);
+  const sel = $('#a-mun');
+  if (!d) { sel.innerHTML = '<option value="">Municipio…</option>'; sel.disabled = true; return; }
+  sel.disabled = false;
+  sel.innerHTML = '<option value="">Municipio…</option>'
+    + d.m.map((m, i) => `<option value="${i}">${esc(m[1])}</option>`).join('');
+}
+
+function ubicarAcopio(){
+  if (!navigator.geolocation) {
+    $('#a-ubi').textContent = 'Tu navegador no permite ubicación. Con la dirección basta.';
+    return;
+  }
+  $('#a-ubi').textContent = 'Buscando tu ubicación…';
+  navigator.geolocation.getCurrentPosition((p) => {
+    acopioPunto = [p.coords.latitude, p.coords.longitude];
+    $('#a-ubi').textContent = `Punto tomado: ${acopioPunto[0].toFixed(5)}, `
+      + `${acopioPunto[1].toFixed(5)}. Solo úsalo si estás EN el sitio.`;
+  }, () => { $('#a-ubi').textContent = 'No pudimos ubicarte. Con la dirección basta.'; },
+     {enableHighAccuracy:true, timeout:10000, maximumAge:60000});
+}
+
+async function enviarAcopio(e){
+  e.preventDefault();
+  const err = $('#acopio-error'); err.hidden = true;
+  const nombre = $('#a-nombre').value.trim();
+  const dir = $('#a-dir').value.trim();
+  const d = (S.geo || []).find((x) => x.c === $('#a-depto').value);
+  const mi = $('#a-mun').value;
+
+  if (nombre.length < 3) return fallo(err, 'Escribe el nombre del sitio.');
+  if (dir.length < 5) return fallo(err, 'La dirección es lo que hace que alguien llegue.');
+  if (!d || mi === '') return fallo(err, 'Elige el departamento y el municipio.');
+  if (!$('#a-consent').checked) return fallo(err, 'Necesitamos tu autorización para publicarlo.');
+
+  const mun = d.m[Number(mi)];
+  const punto = acopioPunto || (mun[2] != null ? [mun[2], mun[3]] : null);
+  if (!punto) return fallo(err, 'No tenemos el centro de ese municipio. Usa tu ubicación.');
+
+  const recibe = $('#a-recibe').value.trim();
+  const abre = $('#a-abre').value.trim(), cierra = $('#a-cierra').value.trim();
+  const tel = $('#a-tel').value.trim();
+  const detalle = [
+    `Dirección: ${dir}`,
+    recibe ? `Recibe: ${recibe}` : '',
+    (abre || cierra) ? `Horario: ${[abre, cierra].filter(Boolean).join(' a ')}` : '',
+    $('#a-vol').checked ? 'Necesitan voluntarios.' : '',
+    acopioPunto ? '' : 'Punto aproximado al municipio.',
+  ].filter(Boolean).join('\n');
+
+  const btn = e.target.querySelector('button[type=submit]');
+  btn.disabled = true; btn.textContent = 'Enviando…';
+  try {
+    const r = await fetch(`${CONFIG.API}/reporte`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        sit:'ofr-viveres', urgencia:'media',
+        titulo:`[ACOPIO] ${nombre}`.slice(0, 140),
+        detalle, depto:d.n, municipio:mun[1], barrio:'', personas:null,
+        lat:punto[0], lon:punto[1],
+        // El teléfono de un acopio SÍ es público: es un sitio abierto, no la
+        // casa de alguien que pide ayuda.
+        contacto:tel, contacto_pub:true, foto:null,
+        web:$('#a-web').value,
+        dt: acopioAbiertoEn ? Date.now() - acopioAbiertoEn : null,
+        turnstile: await (window.tokenTurnstile ? tokenTurnstile() : Promise.resolve('')),
+      }),
+    });
+    const dd = await r.json();
+    if (!r.ok || !dd.ok) throw new Error(dd.error || 'no_ok');
+    $('#form-acopio').hidden = true;
+    $('#acopio-ok').hidden = false;
+    cargar();
+  } catch (ex) {
+    fallo(err, ex.message === 'demasiados_reportes'
+      ? 'Ya enviaste varios en la última hora.'
+      : 'No pudimos enviarlo. Revisa tu conexión e intenta otra vez.');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Enviar el punto';
+  }
+}
+
 /* ══════════════════════════════ contacto y abuso ══════════════════════════════ */
 let contactoId = null;
 
@@ -2268,7 +2661,7 @@ async function iniciar(){
   $('#pt-elegido').addEventListener('click', (e) => {
     if (e.target.closest('#pt-atras')) abrirPuerta();   // sin intro
   });
-  $('#pt-q').addEventListener('input', (e) => pintarMunicipios(e.target.value));
+  $('#pt-q').addEventListener('input', (e) => pintarNivel(e.target.value));
   $('#pt-lugares').addEventListener('click', (e) => {
     const b = e.target.closest('[data-l]'); if (!b) return;
     const v = b.dataset.l;
@@ -2277,12 +2670,25 @@ async function iniciar(){
     const dep = (S.geo || []).find((d) => d.c === v.slice(4));
     if (dep) elegirLugar({dep, mun:null});
   });
+  $('#pt-dispo').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-d]'); if (!b) return;
+    S.dispo = b.dataset.d;
+    ejecutar();
+  });
+  $('#pt-elegido3').addEventListener('click', (e) => {
+    if (e.target.closest('#pt-atras3')) abrirPuerta();
+  });
   $('#pt-muns').addEventListener('click', (e) => {
     const b = e.target.closest('[data-l]'); if (!b) return;
-    const [, dc, mc] = b.dataset.l.split(':');
+    const v = b.dataset.l;
+    if (v === 'volver') { S.pt.dep = null; $('#pt-q').value = ''; return pintarNivel(''); }
+    if (v === 'dep-todo') return elegirLugar({dep:S.pt.dep, mun:null});
+    const [tipo, dc, mc] = v.split(':');
     const dep = (S.geo || []).find((d) => d.c === dc);
-    const mun = dep && dep.m.find((m) => m[0] === mc);
-    if (dep && mun) elegirLugar({dep, mun});
+    if (!dep) return;
+    if (tipo === 'dep') { S.pt.dep = dep; $('#pt-q').value = ''; return pintarNivel(''); }
+    const mun = dep.m.find((m) => m[0] === mc);
+    if (mun) elegirLugar({dep, mun});
   });
   $('#ctx').addEventListener('click', (e) => {
     if (e.target.closest('#ctx-cambiar')) return abrirPuerta();  // sin intro
@@ -2294,6 +2700,9 @@ async function iniciar(){
   $('#f-mun').addEventListener('change', alCambiarMun);
   $('#f-barrio').addEventListener('change', alCambiarBarrio);
   $('#f-foto').addEventListener('change', alElegirFoto);
+  $('#a-depto').addEventListener('change', alCambiarDeptoAcopio);
+  $('#a-gps').addEventListener('click', ubicarAcopio);
+  $('#form-acopio').addEventListener('submit', enviarAcopio);
   $('#f-pub').addEventListener('change', () => { $('#aviso-mask').hidden = $('#f-pub').checked; });
   $('#form').addEventListener('submit', enviarReporte);
   $('#form-contacto').addEventListener('submit', enviarContacto);

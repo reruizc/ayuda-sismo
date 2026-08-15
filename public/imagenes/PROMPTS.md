@@ -137,3 +137,23 @@ Se arman con el mismo bloque de estilo, cambiando sujeto y los dos colores:
 > Tono: compañía y calma. NO tierno de caricatura infantil, NO animales
 > heridos o asustados, NO jaulas. Sin personas. Sin texto, sin letras, sin
 > números, sin logotipos, sin marcas de agua. Fondo plano, sin escena de fondo.
+
+## 8 · `op-registrar.jpg` — Registrar un centro de acopio
+
+> Ilustración editorial plana, cuadrada 1:1, para el ícono de una tarjeta de un
+> mapa de ayuda humanitaria tras un terremoto en Colombia.
+>
+> Sujeto: un pin de mapa grande y sólido con una caja de donaciones dentro,
+> apoyado sobre una línea de suelo. Composición centrada, con margen generoso.
+>
+> Estilo: vectorial plano, formas gruesas y simples, sin degradados, sin
+> sombras realistas, sin textura de ruido. Trazo grueso y parejo. Debe leerse
+> con claridad reducida a 58×58 píxeles.
+>
+> Paleta estricta de tres colores: café oscuro #7c3f00 para el trazo y las
+> formas principales, fondo beige #f6ece0, y crudo #f7f5f1 para los vacíos.
+> Sin ningún otro color.
+>
+> Tono: poner algo en el mapa, señalar un lugar. NO chincheta de oficina, NO
+> lupa, NO teléfono ni pantallas. Sin personas. Sin texto, sin letras, sin
+> números, sin logotipos, sin marcas de agua. Fondo plano, sin escena de fondo.
