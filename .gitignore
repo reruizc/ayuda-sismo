@@ -5,3 +5,6 @@ node_modules/
 .wrangler/
 # Salidas de los scripts que se regeneran solas
 tools/*.bak
+
+# Secretos de desarrollo local. NUNCA al repo: este es público.
+.dev.vars
