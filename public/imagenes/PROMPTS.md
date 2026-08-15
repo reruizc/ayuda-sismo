@@ -157,3 +157,125 @@ Se arman con el mismo bloque de estilo, cambiando sujeto y los dos colores:
 > Tono: poner algo en el mapa, señalar un lugar. NO chincheta de oficina, NO
 > lupa, NO teléfono ni pantallas. Sin personas. Sin texto, sin letras, sin
 > números, sin logotipos, sin marcas de agua. Fondo plano, sin escena de fondo.
+
+---
+
+# Las que faltan (5)
+
+## 9 · `op-reconstruir.jpg` — Necesito reconstruir
+
+> Ilustración editorial plana, cuadrada 1:1, para el ícono de una tarjeta de un
+> mapa de ayuda humanitaria tras un terremoto en Colombia.
+>
+> Sujeto: una pared a medio levantar con tres hileras de ladrillo, una llana de
+> albañil apoyada encima y un par de tejas recostadas al lado. Composición
+> centrada, con margen generoso.
+>
+> Estilo: vectorial plano, formas gruesas y simples, sin degradados, sin
+> sombras realistas, sin textura de ruido. Trazo grueso y parejo. Debe leerse
+> con claridad reducida a 76×76 píxeles.
+>
+> Paleta estricta de tres colores: naranja quemado #c2410c para el trazo y las
+> formas principales, fondo durazno claro #fbe9df, y crudo #f7f5f1 para los
+> vacíos. Sin ningún otro color.
+>
+> Tono: levantar de nuevo, trabajo en curso. NO ruinas ni escombros, NO grúas
+> ni obra industrial, NO casco de construcción. Sin personas. Sin texto, sin
+> letras, sin números, sin logotipos, sin marcas de agua. Fondo plano, sin
+> escena de fondo.
+
+## 10 · `op-informes.jpg` — Ver informes
+
+> Ilustración editorial plana, cuadrada 1:1, para el ícono de una tarjeta de un
+> mapa de ayuda humanitaria tras un terremoto en Colombia.
+>
+> Sujeto: una hoja de informe vista de frente con un gráfico de barras simple
+> —cuatro barras de distinta altura— y dos líneas de texto sugeridas como
+> trazos. Composición centrada, con margen generoso.
+>
+> Estilo: vectorial plano, formas gruesas y simples, sin degradados, sin
+> sombras realistas, sin textura de ruido. Trazo grueso y parejo. Debe leerse
+> con claridad reducida a 76×76 píxeles.
+>
+> Paleta estricta de tres colores: azul petróleo #1b3f66 para el trazo y las
+> formas principales, fondo azul muy claro #e6ecf3, y crudo #f7f5f1 para los
+> vacíos. Sin ningún otro color.
+>
+> Tono: análisis sobrio, documento de trabajo. NO corporativo ni de finanzas,
+> NO flechas de crecimiento, NO lupa, NO pantallas. Sin personas. Sin texto
+> legible, sin letras reales, sin números, sin logotipos, sin marcas de agua.
+> Fondo plano, sin escena de fondo.
+
+## 11 · `op-mapa.jpg` — Ver el mapa completo
+
+> Ilustración editorial plana, cuadrada 1:1, para el ícono de una tarjeta de un
+> mapa de ayuda humanitaria tras un terremoto en Colombia.
+>
+> Sujeto: un mapa doblado en tres paneles, visto de frente, con dos caminos que
+> lo cruzan y tres pines pequeños repartidos. Composición centrada, con margen
+> generoso.
+>
+> Estilo: vectorial plano, formas gruesas y simples, sin degradados, sin
+> sombras realistas, sin textura de ruido. Trazo grueso y parejo. Debe leerse
+> con claridad reducida a 76×76 píxeles.
+>
+> Paleta estricta de tres colores: verde oliva #3f6212 para el trazo y las
+> formas principales, fondo verde claro #eef3e2, y crudo #f7f5f1 para los
+> vacíos. Sin ningún otro color.
+>
+> Tono: ver el panorama completo. NO globo terráqueo, NO GPS de carro, NO
+> pantalla de celular, NO brújula. Sin personas. Sin texto, sin letras, sin
+> números, sin nombres de lugares, sin logotipos, sin marcas de agua. Fondo
+> plano, sin escena de fondo.
+
+---
+
+# Las dos del paso "¿En qué lugar?"
+
+Van juntas y se ven una al lado de la otra, así que tienen que leerse como
+pareja: mismo peso visual, mismo nivel de detalle.
+
+## 12 · `op-ubicacion.jpg` — Usar mi ubicación
+
+> Ilustración editorial plana, cuadrada 1:1, para el ícono de una tarjeta de un
+> mapa de ayuda humanitaria tras un terremoto en Colombia.
+>
+> Sujeto: un pin de mapa sólido clavado en el centro, con dos ondas concéntricas
+> abriéndose desde su base, como una señal que se emite. Composición centrada,
+> con margen generoso.
+>
+> Estilo: vectorial plano, formas gruesas y simples, sin degradados, sin
+> sombras realistas, sin textura de ruido. Trazo grueso y parejo. Debe leerse
+> con claridad reducida a 76×76 píxeles.
+>
+> Paleta estricta de tres colores: rojo tierra #b4321e para el trazo y las
+> formas principales, fondo crema rosado #fdeceb, y crudo #f7f5f1 para los
+> vacíos. Sin ningún otro color.
+>
+> Tono: aquí estoy, inmediato. NO satélite, NO celular, NO diana de mira, NO
+> brújula. Sin personas. Sin texto, sin letras, sin números, sin logotipos, sin
+> marcas de agua. Fondo plano, sin escena de fondo.
+
+## 13 · `op-departamento.jpg` — Elegir un departamento
+
+> Ilustración editorial plana, cuadrada 1:1, para el ícono de una tarjeta de un
+> mapa de ayuda humanitaria tras un terremoto en Colombia. Va al lado de otra
+> tarjeta con un pin de ubicación, así que debe tener el mismo peso visual y el
+> mismo nivel de detalle.
+>
+> Sujeto: tres regiones contiguas de un mapa, como piezas de un rompecabezas
+> plano, y una de ellas resaltada y ligeramente levantada. Composición centrada,
+> con margen generoso.
+>
+> Estilo: vectorial plano, formas gruesas y simples, sin degradados, sin
+> sombras realistas, sin textura de ruido. Trazo grueso y parejo. Debe leerse
+> con claridad reducida a 76×76 píxeles.
+>
+> Paleta estricta de tres colores: azul #1b5fa8 para el trazo y las formas
+> principales, fondo azul muy claro #e6eefa, y crudo #f7f5f1 para los vacíos.
+> Sin ningún otro color.
+>
+> Tono: escoger una zona de un territorio. NO el mapa de Colombia reconocible ni
+> el de ningún país real, NO banderas, NO globo terráqueo. Las formas son
+> abstractas. Sin personas. Sin texto, sin letras, sin números, sin logotipos,
+> sin marcas de agua. Fondo plano, sin escena de fondo.
