@@ -626,7 +626,7 @@ body.con-ctx .cuerpo{height:calc(100dvh - 196px)}
           </div>
 
           <div class="rejilla">
-            <div class="campo">
+            <div class="campo" id="campo-urgencia">
               <label for="f-urgencia">Urgencia</label>
               <select id="f-urgencia">
                 <option value="alta">Alta · hay riesgo ahora</option>
@@ -872,12 +872,18 @@ const FAM = {
 };
 
 const SIT = {
+  /* `urgFija` — situaciones donde preguntar "¿alta, media o baja?" no tiene
+     sentido: que alguien esté desaparecido, atrapado o desorientado ES la
+     urgencia. Se esconde el selector y el reporte sale en alta. Preguntarlo
+     invitaba además a una respuesta imposible: nadie va a marcar "baja" para
+     su papá desaparecido, así que la pregunta solo servía para hacer dudar. */
   'busco-persona':  {g:'busco', f:'persona', n:'Busco a una persona desaparecida',
-    priv:1, foto:1, ej:'Ej.: Buscamos a Jorge Pineda, 71 años, salió el lunes y no volvió'},
+    priv:1, foto:1, urgFija:'alta',
+    ej:'Ej.: Buscamos a Jorge Pineda, 71 años, salió el lunes y no volvió'},
   'busco-mascota':  {g:'busco', f:'mascota', n:'Busco a mi mascota',
     foto:1, sinPersonas:1, ej:'Ej.: Perro criollo café, collar rojo, se perdió al evacuar'},
 
-  'nec-rescate':    {g:'necesito', f:'rescate', n:'Personas atrapadas o remoción de escombros',
+  'nec-rescate':    {g:'necesito', f:'rescate', urgFija:'alta', n:'Personas atrapadas o remoción de escombros',
     ej:'Ej.: Vecinos escuchan voces bajo la placa caída del segundo piso'},
   'nec-viveres':    {g:'necesito', f:'viveres', n:'Víveres, agua o ropa',
     ej:'Ej.: Familia de 5 sin agua ni comida desde el lunes'},
@@ -893,7 +899,7 @@ const SIT = {
     ej:'Ej.: Describe en una línea qué está pasando'},
 
   'ofr-persona':    {g:'ofrezco', f:'persona', n:'Encontré a una persona desorientada o sin identificar',
-    priv:1, sinPersonas:1, ej:'Ej.: Señor mayor sin documentos en el puesto de salud, no recuerda su dirección'},
+    priv:1, sinPersonas:1, urgFija:'alta', ej:'Ej.: Señor mayor sin documentos en el puesto de salud, no recuerda su dirección'},
   'ofr-mascota':    {g:'ofrezco', f:'mascota', n:'Encontré una mascota',
     foto:1, sinPersonas:1, ej:'Ej.: Gato gris con collar azul, lo tengo en mi casa'},
   'ofr-alojamiento':{g:'ofrezco', f:'refugio', n:'Ofrezco alojamiento',
@@ -2935,6 +2941,9 @@ function aplicarSituacion(){
   if (!puedeFoto) limpiarFoto();
   $('#campo-personas').style.display = s.sinPersonas ? 'none' : '';
   if (s.sinPersonas) $('#f-personas').value = '';
+  // La urgencia se esconde y se fija donde graduarla no significa nada.
+  $('#campo-urgencia').style.display = s.urgFija ? 'none' : '';
+  if (s.urgFija) { $('#f-urgencia').value = s.urgFija; urgAuto = s.urgFija; }
   $('#aviso-mask').hidden = $('#f-pub').checked;
 
   iniciarMini();
@@ -3527,7 +3536,12 @@ function abrirForm(pre){
      urgencia inflada le quita sentido a la palabra justo donde más importa.
      Se reemplaza lo que pusimos nosotros o el valor por defecto; una elección
      deliberada de la persona ("baja") se respeta. */
-  if (pre && pre.fijo && $('#f-urgencia')) {
+  // ⚠️ Si la situación fija la urgencia (desaparecidos, atrapados), este bloque
+  // NO puede tocarla: `aplicarSituacion` ya la puso en alta y escondió el
+  // selector, y sin esta guarda el flujo la devolvía a media — dejando un
+  // reporte de persona desaparecida en urgencia media y sin forma de subirla,
+  // porque el control ya no está en pantalla.
+  if (pre && pre.fijo && $('#f-urgencia') && !(SIT[sitSel] || {}).urgFija) {
     const el = $('#f-urgencia'), nueva = pre.urg || 'media';
     if (el.value === urgAuto || el.value === 'media') { el.value = nueva; urgAuto = nueva; }
   }
