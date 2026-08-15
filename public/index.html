@@ -362,11 +362,11 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid v
 .pt-volver{
   display:block; margin:1.1rem auto .2rem; min-height:44px;
   padding:.7rem 2.2rem; border:0; border-radius:var(--r);
-  background:var(--azul); color:#fff;
+  background:var(--rojo); color:#fff;
   font-family:var(--titulo); font-weight:700; font-size:.95rem;
   cursor:pointer; box-shadow:var(--sombra);
 }
-.pt-volver:hover{background:#164e8a}
+.pt-volver:hover{background:#9c2b1a}
 
 /* Ventana de donaciones */
 .don{border:1px solid var(--linea); border-radius:var(--r); padding:.85rem .9rem; margin-bottom:.7rem}
@@ -543,6 +543,7 @@ body.con-ctx .cuerpo{height:calc(100dvh - 196px)}
       <h2 class="pt-nivel" id="pt-nivel">O elige un departamento</h2>
       <input type="text" class="buscador" id="pt-q" placeholder="Buscar…" autocomplete="off">
       <div class="mun-lista" id="pt-muns"></div>
+      <button type="button" class="pt-volver" data-pt-atras>← Atrás</button>
     </div>
 
     <!-- Panel de preguntas por tarjetas. Una intención puede encadenar varias
@@ -552,6 +553,7 @@ body.con-ctx .cuerpo{height:calc(100dvh - 196px)}
     <div id="pt-paso3" hidden>
       <div class="pt-elegido" id="pt-elegido3"></div>
       <div class="dispo" id="pt-dispo"></div>
+      <button type="button" class="pt-volver" data-pt-atras>← Atrás</button>
     </div>
 
     <div class="pt-pie">
@@ -2276,8 +2278,7 @@ function encabezadoPaso(){
   const I = S.pt.i;
   const donde = S.pt.l ? ` · ${nombreLugar(S.pt.l)}` : '';
   return `<span class="ico" aria-hidden="true">${I.ico}</span>
-    <b>${esc(I.n)}</b>${donde ? `<span style="color:var(--tenue)">${esc(donde)}</span>` : ''}
-    <button type="button" class="btn btn-sm" data-pt-atras>← Atrás</button>`;
+    <b>${esc(I.n)}</b>${donde ? `<span style="color:var(--tenue)">${esc(donde)}</span>` : ''}`;
 }
 
 function mostrarPaso(){
@@ -2527,6 +2528,15 @@ async function modoPrensa(){
 
 function ejecutar(){
   const I = S.pt.i || EXPLORAR, L = S.pt.l || null;
+
+  /* ⚠️ Donar va ANTES de cerrar la puerta y no toca el estado del mapa.
+     Es una ventana informativa, no un modo: no tiene lugar, no filtra nada y
+     no hay a dónde navegar. Cerrando la puerta como las demás acciones, su
+     "Volver" devolvía al MAPA —que no es de donde venía la persona— en vez de
+     a las tarjetas de "Quiero ayudar". Con la puerta abierta detrás, cerrar la
+     ventana deja a la persona exactamente donde estaba. */
+  if (I.accion === 'donar') { abrirDonar(); return; }
+
   S.intencion = I; S.lugar = L;
   cerrarPuerta();
   limpiarModo();
@@ -2552,7 +2562,6 @@ function ejecutar(){
                lugar:L});
   } else if (I.accion === 'url') { location.href = I.url; }
   else if (I.accion === 'acopio') { abrirAcopio(L); }
-  else if (I.accion === 'donar') { abrirDonar(); }
   else if (I.accion === 'acopios') { modoAcopios(); }
   else if (I.accion === 'voluntario') { modoVoluntario(); }
   else if (I.accion === 'prensa') { modoPrensa(); }
@@ -3793,10 +3802,15 @@ async function iniciar(){
      "preguntas encadenadas, atrás y el lugar en dos tarjetas" — pero el único
      listener buscaba `#pt-atras`, un id que no pone nadie. Quien entraba a una
      opción equivocada quedaba encerrado ahí y tenía que recargar la página.
-     ⚠️ Son los DOS paneles: el botón se pinta en `#pt-elegido` (el de lugar) y
-     en `#pt-elegido3` (el de preguntas), y colgarlo de uno solo dejaba el otro
-     muerto. Un panel nuevo hay que sumarlo a esta lista. */
-  ['#pt-elegido', '#pt-elegido3'].forEach((s) =>
+     ⚠️ Son los DOS paneles: el de lugar y el de preguntas. Colgarlo de uno
+     solo deja el otro muerto.
+     ⚠️⚠️ Y volvió a romperse al mover el botón del encabezado al pie: el
+     listener colgaba de `#pt-elegido`/`#pt-elegido3`, que son las tiras de
+     ARRIBA, así que el botón nuevo —que ya no vive ahí— dejó de responder sin
+     un solo error en consola. Ahora cuelga de los PANELES completos, que
+     contienen encabezado y pie: el botón se puede mover dentro del paso sin
+     volver a desconectarlo. Un panel nuevo hay que sumarlo a esta lista. */
+  ['#pt-paso2', '#pt-paso3'].forEach((s) =>
     $(s).addEventListener('click', (e) => {
       if (e.target.closest('[data-pt-atras]')) atrasPaso();
     }));
