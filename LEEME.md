@@ -78,7 +78,7 @@ lleva a la herramienta que ya existía:
 | Busco atención médica | Para quién, qué necesita y si puede llegar a un puesto de salud |
 | Busco transporte | `nec-otro` con ejemplo propio (ver aviso abajo) |
 | Necesito reconstruir | Pregunta qué hace falta y entra a `nec-estructural` |
-| Busco a una persona | `busco-persona`, con su aviso de privacidad |
+| Busco a una persona | **Manda primero a Medicina Legal y Cruz Roja**, y luego cuándo se vio, edad y si depende de un cuidado |
 | Busco a mi mascota | Especie, tamaño, color y cuándo se perdió, a toques |
 | Encontré una mascota | Especie, tamaño, color y si trae collar, a toques |
 | Necesito voluntarios | `nec-otro` con ejemplo propio (ver aviso abajo) |
@@ -121,6 +121,21 @@ un adulto mayor o alguien enfermo sube el reporte a urgencia alta; en salud lo
 hace responder que la persona no puede moverse. Dejarlo en media sería
 desperdiciar la respuesta. Va **propuesta, no impuesta** — el selector sigue
 ahí y se puede bajar.
+
+**Una pregunta puede no preguntar nada.** La primera pantalla de *busco a una
+persona* no recoge un dato: manda a **Medicina Legal** y a la **Cruz Roja**,
+con enlaces, y aclara que no hay que esperar 24 ni 72 horas para denunciar
+—que es un mito extendido y cuesta días—. Va **primero y no al final**, porque
+después de llenar el formulario la persona ya se fue. Lo respondido ahí (si ya
+reportó o no) entra al detalle, y le sirve a quien lea el reporte para ayudarla
+a hacerlo.
+
+⚠️ **En personas desaparecidas la fecha NO sube la urgencia**, aunque "la vi
+hoy" sea la respuesta más común. Si la recencia, ser menor, ser mayor de 60 y
+depender de un medicamento fueran todas alta, prácticamente todo reporte de
+persona saldría en alta y la palabra dejaría de significar algo frente a los de
+comida y salud, que comparten el mismo mapa. Se reserva para quien es frágil
+por edad o por dependencia médica.
 
 **Y una respuesta puede quitar un campo.** Cuando el flujo ya preguntó para
 cuántas personas (`pers` en la opción), el formulario esconde su campo

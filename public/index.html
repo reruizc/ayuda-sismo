@@ -1111,10 +1111,74 @@ const INTENCIONES = [
    accion:'form', sit:'nec-otro', ctx:'Pidiendo voluntarios', acc:'Abrir el formulario',
    ph:'Ej.: Necesitamos 10 personas el sábado para clasificar mercados en el acopio'},
 
+  /* El reporte más delicado de la página, y hasta ahora el que menos ayudaba a
+     quien lo escribe: iba directo a un formulario en blanco.
+
+     ⚠️⚠️ La PRIMERA pantalla no pregunta nada útil para nosotros: manda a
+     Medicina Legal y a la Cruz Roja. Este mapa hace que la publicación la vea
+     más gente, pero la búsqueda formal —hospitales, morgues, el Registro
+     Nacional de Desaparecidos— no la hace un mapa, y alguien que confíe solo
+     en esto pierde días. Va primero, no al final, porque después de llenar el
+     formulario la persona ya se fue.
+
+     ⚠️ Lo que se pregunta a toques es lo que sirve para RECONOCER y BUSCAR:
+     cuándo se vio por última vez, edad y si depende de un tratamiento. La ropa
+     y las señas van en el texto, que es donde de verdad se describen. */
   {k:'persona', ico:'👤', n:'Busco a una persona', img:'op-persona.jpg',
    col:'#7a2ea8', tint:'#f3e8fa',
    d:'Un familiar del que no sé nada',
-   accion:'form', sit:'busco-persona', ctx:'Buscando a una persona', acc:'Abrir el formulario'},
+   accion:'form', sit:'busco-persona', ctx:'Buscando a una persona', acc:'Abrir el formulario',
+   subs:[
+     { pregunta:'Repórtalo también por el canal oficial',
+       nota:'Publicarlo aquí ayuda a que lo vea más gente, pero <b>la búsqueda '
+          + 'formal la hacen las autoridades</b>: hospitales, Medicina Legal y el '
+          + 'Registro Nacional de Desaparecidos. Hazlo hoy mismo en '
+          + '<a href="https://www.medicinalegal.gov.co" target="_blank" rel="noopener">Medicina Legal</a> '
+          + 'y en <a href="https://www.icrc.org/es/donde-trabajamos/americas/colombia" target="_blank" rel="noopener">Cruz Roja</a>. '
+          + 'No tienes que esperar 24 ni 72 horas: eso es un mito.',
+       opciones:[
+         {n:'Ya lo reporté', d:'A Medicina Legal, Cruz Roja o Policía',
+          det:'Ya reportado a un canal oficial.'},
+         {n:'Lo voy a reportar ahora', d:'Abro los enlaces de arriba y sigo',
+          det:'Pendiente de reportar a un canal oficial.'},
+         {n:'Publico aquí primero', d:'Después hago el reporte oficial',
+          det:'Aún sin reporte a un canal oficial.'},
+       ]},
+     /* ⚠️ La fecha NO sube la urgencia, aunque sea la respuesta más común.
+        Si "hoy", "menor de edad", "más de 60" y "toma medicamentos" fueran
+        todas alta, prácticamente todo reporte de persona saldría en alta y la
+        palabra dejaría de significar algo frente a los de comida y salud, que
+        comparten el mismo mapa. Se reserva para quien es frágil por edad o por
+        dependencia médica; cuándo se vio queda en el detalle, que es donde
+        sirve para organizar la búsqueda. */
+     { pregunta:'¿Cuándo la viste por última vez?', opciones:[
+       {n:'Hoy',                d:'En las últimas horas',  det:'Vista por última vez hoy.'},
+       {n:'Ayer',               d:'Hace un día',           det:'Vista por última vez ayer.'},
+       {n:'Hace 2 o 3 días',    d:'Esta semana',           det:'Vista por última vez hace 2 o 3 días.'},
+       {n:'Hace más de 3 días', d:'Ya lleva un tiempo',    det:'Vista por última vez hace más de 3 días.'},
+     ]},
+     { pregunta:'¿Qué edad tiene?', opciones:[
+       {n:'Es menor de edad', d:'Menos de 18 años', det:'Es menor de edad.', urg:'alta'},
+       {n:'Entre 18 y 40',    d:'Persona adulta',   det:'Tiene entre 18 y 40 años.'},
+       {n:'Entre 41 y 60',    d:'Persona adulta',   det:'Tiene entre 41 y 60 años.'},
+       {n:'Más de 60',        d:'Persona mayor',    det:'Tiene más de 60 años.', urg:'alta'},
+     ]},
+     /* Un adulto sano perdido y una persona con demencia o en diálisis no son
+        la misma búsqueda: la segunda tiene reloj. */
+     { pregunta:'¿Depende de algún cuidado especial?', opciones:[
+       {n:'Sí, toma medicamentos a diario', d:'Diálisis, insulina, epilepsia…',
+        det:'Depende de un tratamiento médico diario.', urg:'alta',
+        ph:'Ej.: Jorge Pineda, 71 años, camisa azul, salió el lunes; es diabético'},
+       {n:'Sí, se desorienta',   d:'Demencia, discapacidad cognitiva',
+        det:'Tiene una condición que la desorienta.', urg:'alta',
+        ph:'Ej.: Ana Rojas, 78 años, ruana café, tiene alzhéimer y salió sola'},
+       {n:'No, que yo sepa',     d:'Sin condición conocida',
+        det:'Sin cuidado especial conocido.',
+        ph:'Ej.: Jorge Pineda, 41 años, camisa azul y jean, salió el lunes y no volvió'},
+       {n:'No sé',               d:'No tengo esa información',
+        ph:'Ej.: Describe cómo es, qué ropa llevaba y dónde se vio por última vez'},
+     ]},
+   ]},
 
   /* La tarjeta de mascota era UNA con una pregunta adentro ("¿la buscas o la
      encontraste?"). Al repartir el menú en tres familias esa pregunta ya la
@@ -2150,7 +2214,13 @@ function mostrarPaso(){
   const opciones = esSub ? bloque.opciones : DISPO;
   const pregunta = esSub ? bloque.pregunta : '¿Cuándo puedes ayudar?';
   $('#pt-titulo').textContent = pregunta;
-  $('#pt-sub').textContent = esSub
+  /* Una pregunta puede traer su propia bajada con enlaces (`nota`). Se usa en
+     personas desaparecidas para mandar a Medicina Legal y a la Cruz Roja ANTES
+     de publicar: este mapa hace que la vea más gente, pero la búsqueda formal
+     no la hace un mapa. Es HTML de nuestro propio catálogo, no texto de nadie
+     de afuera. */
+  if (esSub && bloque.nota) $('#pt-sub').innerHTML = bloque.nota;
+  else $('#pt-sub').textContent = esSub
     ? 'Elige la que describe tu situación.'
     : 'Con eso te mostramos los sitios que necesitan manos cuando puedes ir, '
       + 'en vez de mandarte a buscar en el mapa.';
