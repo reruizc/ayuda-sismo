@@ -188,8 +188,74 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid v
 .pop-foto{width:100%; max-height:170px; object-fit:cover; border-radius:8px; margin:.4rem 0}
 .pop-acc{display:flex; gap:.4rem; margin-top:.6rem; flex-wrap:wrap}
 
+/* ══════════ puerta de entrada ══════════
+   Quien llega no busca "un mapa": busca hacer UNA cosa. Preguntarle qué y
+   dónde antes de mostrarle todo evita que tenga que entender la interfaz
+   completa —capas, filtros, 17 situaciones— para dar el primer paso. */
+.puerta{position:fixed; inset:0; z-index:1200; background:var(--papel); overflow-y:auto; -webkit-overflow-scrolling:touch}
+.puerta[hidden]{display:none}
+.pt-caja{max-width:780px; margin:0 auto;
+  padding:1.2rem 1rem calc(2rem + env(safe-area-inset-bottom));
+  padding-top:calc(1.2rem + env(safe-area-inset-top))}
+.pt-cab{display:flex; gap:1rem; align-items:flex-start; margin-bottom:1.1rem}
+.pt-cab .btn{margin-left:auto; flex:none}
+.pt-ojo{margin:0 0 .3rem; font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--rojo)}
+.pt-caja h1{font-size:1.5rem}
+.pt-sub{margin:.35rem 0 0; color:var(--tenue); font-size:.9rem; max-width:52ch}
+.ops{display:grid; grid-template-columns:1fr 1fr; gap:.6rem}
+.op{display:flex; gap:.75rem; align-items:flex-start; text-align:left;
+  border:1.5px solid var(--linea); background:var(--tarjeta); border-radius:12px;
+  padding:.85rem .9rem; color:var(--tinta); box-shadow:var(--sombra); width:100%}
+.op:hover{border-color:var(--tenue)}
+.op .ico{font-size:1.3rem; line-height:1.15; flex:none}
+.op b{display:block; font-size:.97rem}
+.op span{display:block; font-size:.8rem; color:var(--tenue); font-weight:400; margin-top:.14rem; line-height:1.35}
+.op-urg{border-color:#e8b3a8; background:var(--rojo-claro)}
+.op-urg b{color:var(--rojo)}
+.op-sec{grid-column:1/-1; box-shadow:none; background:transparent; border-style:dashed; margin-top:.2rem}
+.pt-pie{margin-top:1.3rem; padding-top:.9rem; border-top:1px solid var(--linea); font-size:.82rem; color:var(--tenue)}
+.pt-elegido{background:var(--tarjeta); border:1px solid var(--linea); border-radius:12px;
+  padding:.7rem .85rem; display:flex; gap:.6rem; align-items:center; margin-bottom:1rem; font-size:.92rem}
+.pt-elegido .ico{font-size:1.2rem}
+.pt-elegido button{margin-left:auto}
+.lugares{display:flex; flex-wrap:wrap; gap:.4rem; margin:.8rem 0 .2rem}
+.mun-lista{max-height:42vh; overflow-y:auto; border:1px solid var(--linea);
+  border-radius:var(--r); background:var(--tarjeta); margin-top:.7rem}
+.mun{display:block; width:100%; text-align:left; border:none; background:none;
+  padding:.62rem .8rem; border-bottom:1px solid var(--linea); font-size:.92rem; color:var(--tinta)}
+.mun:last-child{border-bottom:none}
+.mun:hover{background:#faf8f5}
+.mun small{color:var(--tenue); font-size:.78rem; font-weight:400}
+
+/* Barra de contexto: recuerda con qué intención se entró y deja volver atrás.
+   Sin ella, después del primer clic la página vuelve a ser "un mapa" y se
+   pierde el hilo de lo que la persona venía a hacer. */
+.ctx{background:#eef4fb; border-bottom:1px solid #cfe0f2; padding:.55rem 1rem;
+  display:flex; gap:.6rem; align-items:center; flex-wrap:wrap; font-size:.86rem; color:#1b3f66}
+.ctx[hidden]{display:none}
+.ctx-t{font-weight:600}
+.ctx-acc{margin-left:auto; display:flex; gap:.4rem; flex-wrap:wrap}
+body.con-ctx .cuerpo{height:calc(100dvh - 196px)}
+@supports not (height:100dvh){body.con-ctx .cuerpo{height:calc(100vh - 196px)}}
+
+/* Tarjetas de acopio y de prensa en el panel lateral: el mismo contenedor
+   sirve para las tres listas según el modo activo. */
+.ac-cab{display:flex; align-items:flex-start; gap:.4rem; flex-wrap:wrap; margin-bottom:.2rem}
+.ac-cab h3{font-size:.95rem}
+.ac-d{font-size:.85rem; margin:.25rem 0 0}
+.ac-m{font-size:.79rem; color:var(--tenue); margin:.25rem 0 0}
+.ac-acc{display:flex; gap:.5rem; margin-top:.45rem; flex-wrap:wrap; font-size:.82rem; font-weight:600}
+.nt{padding:.8rem 1rem; border-bottom:1px solid var(--linea)}
+.nt a{font-size:.88rem; font-weight:600; text-decoration:none; display:block}
+.nt a:hover{text-decoration:underline}
+.nt .m{font-size:.76rem; color:var(--tenue); margin-top:.25rem}
+
 @media (max-width:860px){
   .cuerpo{grid-template-columns:1fr; grid-template-rows:50dvh auto; height:auto}
+  body.con-ctx .cuerpo{height:auto}
+  .ops{grid-template-columns:1fr}
+  .pt-caja h1{font-size:1.3rem}
+  .mun-lista{max-height:50vh}
   @supports not (height:50dvh){.cuerpo{grid-template-rows:50vh auto}}
   .panel{border-left:none; border-top:1px solid var(--linea)}
   .lista{overflow:visible}
@@ -206,12 +272,47 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid v
 </head>
 <body>
 
+<!-- ══════════ puerta de entrada: qué quieres hacer y dónde ══════════ -->
+<div class="puerta" id="puerta" hidden>
+  <div class="pt-caja">
+    <div class="pt-cab">
+      <div>
+        <p class="pt-ojo">Sismo del 10 de agosto de 2026</p>
+        <h1 id="pt-titulo">¿Qué necesitas hacer?</h1>
+        <p class="pt-sub" id="pt-sub">Elige una opción y te llevamos directo a lo que sirve.
+          Puedes cambiarla en cualquier momento.</p>
+      </div>
+      <button class="btn btn-sm" id="pt-saltar">Ver el mapa</button>
+    </div>
+
+    <div id="pt-paso1">
+      <div class="ops" id="ops"></div>
+    </div>
+
+    <div id="pt-paso2" hidden>
+      <div class="pt-elegido" id="pt-elegido"></div>
+      <label for="pt-q" style="font-weight:600; font-size:.9rem">Busca tu municipio</label>
+      <input type="text" class="buscador" id="pt-q" style="margin-top:.35rem"
+             placeholder="Escribe: Cali, Quibdó, Dosquebradas…" autocomplete="off">
+      <div class="lugares" id="pt-lugares"></div>
+      <p class="ubi-est" id="pt-est"></p>
+      <div class="mun-lista" id="pt-muns"></div>
+    </div>
+
+    <div class="pt-pie">
+      <b>Esto no es un canal oficial.</b> Si hay vidas en riesgo llama al
+      <a href="tel:123">123</a>. Personas desaparecidas: Cruz Roja y Medicina Legal.
+    </div>
+  </div>
+</div>
+
 <header class="top">
   <div class="marca">
     <strong>Mapa de ayuda</strong>
     <span>Sismo del 10 de agosto de 2026</span>
   </div>
   <div class="top-acc">
+    <button class="btn btn-sm" id="btn-puerta">Inicio</button>
     <a class="btn btn-sm" href="inteligencia.html">De qué habla la prensa</a>
     <button class="btn btn-sm" id="btn-mis">Mis reportes</button>
     <button class="btn btn-pri btn-reportar" id="btn-reportar">Registrar</button>
@@ -226,6 +327,8 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid v
 </div>
 
 <nav class="zonas" id="zonas" aria-label="Ir a una zona"></nav>
+
+<div class="ctx" id="ctx" hidden></div>
 
 <main class="cuerpo">
   <div id="mapa"></div>
@@ -486,6 +589,53 @@ const SIT = {
     ej:'Ej.: Describe en una línea qué puedes ofrecer'},
 };
 
+/* Catálogo de INTENCIONES — la puerta de entrada.
+ *
+ * No es otro catálogo de datos: es el puente entre "a qué vine" y las
+ * herramientas que ya existen (formulario, capa de acopios, filtros, prensa).
+ * Cada intención sabe a qué situación del formulario lleva —o qué modo del
+ * mapa enciende— para que nadie tenga que aprenderse la interfaz primero.
+ *
+ * `acc` es la acción secundaria que queda a la mano en la barra de contexto:
+ * quien viene a donar casi siempre termina queriendo publicar lo que tiene.
+ */
+const INTENCIONES = [
+  {k:'necesito', ico:'🆘', n:'Necesito ayuda',
+   d:'Víveres, agua, medicinas, dónde dormir',
+   accion:'form', grupo:'necesito', ctx:'Registrando lo que necesitas', acc:'Abrir el formulario'},
+
+  {k:'rescate', ico:'⛑️', n:'Hay personas atrapadas', urg:1,
+   d:'Escombros, alguien bajo una placa caída',
+   accion:'form', sit:'nec-rescate', ctx:'Reportando personas atrapadas', acc:'Abrir el formulario'},
+
+  {k:'donar', ico:'📦', n:'Quiero donar cosas',
+   d:'Dónde entregar mercados, ropa o agua',
+   accion:'acopios', ctx:'Dónde entregar donaciones', acc:'Publicar lo que ofrezco', accSit:'ofr-viveres'},
+
+  {k:'voluntario', ico:'🙋', n:'Quiero ser voluntario',
+   d:'Dónde hacen falta manos, y ofrecerte',
+   accion:'voluntario', ctx:'Dónde hacen falta manos', acc:'Ofrecerme como voluntario', accSit:'ofr-voluntario'},
+
+  {k:'ofrecer', ico:'🤝', n:'Puedo ofrecer algo más',
+   d:'Alojamiento, transporte, atención médica',
+   accion:'form', grupo:'ofrezco', ctx:'Registrando lo que ofreces', acc:'Abrir el formulario'},
+
+  {k:'persona', ico:'👤', n:'Busco a una persona',
+   d:'Un familiar del que no sé nada',
+   accion:'form', sit:'busco-persona', ctx:'Buscando a una persona', acc:'Abrir el formulario'},
+
+  {k:'mascota', ico:'🐾', n:'Mascota perdida o encontrada',
+   d:'Publícala con foto para que la reconozcan',
+   accion:'form', sits:['busco-mascota','ofr-mascota'], ctx:'Mascotas', acc:'Abrir el formulario'},
+
+  {k:'prensa', ico:'📰', n:'Ver qué dice la prensa',
+   d:'Titulares publicados sobre un lugar',
+   accion:'prensa', ctx:'Titulares publicados', acc:'Ver el informe completo', accUrl:'inteligencia.html'},
+];
+
+const EXPLORAR = {k:'explorar', ico:'🗺️', n:'Explorar el mapa completo',
+  d:'Ver todo lo publicado y filtrar a mano', accion:'mapa'};
+
 const URG = {alta:'Urgente', media:'Media', baja:'Baja'};
 
 // Municipios con capa de barrios (barrios.json). La llave casa por nombre
@@ -502,6 +652,12 @@ const S = {
   caps: {fotos:false},
   prensa: null, verPrensa: false,
   acopios: null, verAcopios: false,
+  // Puerta de entrada: con qué intención entró la persona y a qué lugar.
+  // `listaModo` decide qué muestra el panel lateral: '' reportes · 'acopios'
+  // puntos de donación · 'prensa' titulares. El mapa siempre muestra reportes.
+  intencion: null, lugar: null, listaModo: '',
+  pt: {i:null, l:null},
+  capasAcopio: new Map(),
 };
 
 const $ = (s) => document.querySelector(s);
@@ -1133,13 +1289,14 @@ async function enviarReporte(e){
     foto: (SIT[sitSel] && SIT[sitSel].foto && S.caps.fotos) ? fotoData : null,
     web: $('#f-web').value,
     dt: formAbiertoEn ? Date.now() - formAbiertoEn : null,
-    turnstile: window.turnstile && CONFIG.TURNSTILE
-      ? (document.querySelector('#turnstile input[name="cf-turnstile-response"]') || {}).value
-      : '',
+    turnstile: '',   // se llena abajo, esperando a que el reto termine
   };
 
   const btn = $('#f-enviar');
-  btn.disabled = true; btn.textContent = 'Publicando…';
+  btn.disabled = true;
+  btn.textContent = tsMontado ? 'Verificando…' : 'Publicando…';
+  cuerpo.turnstile = await tokenTurnstile();
+  btn.textContent = 'Publicando…';
   try {
     const r = await fetch(`${CONFIG.API}/reporte`, {
       method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(cuerpo),
@@ -1185,10 +1342,13 @@ async function enviarContacto(e){
   const err = $('#contacto-error'); err.hidden = true;
   const msg = $('#c-mensaje').value.trim();
   if (msg.length < 10) return fallo(err, 'Escribe un poco más de detalle.');
+  let tokenC = '';
+  try { tokenC = (window.turnstile && tsIdC != null) ? (window.turnstile.getResponse(tsIdC) || '') : ''; } catch {}
   try {
     const r = await fetch(`${CONFIG.API}/contacto`, {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({reporte:contactoId, mensaje:msg, de:$('#c-de').value.trim(), web:$('#c-web').value}),
+      body:JSON.stringify({reporte:contactoId, mensaje:msg, de:$('#c-de').value.trim(),
+        web:$('#c-web').value, turnstile:tokenC}),
     });
     const d = await r.json();
     if (!r.ok || !d.ok) throw new Error(d.error || 'no_ok');
@@ -1278,7 +1438,31 @@ function rutaHash(){
 
 let formAbiertoEn = 0;
 
-let tsMontado = false;
+let tsMontado = false, tsId = null, tsIdC = null;
+
+/**
+ * Espera a que Turnstile resuelva su reto y devuelve el token.
+ *
+ * ⚠️ Antes se raspaba el input oculto `cf-turnstile-response` en el momento del
+ * envío. Si el reto no había terminado —y en modo Gestionado tarda uno o dos
+ * segundos— ese campo estaba vacío y el reporte salía SIN verificar. Fue justo
+ * lo que pasó en la primera prueba real.
+ *
+ * Se usa getResponse(), que es la API oficial, y se espera hasta 8 s. Si no
+ * llega, se envía igual: el captcha no puede impedir que alguien reporte a un
+ * desaparecido. El servidor lo marcará para moderación.
+ */
+async function tokenTurnstile(msMax = 8000){
+  if (!CONFIG.TURNSTILE || !window.turnstile || tsId == null) return '';
+  const hasta = Date.now() + msMax;
+  while (Date.now() < hasta) {
+    let t = '';
+    try { t = window.turnstile.getResponse(tsId) || ''; } catch { return ''; }
+    if (t) return t;
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  return '';
+}
 
 /**
  * Monta el captcha una sola vez.
@@ -1292,8 +1476,8 @@ function montarTurnstile(){
   if (tsMontado || !CONFIG.TURNSTILE) return;
   if (!window.turnstile || typeof window.turnstile.render !== 'function') return;
   try {
-    window.turnstile.render('#turnstile', {sitekey: CONFIG.TURNSTILE});
-    window.turnstile.render('#turnstile-c', {sitekey: CONFIG.TURNSTILE});
+    tsId = window.turnstile.render('#turnstile', {sitekey: CONFIG.TURNSTILE});
+    tsIdC = window.turnstile.render('#turnstile-c', {sitekey: CONFIG.TURNSTILE});
     tsMontado = true;
   } catch (e) {
     // Si no se puede montar, el reporte igual se envía y queda marcado para
