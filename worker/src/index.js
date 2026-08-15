@@ -225,6 +225,11 @@ async function bajoLimite(env, tabla, ipHash, max) {
   return (row?.n || 0) < max;
 }
 
+/* El título lo escribe la persona: sin escapar, entra crudo al HTML del
+   correo y puede alterarlo. Es texto ajeno en un documento, no una plantilla. */
+const escHtml = (v) => String(v ?? '').replace(/[&<>"']/g,
+  (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+
 /** Notificación por correo, si hay Resend. Nunca hace fallar la operación. */
 async function avisarPorCorreo(env, para, asunto, html) {
   if (!env.RESEND_API_KEY || !para || !para.includes('@')) return false;
@@ -386,6 +391,27 @@ async function crearReporte(req, env, origin, ip) {
     } catch { /* el diagnóstico nunca puede tumbar un reporte */ }
   }
 
+  /* Enlace privado al correo del reportante.
+     ⚠️ Es la única forma de recuperar un reporte desde OTRO dispositivo: el
+     "Mis reportes" del sitio vive en el navegador, así que cambiar de teléfono
+     o borrar datos lo dejaba sin nada. Va acá y no en una búsqueda por cédula
+     porque un buscador por documento deja que cualquiera consulte los reportes
+     de cualquiera —y acá hay reportes de personas desaparecidas con el
+     contacto del familiar, que es justo lo que se protege—.
+     Nunca hace fallar el envío: si Resend no responde, el reporte ya quedó
+     guardado y la persona tiene el enlace en pantalla. */
+  if (contactoTipo === 'email') {
+    const base = env.SITIO || 'https://sismo.ricardoruiz.co';
+    await avisarPorCorreo(env, contacto,
+      'Tu enlace para seguir el reporte',
+      `<p>Quedó publicado: <strong>${escHtml(titulo)}</strong>.</p>
+       <p>Con este enlace ves los mensajes que te dejen y lo marcas como
+          resuelto cuando ya no lo necesites:</p>
+       <p><a href="${base}/#/mi/${id}/${token}">Abrir mi reporte</a></p>
+       <p style="color:#666;font-size:13px">Nadie más tiene este enlace. No lo
+          compartas: quien lo tenga puede cerrar tu reporte.</p>`);
+  }
+
   return json({ ok: true, id, token }, 200, origin);
 }
 
@@ -518,7 +544,7 @@ async function contactar(req, env, origin, ip) {
     const base = env.SITIO || 'https://sismo.ricardoruiz.co';
     await avisarPorCorreo(env, r.contacto,
       'Tienes un mensaje nuevo sobre tu reporte',
-      `<p>Alguien respondió a tu reporte <strong>${r.titulo}</strong>.</p>
+      `<p>Alguien respondió a tu reporte <strong>${escHtml(r.titulo)}</strong>.</p>
        <p><a href="${base}/#/mi/${r.id}/${r.token}">Abrir mis mensajes</a></p>
        <p style="color:#666;font-size:13px">Nadie más tiene este enlace. No lo compartas.</p>`);
   }

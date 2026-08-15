@@ -1433,6 +1433,20 @@ const OPCIONES_LUGAR = [
    n:'Elegir un departamento', d:'Y después el municipio'},
 ];
 
+/* MIRAR el mapa no es lo mismo que REGISTRAR en él.
+ *
+ * ⚠️ Registrando, el lugar es obligatorio —un reporte sin ubicación no le
+ * sirve a nadie— y por eso las dos opciones de arriba piden una. Pero quien
+ * solo viene a ver qué hay publicado no tiene por qué entregar su ubicación
+ * para lograrlo, y hasta ahora era la única salida: no existía "ver todo".
+ * Se le da lo que vino a buscar de primero. */
+const OPCIONES_VER = [
+  {k:'pais', ico:'🗺️', img:'op-mapa.jpg', col:'#3f6212', tint:'#eef3e2',
+   n:'Ver todo el mapa', d:'Todo lo publicado en el país'},
+  {k:'dep', ico:'📍', img:'op-departamento.jpg', col:'#1b5fa8', tint:'#e6eefa',
+   n:'Ver un departamento', d:'Y si quieres, un municipio'},
+];
+
 // El mapa es una tarjeta más de la lista. Esta constante se conserva porque
 // `?ir=explorar` y la tecla Escape lo abren por nombre.
 const EXPLORAR = INTENCIONES.find((i) => i.k === 'explorar');
@@ -2291,7 +2305,9 @@ function mostrarPaso(){
 
   if (paso === 'lugar') {
     $('#pt-titulo').textContent = '¿En qué lugar?';
-    $('#pt-sub').textContent = 'Sirve para enfocar el mapa en lo que te queda cerca.';
+    $('#pt-sub').textContent = (S.pt.i || {}).accion === 'mapa'
+      ? 'Puedes ver el país entero o acercarte a una zona.'
+      : 'Sirve para enfocar el mapa en lo que te queda cerca.';
     // Dos caminos y nada más. La lista de 33 departamentos y el buscador
     // aparecen SOLO si elige el segundo: enseñarlo todo de una era volver a
     // poner un muro de nombres en la primera pantalla.
@@ -2299,7 +2315,8 @@ function mostrarPaso(){
       $('#pt-paso2').hidden = true;
       $('#pt-paso3').hidden = false;
       $('#pt-elegido3').innerHTML = encabezadoPaso();
-      $('#pt-dispo').innerHTML = OPCIONES_LUGAR.map((o) => `
+      const opsLugar = (S.pt.i || {}).accion === 'mapa' ? OPCIONES_VER : OPCIONES_LUGAR;
+      $('#pt-dispo').innerHTML = opsLugar.map((o) => `
         <button type="button" class="op" data-lugar="${esc(o.k)}"
           style="--acc:${o.col};--tint:${o.tint}">
           <span class="op-img" aria-hidden="true">${o.ico}<img
@@ -3877,6 +3894,7 @@ async function iniciar(){
     const lu = e.target.closest('[data-lugar]');
     if (lu) {
       if (lu.dataset.lugar === 'gps') return ubicarme();
+      if (lu.dataset.lugar === 'pais') return elegirLugar(null);   // sin filtro
       S.pt.lugarModo = 'lista'; S.pt.dep = null;
       return mostrarPaso();
     }
