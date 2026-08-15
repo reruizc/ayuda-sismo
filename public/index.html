@@ -2969,9 +2969,10 @@ async function iniciar(){
   $('#ops').addEventListener('click', (e) => {
     const b = e.target.closest('.op'); if (b) elegirIntencion(b.dataset.i);
   });
-  $('#pt-elegido').addEventListener('click', (e) => {
-    if (e.target.closest('#pt-atras')) abrirPuerta();   // sin intro
-  });
+  ['#pt-elegido', '#pt-elegido3'].forEach((s) =>
+    $(s).addEventListener('click', (e) => {
+      if (e.target.closest('[data-pt-atras]')) atrasPaso();
+    }));
   $('#pt-q').addEventListener('input', (e) => pintarNivel(e.target.value));
   $('#pt-dispo').addEventListener('click', (e) => {
     const lu = e.target.closest('[data-lugar]');
