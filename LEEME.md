@@ -206,6 +206,48 @@ así que aunque el formulario mandara una, se descarta.
 "ocultar" solo la quitaría del mapa y la URL seguiría sirviendo el archivo a
 quien ya la conociera.
 
+## Los puntos de acopio en el mapa
+
+**El marcador es una caja con el símbolo del tipo de lugar.** Un punto redondo
+verde no distingue una universidad de una bodega ni de un puesto de la Cruz
+Roja, y esa diferencia decide a dónde va alguien con un mercado en el carro.
+La tabla `TIPO_GLIFO` en `index.html` traduce la columna TIPO DE LUGAR de la
+hoja a un símbolo; un tipo que no esté cae a la caja genérica, y agregarlo es
+una línea. Cuando la columna viene vacía se mira el NOMBRE, que es donde
+aparecen "Cruz Roja" y "Bomberos" la mayoría de las veces.
+
+⚠️ **El color no cambia por tipo, a propósito.** Si cada tipo tuviera su color,
+la capa dejaría de leerse como "acopios" y competiría con los colores de los
+reportes, que son el dato propio de la página. El símbolo lleva el tipo; el
+verde lleva la categoría.
+
+### Coordenadas: `tools/ayuda-sismo/geocodificar_acopios.py`
+
+Llena LATITUD y LONGITUD de la hoja, que son las columnas que mandan sobre el
+centro del municipio.
+
+⚠️⚠️ **NO se le pregunta a un modelo de lenguaje por las coordenadas.** Un
+modelo responde un par de números con total seguridad y sin manera de saber si
+son los correctos, y un pin que PARECE exacto y está a cinco cuadras es peor
+que el centro del municipio: el centro se declara aproximado, el pin falso no.
+
+- **Bogotá** sale de la **Placa Domiciliaria de Catastro Distrital** (ArcGIS
+  público, `catastro/placadomiciliaria`). Es el registro de las placas reales:
+  si la dirección existe, el punto es el de la puerta. **58 de 74.**
+- **El resto** por NOMBRE en Nominatim, con las tres validaciones que ya usa el
+  Worker (≤30 km del centro, que no sea una vía, y una palabra distintiva del
+  nombre en la respuesta). Rinde poco y es esperable.
+- Total: **64 de 106**. Lo que no valida se deja **en blanco**, no se inventa.
+
+Gotchas del registro de placas, todos medidos:
+
+| | |
+|---|---|
+| `PDOTEXTO` trae **espacio al final** (`"78A 05 "`) | comparar con `LIKE`, no con `=`; con `=` no casa ni una |
+| El sur se escribe **" S"**, no "SUR" | `CL 65 S` |
+| La vía va aparte del número | `PDONVIAL='KR 15A'` + `PDOTEXTO LIKE '122 27%'` |
+| Sin placa exacta | se acepta la más cercana de la misma vía **solo dentro de ±20**, que en Bogotá es menos de media cuadra |
+
 ## Desplegar
 
 Todo desde `ayuda-sismo/worker` salvo el paso de Pages.

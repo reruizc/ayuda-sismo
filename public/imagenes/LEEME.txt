@@ -26,3 +26,7 @@ mejora el que se vea bonita.
 
 Mientras un archivo no exista, la tarjeta muestra el emoji sobre su color.
 No se ve rota: se ve terminada. Se pueden ir agregando de a una.
+
+Los PNG originales de GPT viven en `ayuda-sismo/imagenes-fuente/`, FUERA de
+public/: la carpeta public entera se sube a Cloudflare Pages, y un PNG de 1 MB
+que nadie pide es 1 MB de despliegue por imagen. Acá solo van los JPG de 240 px.

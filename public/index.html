@@ -279,6 +279,13 @@ body.con-ctx .cuerpo{height:calc(100dvh - 196px)}
 
 /* Tarjetas de acopio y de prensa en el panel lateral: el mismo contenedor
    sirve para las tres listas según el modo activo. */
+/* Caja del marcador de acopio. El símbolo va en blanco adentro; el color no
+   cambia por tipo a propósito: si cada tipo tuviera su color, la capa dejaría
+   de leerse como "acopios" y competiría con los colores de los reportes. */
+.ac-pin{display:flex; align-items:center; justify-content:center;
+  background:var(--verde); border:2px solid #fff; border-radius:8px;
+  box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.ac-icono{background:none; border:none}
 .ac-cab{display:flex; align-items:flex-start; gap:.4rem; flex-wrap:wrap; margin-bottom:.2rem}
 .ac-cab h3{font-size:.95rem}
 .ac-d{font-size:.85rem; margin:.25rem 0 0}
@@ -798,6 +805,73 @@ function pintarPrensa(){
   capaPrensa.eachLayer((l) => l.bringToBack && l.bringToBack());
 }
 
+/* ── íconos de acopio ──
+ *
+ * Un punto redondo verde no distingue una universidad de una bodega ni de un
+ * puesto de la Cruz Roja, y esa diferencia decide a dónde va alguien con un
+ * mercado en el carro. El marcador es una CAJA (la forma de una donación) con
+ * el símbolo del tipo de lugar adentro.
+ *
+ * Los tipos son los que Ricardo mantiene en la columna TIPO DE LUGAR de la
+ * hoja. Uno que no esté en esta tabla cae a la caja genérica: se agrega una
+ * línea acá y ya, sin tocar nada más.
+ */
+const GLIFOS = {
+  cruz:      'M10 2h4v6h6v4h-6v6h-4v-6H4V8h6z',
+  birrete:   'M12 3 2 8l10 5 10-5zM6 11v4c0 1.7 2.7 3 6 3s6-1.3 6-3v-4',
+  bolsa:     'M5 8h14l-1.2 12H6.2zM9 8V6.5a3 3 0 0 1 6 0V8',
+  llama:     'M12 2c.5 3 3.5 4.5 3.5 8a3.5 3.5 0 0 1-7 0c0-1.4.6-2.2.6-2.2s.2 1.4 1.3 1.4C12 9.2 10.6 6 12 2z'
+             + 'M7 14h10v6H7z',
+  escudo:    'M12 2.5 20 5.5v6c0 5-4.2 8.4-8 9.9-3.8-1.5-8-4.9-8-9.9v-6z',
+  arbol:     'M12 2.5 17.5 11h-3l4 6.5H5.5l4-6.5h-3zM10.5 17.5h3V21h-3z',
+  casa:      'M12 3 2.5 11h3v9h5v-6h3v6h5v-9h3z',
+  edificio:  'M2.5 9 12 3.5 21.5 9v2H2.5zM5 13h2.5v6H5zM10.7 13h2.6v6h-2.6zM16.5 13H19v6h-2.5zM2.5 20.5h19V22h-19z',
+  canasta:   'M2.5 8.5h19L19 20H5zM8.5 8.5 11 3M15.5 8.5 13 3',
+  caja:      'M12 2.5 21.5 7v3h-19V7zM4.5 11h15v9.5h-15zM12 11v9.5',
+  balon:     'M12 2.5A9.5 9.5 0 1 0 12 21.5 9.5 9.5 0 0 0 12 2.5zM12 7l4 3-1.5 4.7h-5L8 10z',
+  manos:     'M6 12V6.5a1.5 1.5 0 0 1 3 0V11m0-1V5a1.5 1.5 0 0 1 3 0v5m0-.5V6a1.5 1.5 0 0 1 3 0v5.5'
+             + 'M18 9.5a1.5 1.5 0 0 1 3 0V15a7 7 0 0 1-14 0v-1',
+};
+
+/** TIPO DE LUGAR (normalizado) → glifo. */
+const TIPO_GLIFO = {
+  'cruz roja': 'cruz', 'hospital': 'cruz', 'salud': 'cruz', 'bomberos': 'llama',
+  'universidad': 'birrete', 'institucion educativa': 'birrete', 'colegio': 'birrete',
+  'centro comercial': 'bolsa', 'ejercito': 'escudo', 'instalacion militar': 'escudo',
+  'policia': 'escudo', 'parque': 'arbol', 'espacio publico': 'arbol',
+  'sede comunitaria': 'casa', 'jac': 'casa',
+  'entidad publica': 'edificio', 'oficial': 'edificio', 'alcaldia': 'edificio',
+  'partido politico': 'edificio',
+  'banco de alimentos': 'canasta', 'caja de compensacion': 'canasta',
+  'fundacion': 'manos', 'fundacion privada': 'manos', 'ong': 'manos',
+  'escenario deportivo': 'balon',
+  'privado': 'caja', 'bodega': 'caja', 'iglesia': 'casa',
+};
+
+function glifoDe(a){
+  const t = norm(a.tipo || '');
+  if (TIPO_GLIFO[t]) return TIPO_GLIFO[t];
+  // La Cruz Roja y los bomberos suelen venir en el NOMBRE aunque la columna
+  // de tipo esté vacía, y son justo los que más se buscan.
+  const n = norm(a.n || '');
+  if (n.includes('cruz roja')) return 'cruz';
+  if (n.includes('bomber')) return 'llama';
+  if (n.includes('universidad')) return 'birrete';
+  if (n.includes('hospital') || n.includes('clinica')) return 'cruz';
+  for (const [k, g] of Object.entries(TIPO_GLIFO)) if (t && t.includes(k)) return g;
+  return 'caja';
+}
+
+/** Marcador: caja verde con el símbolo del tipo en blanco. */
+function iconoAcopio(a, px){
+  const d = GLIFOS[glifoDe(a)] || GLIFOS.caja;
+  const s = px || 30;
+  return `<span class="ac-pin" style="width:${s}px;height:${s}px">
+    <svg viewBox="0 0 24 24" width="${Math.round(s * .6)}" height="${Math.round(s * .6)}"
+         fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"
+         stroke-linecap="round" aria-hidden="true"><path d="${d}"/></svg></span>`;
+}
+
 /**
  * Centros de acopio, desde la hoja que se edita en vivo.
  *
@@ -844,9 +918,11 @@ function pintarAcopios(){
   S.capasAcopio.clear();
   S.acopios.forEach((a) => {
     if (a.la == null) return;
-    const m = L.circleMarker([a._la ?? a.la, a._lo ?? a.lo], {
-      radius: 8, color:'#fff', weight:2,
-      fillColor:'#1d7a4c', fillOpacity:.92,
+    const m = L.marker([a._la ?? a.la, a._lo ?? a.lo], {
+      icon: L.divIcon({className:'ac-icono', html: iconoAcopio(a),
+        iconSize:[30, 30], iconAnchor:[15, 15], popupAnchor:[0, -13]}),
+      // Los reportes son el dato propio y mandan cuando se solapan.
+      zIndexOffset: -200,
     });
     // El badge distingue lo confirmado de lo que solo salió en prensa: es la
     // razón de ser de la columna ULTIMA REVISION.
@@ -1374,6 +1450,7 @@ function listaAcopios(){
       const ruta = a.d ? `https://www.google.com/maps/search/?api=1&query=${
         encodeURIComponent([a.d, a.mu, a.dp, 'Colombia'].filter(Boolean).join(', '))}` : '';
       return `<article class="item" data-ac="${a._ix}" tabindex="0">
+        ${iconoAcopio(a, 34)}
         <div class="item-txt">
           <div class="ac-cab">
             <h3>${esc(a.n)}</h3>

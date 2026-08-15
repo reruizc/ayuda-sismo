@@ -71,3 +71,69 @@ Se arman con el mismo bloque de estilo, cambiando sujeto y los dos colores:
 | `op-donar.jpg` | Una caja de cartón abierta con ropa y agua adentro | `#b3730c` | `#faf0dd` |
 | `op-voluntario.jpg` | Una mano alzada con un chaleco y una pala | `#0f766e` | `#e3f2f0` |
 | `op-prensa.jpg` | Un periódico doblado con un micrófono al lado | `#5d574e` | `#efece7` |
+
+---
+
+## 5 · `op-transporte.jpg` — Busco transporte
+
+> Ilustración editorial plana, cuadrada 1:1, para el ícono de una tarjeta de un
+> mapa de ayuda humanitaria tras un terremoto en Colombia.
+>
+> Sujeto: una camioneta de estacas vista de perfil, con la platón cargada de
+> cajas y bultos amarrados. Composición centrada, con margen generoso.
+>
+> Estilo: vectorial plano, formas gruesas y simples, sin degradados, sin
+> sombras realistas, sin textura de ruido. Trazo grueso y parejo. Debe leerse
+> con claridad reducida a 58×58 píxeles.
+>
+> Paleta estricta de tres colores: gris azulado oscuro #4a5568 para el trazo y
+> las formas principales, fondo gris claro #eceef1, y crudo #f7f5f1 para los
+> vacíos. Sin ningún otro color.
+>
+> Tono: trabajo y traslado, un vehículo de vereda. NO camión militar, NO
+> ambulancia, NO camión de mudanzas corporativo. Sin personas, sin rostros. Sin
+> texto, sin letras, sin números, sin placas, sin logotipos, sin marcas de
+> agua. Fondo plano, sin escena de fondo.
+
+## 6 · `op-persona.jpg` — Busco a una persona
+
+> Ilustración editorial plana, cuadrada 1:1, para el ícono de una tarjeta de un
+> mapa de ayuda humanitaria tras un terremoto en Colombia.
+>
+> Sujeto: un retrato enmarcado sostenido por dos manos, con la silueta de una
+> persona de medio cuerpo dentro del marco, sin rasgos faciales. Composición
+> centrada, con margen generoso.
+>
+> Estilo: vectorial plano, formas gruesas y simples, sin degradados, sin
+> sombras realistas, sin textura de ruido. Trazo grueso y parejo. Debe leerse
+> con claridad reducida a 58×58 píxeles.
+>
+> Paleta estricta de tres colores: morado #7a2ea8 para el trazo y las formas
+> principales, fondo lila claro #f3e8fa, y crudo #f7f5f1 para los vacíos. Sin
+> ningún otro color.
+>
+> Tono: búsqueda con esperanza y respeto, como el retrato que carga una
+> familia. NO cartel de "se busca" policial, NO expediente, NO lupa, NO
+> rostros reconocibles. Sin texto, sin letras, sin números, sin logotipos, sin
+> marcas de agua. Fondo plano, sin escena de fondo.
+
+## 7 · `op-mascota.jpg` — Mascota perdida o encontrada
+
+> Ilustración editorial plana, cuadrada 1:1, para el ícono de una tarjeta de un
+> mapa de ayuda humanitaria tras un terremoto en Colombia.
+>
+> Sujeto: un perro criollo y un gato sentados juntos de perfil, mirando en la
+> misma dirección, el perro con collar. Composición centrada, con margen
+> generoso.
+>
+> Estilo: vectorial plano, formas gruesas y simples, sin degradados, sin
+> sombras realistas, sin textura de ruido. Trazo grueso y parejo. Debe leerse
+> con claridad reducida a 58×58 píxeles.
+>
+> Paleta estricta de tres colores: verde #1d7a4c para el trazo y las formas
+> principales, fondo verde muy claro #e7f4ed, y crudo #f7f5f1 para los vacíos.
+> Sin ningún otro color.
+>
+> Tono: compañía y calma. NO tierno de caricatura infantil, NO animales
+> heridos o asustados, NO jaulas. Sin personas. Sin texto, sin letras, sin
+> números, sin logotipos, sin marcas de agua. Fondo plano, sin escena de fondo.
