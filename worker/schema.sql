@@ -95,6 +95,27 @@ CREATE TABLE IF NOT EXISTS externos (
   datos TEXT NOT NULL
 );
 
+-- Bitácora de las corridas del cron.
+--
+-- ⚠️⚠️ Existe porque una corrida en cero era INDISTINGUIBLE de una buena: el
+-- agregado vacío se escribía encima del bueno y la página quedaba muda. Acá
+-- queda constancia de cada corrida —salga bien o mal—, si se publicó o se
+-- descartó, y el detalle por consulta cuando algo falló.
+CREATE TABLE IF NOT EXISTS corridas (
+  id        INTEGER PRIMARY KEY AUTOINCREMENT,
+  ts        INTEGER NOT NULL,
+  tarea     TEXT NOT NULL,             -- prensa | acopios
+  origen    TEXT NOT NULL,             -- cron | manual
+  ok        INTEGER NOT NULL,          -- la recolección sirvió
+  publicado INTEGER NOT NULL,          -- se escribió, o se conservó lo anterior
+  ms        INTEGER,
+  notas     INTEGER,
+  medios    INTEGER,
+  detalle   TEXT                       -- JSON con el resultado de cada consulta
+);
+
+CREATE INDEX IF NOT EXISTS idx_corridas ON corridas (tarea, ts DESC);
+
 -- Coordenadas resueltas por NOMBRE del sitio contra OpenStreetMap.
 -- Se cachean para siempre: la ubicación de un hospital no cambia, y volver a
 -- preguntar por cada refresco abusaría de un servicio gratuito.
