@@ -392,6 +392,18 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid v
 .dispo button:hover{border-color:var(--tenue)}
 .dispo button:not(.op) b{display:block; font-size:1.1rem}
 .dispo button:not(.op) span{display:block; font-size:.9rem; color:var(--tenue); margin-top:.15rem}
+/* Rótulo de la situación ya elegida en la puerta. Se lee como un dato
+   confirmado, no como un control: por eso no tiene aspecto de botón. */
+.sit-fija{display:flex; align-items:center; gap:.5rem; flex-wrap:wrap;
+  background:var(--papel); border:1px solid var(--linea); border-radius:10px;
+  padding:.6rem .75rem; margin-bottom:1rem}
+.sit-fija[hidden]{display:none}
+.sit-fija .sf-rot{font-size:.7rem; font-weight:700; text-transform:uppercase;
+  letter-spacing:.05em; color:var(--tenue)}
+.sit-fija b{font-size:.95rem}
+.sit-fija .sf-cambiar{margin-left:auto; background:none; border:0; padding:.1rem .2rem;
+  font:inherit; font-size:.82rem; font-weight:600; color:var(--azul);
+  text-decoration:underline; cursor:pointer}
 .sitio-cerca{font-size:.8rem; font-weight:700; color:var(--morado)}
 .sitio-lejos{font-size:.8rem; color:var(--tenue)}
 /* Sombreado morado: los sitios a los que esta persona sí puede ir —cerca, o
@@ -572,11 +584,19 @@ body.con-ctx .cuerpo{height:calc(100dvh - 196px)}
     </div>
     <div class="modal-cuerpo">
       <form id="form" novalidate>
-        <div class="campo">
+        <div class="campo" id="campo-sit">
           <label>¿Qué vas a registrar?</label>
           <div class="grupos" id="op-grupo"></div>
           <div class="sits" id="op-sit"></div>
         </div>
+
+        <!-- Cuando la persona ya dijo a qué venía en la puerta de entrada, el
+             selector completo sobra: volver a mostrar los tres grupos y las
+             diecisiete situaciones invita a cambiar una decisión que ya se
+             tomó, y de hecho se veía a alguien entrar por "encontré una
+             mascota" y salir con un reporte de otra cosa. Queda un rótulo con
+             lo elegido y un "Cambiar" para quien de verdad se equivocó. -->
+        <div class="sit-fija" id="sit-fija" hidden></div>
 
         <!-- Todo lo demás aparece solo cuando ya se eligió la situación:
              ver 12 campos de golpe hace que la gente cierre el formulario. -->
@@ -1032,15 +1052,77 @@ const INTENCIONES = [
      encontraste?"). Al repartir el menú en tres familias esa pregunta ya la
      contesta el grupo por el que entró la persona: buscarla es necesitar
      ayuda, haberla encontrado es ofrecerla. Son dos tarjetas y un paso menos. */
+  /* Las señas de la mascota se preguntan A TOQUES, no dentro del formulario.
+     Un campo de texto libre produce "perdí a mi perrita" —que no sirve para
+     reconocer a nadie— mientras que especie, tamaño y color son cerrados, se
+     contestan sin escribir y son exactamente lo que hace falta para cruzar una
+     mascota perdida con una encontrada. Cada respuesta entra al detalle como
+     una frase, editable. */
   {k:'mascota', ico:'🐾', n:'Busco a mi mascota', img:'op-mascota.jpg',
    col:'#1d7a4c', tint:'#e7f4ed',
    d:'Se perdió, quiero publicarla con foto',
-   accion:'form', sit:'busco-mascota', ctx:'Buscando una mascota', acc:'Abrir el formulario'},
+   accion:'form', sit:'busco-mascota', ctx:'Buscando una mascota', acc:'Abrir el formulario',
+   subs:[
+     { pregunta:'¿Qué animal es?', opciones:[
+       {n:'Un perro',  d:'Cualquier raza o tamaño', det:'Es un perro.'},
+       {n:'Un gato',   d:'Cualquier raza o tamaño', det:'Es un gato.'},
+       {n:'Otro animal', d:'Ave, conejo, otro',     det:'Es otro tipo de animal.'},
+     ]},
+     { pregunta:'¿De qué tamaño?', opciones:[
+       {n:'Pequeño', d:'Se puede cargar en brazos', det:'Tamaño pequeño.'},
+       {n:'Mediano', d:'Como un labrador joven',    det:'Tamaño mediano.'},
+       {n:'Grande',  d:'Del porte de un pastor',    det:'Tamaño grande.'},
+     ]},
+     { pregunta:'¿De qué color es?', opciones:[
+       {n:'Café o marrón',  d:'Incluye canela y dorado', det:'Color café.'},
+       {n:'Negro',          d:'Todo o casi todo negro',  det:'Color negro.'},
+       {n:'Blanco',         d:'Todo o casi todo blanco', det:'Color blanco.'},
+       {n:'Gris o atigrado', d:'Rayado o grisáceo',      det:'Color gris o atigrado.'},
+       {n:'De varios colores', d:'Manchado o tricolor',  det:'De varios colores.'},
+     ]},
+     { pregunta:'¿Cuándo se perdió?', opciones:[
+       {n:'Hoy',                   d:'En las últimas horas', det:'Se perdió hoy.',
+        ph:'Ej.: Se llama Kira, criolla café, se perdió cerca del parque'},
+       {n:'En los últimos 3 días', d:'Esta semana',          det:'Se perdió hace pocos días.',
+        ph:'Ej.: Se llama Kira, criolla café, se perdió el lunes en el barrio Cuba'},
+       {n:'Hace más de 3 días',    d:'Ya lleva un tiempo',   det:'Se perdió hace más de 3 días.',
+        ph:'Ej.: Se llama Kira, criolla café, se perdió desde el temblor'},
+     ]},
+   ]},
 
   {k:'mascota-hallada', ico:'🐕', n:'Encontré una mascota', img:'op-mascota-hallada.jpg',
    col:'#1d7a4c', tint:'#e7f4ed',
    d:'La tengo y quiero que la reconozcan',
-   accion:'form', sit:'ofr-mascota', ctx:'Mascota encontrada', acc:'Abrir el formulario'},
+   accion:'form', sit:'ofr-mascota', ctx:'Mascota encontrada', acc:'Abrir el formulario',
+   subs:[
+     { pregunta:'¿Qué animal encontraste?', opciones:[
+       {n:'Un perro',  d:'Cualquier raza o tamaño', det:'Es un perro.'},
+       {n:'Un gato',   d:'Cualquier raza o tamaño', det:'Es un gato.'},
+       {n:'Otro animal', d:'Ave, conejo, otro',     det:'Es otro tipo de animal.'},
+     ]},
+     { pregunta:'¿De qué tamaño?', opciones:[
+       {n:'Pequeño', d:'Se puede cargar en brazos', det:'Tamaño pequeño.'},
+       {n:'Mediano', d:'Como un labrador joven',    det:'Tamaño mediano.'},
+       {n:'Grande',  d:'Del porte de un pastor',    det:'Tamaño grande.'},
+     ]},
+     { pregunta:'¿De qué color es?', opciones:[
+       {n:'Café o marrón',  d:'Incluye canela y dorado', det:'Color café.'},
+       {n:'Negro',          d:'Todo o casi todo negro',  det:'Color negro.'},
+       {n:'Blanco',         d:'Todo o casi todo blanco', det:'Color blanco.'},
+       {n:'Gris o atigrado', d:'Rayado o grisáceo',      det:'Color gris o atigrado.'},
+       {n:'De varios colores', d:'Manchado o tricolor',  det:'De varios colores.'},
+     ]},
+     /* El collar es lo que más rápido devuelve una mascota a su casa, y es un
+        dato que quien la encontró tiene delante y nadie le pregunta. */
+     { pregunta:'¿Tiene collar o placa?', opciones:[
+       {n:'Sí, con placa o datos', d:'Trae nombre o teléfono', det:'Tiene collar con placa.',
+        ph:'Ej.: Perro café con collar rojo, la placa dice "Toby"'},
+       {n:'Sí, pero sin datos',    d:'Collar sin identificación', det:'Tiene collar sin datos.',
+        ph:'Ej.: Perro café con collar rojo sin placa, apareció el martes'},
+       {n:'No tiene',              d:'Sin collar',              det:'No tiene collar.',
+        ph:'Ej.: Perro criollo café sin collar, apareció cerca del colegio'},
+     ]},
+   ]},
 
   {k:'registrar', ico:'📍', n:'Registrar un centro de acopio', img:'op-registrar.jpg',
    col:'#7c3f00', tint:'#f6ece0',
@@ -2212,6 +2294,10 @@ function ejecutar(){
     abrirForm({sit, grupo: sit ? '' : I.grupo, sits:I.sits,
                ph: ult('ph') || I.ph,
                det: resp.map((r) => r.det).filter(Boolean),
+               // `fijo` solo cuando la puerta llegó a UNA situación. Si trajo
+               // un grupo o una lista, la persona todavía tiene que elegir y
+               // esconder el selector la dejaría sin poder hacerlo.
+               fijo: !!sit && !I.sits,
                lugar:L});
   } else if (I.accion === 'url') { location.href = I.url; }
   else if (I.accion === 'acopio') { abrirAcopio(L); }
@@ -2594,6 +2680,10 @@ async function cargar(){
 
 /* ══════════════════════════════ formulario ══════════════════════════════ */
 let miniMapa = null, miniPin = null, grupoSel = '', sitSel = '', fotoData = null, pinPend = null;
+// Último detalle que generamos a partir de las preguntas de la puerta. Sirve
+// para saber si lo que hay en el campo lo escribió la persona o lo pusimos
+// nosotros: lo nuestro se puede reemplazar, lo suyo no.
+let detAuto = '';
 
 function abrir(id){ $(id).hidden = false; document.body.style.overflow = 'hidden'; }
 function cerrarTodo(){
@@ -3265,14 +3355,53 @@ function abrirForm(pre){
   // Ejemplo propio de la intención: "busco transporte" entra por `nec-otro`,
   // y sin esto vería el ejemplo genérico de "otra necesidad".
   if (pre && pre.ph && sitSel) $('#f-titulo').placeholder = pre.ph;
-  // Lo respondido en las preguntas previas entra como primeras líneas del
-  // detalle, editables: es contexto que quien va a ayudar necesita leer y que
-  // la persona no tiene por qué volver a escribir.
-  if (pre && pre.det && pre.det.length && !$('#f-detalle').value.trim()) {
-    $('#f-detalle').value = pre.det.join(' ');
+  /* Lo respondido en las preguntas previas entra como primeras líneas del
+     detalle, editables: es contexto que quien va a ayudar necesita leer y que
+     la persona no tiene por qué volver a escribir.
+
+     ⚠️⚠️ La condición NO puede ser solo "el campo está vacío". Con eso, quien
+     abría un flujo, se devolvía y entraba por otro se llevaba el detalle del
+     primero: se vio un reporte de "busco a mi mascota" que decía "tiene collar
+     con placa", que es una frase del flujo de haberla encontrado. Y era una
+     mentira sobre un animal perdido, en el campo que la gente lee para
+     reconocerlo.
+     Se distingue lo que escribió la persona —que nunca se pisa— de lo que
+     generamos nosotros, que sí se reemplaza. */
+  if (pre && pre.det && pre.det.length) {
+    const actual = $('#f-detalle').value.trim();
+    if (!actual || actual === detAuto) {
+      detAuto = pre.det.join(' ');
+      $('#f-detalle').value = detAuto;
+    }
   }
   if (pre && pre.lugar) prefijarLugar(pre.lugar);
+  fijarSituacion(!!(pre && pre.fijo) && !!sitSel);
   if (sitSel) iniciarMini();
+}
+
+/**
+ * Muestra la situación como un rótulo cerrado en vez del selector completo.
+ *
+ * Solo cuando la puerta ya la determinó sin ambigüedad. Si se entró por un
+ * grupo ("Necesito ayuda", que abre el grupo pero no la situación concreta) el
+ * selector se queda: ahí la persona todavía tiene que elegir.
+ */
+function fijarSituacion(fija){
+  const campo = $('#campo-sit'), chip = $('#sit-fija');
+  if (!campo || !chip) return;
+  campo.hidden = !!fija;
+  chip.hidden = !fija;
+  if (!fija) return;
+  const s = SIT[sitSel] || {};
+  chip.innerHTML = `<span class="sf-rot">Vas a registrar</span>
+    <b>${esc(s.n || sitSel)}</b>
+    <button type="button" class="sf-cambiar">Cambiar</button>`;
+  chip.querySelector('.sf-cambiar').addEventListener('click', () => {
+    // No se borra lo elegido: se destapa el selector con la situación actual
+    // marcada, para corregir sin volver a empezar.
+    chip.hidden = true;
+    campo.hidden = false;
+  });
 }
 
 async function iniciar(){

@@ -79,11 +79,49 @@ lleva a la herramienta que ya existía:
 | Busco transporte | `nec-otro` con ejemplo propio (ver aviso abajo) |
 | Necesito reconstruir | Pregunta qué hace falta y entra a `nec-estructural` |
 | Busco a una persona | `busco-persona`, con su aviso de privacidad |
-| Mascota perdida o encontrada | Pregunta si la busca o la encontró |
+| Busco a mi mascota | Especie, tamaño, color y cuándo se perdió, a toques |
+| Encontré una mascota | Especie, tamaño, color y si trae collar, a toques |
+| Necesito voluntarios | `nec-otro` con ejemplo propio (ver aviso abajo) |
+| Quiero ayudar psicológicamente | `ofr-salud` con ejemplo de acompañamiento |
+| Puedo poner transporte | `ofr-transporte` |
 | Registrar un centro de acopio | Formulario propio de seis campos |
 | Qué dicen las noticias | Titulares del territorio en el panel |
 | Ver informes | El informe completo de cobertura de prensa |
 | Ver el mapa completo | La página tal como era, para filtrar a mano |
+
+**El menú tiene dos niveles.** La primera pantalla pregunta una sola cosa —
+**Quiero ayudar** · **Necesito ayuda** · **Ver el mapa e informes** — y las
+opciones concretas aparecen dentro de la que se elija (`FAMILIAS` en
+`index.html`). Antes salían las catorce juntas, que son catorce decisiones a la
+vez para alguien que abre esto en la calle. Agregar una opción es meter su
+clave en el `ops` de una familia; `verificarFamilias()` avisa por consola si
+alguna quedó fuera y por tanto inalcanzable.
+
+⚠️ **"Hay personas atrapadas" NO se esconde detrás de un toque**: va suelta
+encima de las tres puertas. Es la única opción de la página donde el tiempo se
+mide en minutos, y hacer navegar un menú para reportar a alguien bajo escombros
+no lo compensa ninguna limpieza de pantalla.
+
+**Las preguntas reemplazan al formulario, no lo adornan.** Las señas de una
+mascota —especie, tamaño, color, collar— se preguntan a toques y no como texto
+libre: "perdí a mi perrita" no sirve para reconocer a nadie, mientras que tres
+listas cerradas se contestan sin escribir y son justo lo que permite cruzar una
+mascota perdida con una encontrada. Cada respuesta entra al detalle como una
+frase editable.
+
+**La situación queda cerrada cuando la puerta ya la determinó.** El formulario
+mostraba de nuevo los tres grupos y las diecisiete situaciones, así que quien
+entraba por "encontré una mascota" podía salir con un reporte de otra cosa.
+Ahora sale un rótulo con lo elegido y un "Cambiar" para quien de verdad se
+equivocó. Si se entró por un GRUPO (como "Necesito ayuda", que no fija la
+situación) el selector se queda: ahí todavía hay que elegir.
+
+⚠️⚠️ **El detalle auto-generado se reemplaza; lo que escribe la persona, nunca.**
+La condición no puede ser "el campo está vacío": con eso, quien abría un flujo,
+se devolvía y entraba por otro se llevaba el detalle del primero — se vio un
+reporte de "busco a mi mascota" que decía "tiene collar con placa", una frase
+del flujo contrario, en el campo que la gente lee para reconocer al animal. Se
+distingue con `detAuto`.
 
 **Las preguntas se encadenan.** Cada intención declara en `subs` cuántas
 preguntas necesita antes de actuar, y `pasosDe()` las recorre de a una. Lo
