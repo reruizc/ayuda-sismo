@@ -415,7 +415,6 @@ body.con-ctx .cuerpo{height:calc(100dvh - 196px)}
         <p class="pt-sub" id="pt-sub">Elige una opción y te llevamos directo a lo que sirve.
           Puedes cambiarla en cualquier momento.</p>
       </div>
-      <button class="btn btn-sm" id="pt-saltar">Ver el mapa</button>
     </div>
 
     <div id="pt-paso1">
@@ -424,7 +423,6 @@ body.con-ctx .cuerpo{height:calc(100dvh - 196px)}
 
     <div id="pt-paso2" hidden>
       <div class="pt-elegido" id="pt-elegido"></div>
-      <div class="lugares" id="pt-lugares"></div>
       <p class="ubi-est" id="pt-est"></p>
       <h2 class="pt-nivel" id="pt-nivel">O elige un departamento</h2>
       <input type="text" class="buscador" id="pt-q" placeholder="Buscar…" autocomplete="off">
@@ -857,12 +855,47 @@ const INTENCIONES = [
   {k:'alojamiento', ico:'🛏️', n:'Busco alojamiento', img:'op-alojamiento.jpg',
    col:'#1b5fa8', tint:'#e6eefa',
    d:'Dónde dormir esta noche',
-   accion:'form', sit:'nec-refugio', ctx:'Buscando alojamiento', acc:'Abrir el formulario'},
+   accion:'form', sit:'nec-refugio', ctx:'Buscando alojamiento', acc:'Abrir el formulario',
+   // Las tres van a la misma situación del catálogo —alojamiento es una sola—
+   // pero cada una entra al formulario con su propio ejemplo, que es lo que
+   // hace que la gente escriba lo que hace falta para poder ayudarla.
+   subs:[{ pregunta:'¿Eres…?', opciones:[
+     {k:'nec-refugio', n:'Alguien que se quedó sin techo', d:'Mi casa no es habitable',
+      ph:'Ej.: Familia de 4 sin casa desde el lunes, dormimos donde una vecina'},
+     {k:'nec-refugio', n:'Voluntario sin dónde hospedarse',
+      d:'Vine a ayudar y necesito dormir', det:'Soy voluntario y necesito hospedaje.',
+      ph:'Ej.: Soy voluntario de Medellín, necesito dónde dormir 3 noches'},
+     {k:'nec-refugio', n:'Otro caso', d:'Cuéntame en el formulario',
+      ph:'Ej.: Describe en una línea qué necesitas'},
+   ]}]},
 
   {k:'salud', ico:'🩺', n:'Busco atención médica', img:'op-salud.jpg',
    col:'#be185d', tint:'#fbe6ef',
    d:'Medicamentos, curaciones, un traslado',
-   accion:'form', sit:'nec-salud', ctx:'Buscando atención médica', acc:'Abrir el formulario'},
+   accion:'form', sit:'nec-salud', ctx:'Buscando atención médica', acc:'Abrir el formulario',
+   // Dos preguntas encadenadas: para quién y qué. Ninguna cambia la situación
+   // del catálogo —salud es una sola— pero las dos entran al formulario como
+   // primera línea del detalle, que es lo que una brigada necesita leer para
+   // saber si puede resolverlo y con qué llevar.
+   subs:[
+     { pregunta:'¿Para quién es?', opciones:[
+       {k:'nec-salud', n:'Para mí', d:'Lo necesito yo', det:'Es para mí.'},
+       {k:'nec-salud', n:'Para un familiar o alguien cercano',
+        d:'Alguien de mi casa o del lado', det:'Es para un familiar o alguien cercano.'},
+       {k:'nec-salud', n:'Para una comunidad',
+        d:'Varias familias o un barrio entero', det:'Es para una comunidad.'},
+     ]},
+     { pregunta:'¿Qué necesitas?', opciones:[
+       {k:'nec-salud', n:'Un medicamento', d:'Algo que se acabó o no se consigue',
+        det:'Necesita un medicamento.',
+        ph:'Ej.: Señora diabética sin insulina desde el lunes'},
+       {k:'nec-salud', n:'Una revisión médica', d:'Que alguien la vea',
+        det:'Necesita revisión médica.',
+        ph:'Ej.: Herida en la pierna que no cierra, necesita que la vean'},
+       {k:'nec-salud', n:'Otra cosa', d:'Traslado, oxígeno, otra necesidad',
+        ph:'Ej.: Describe en una línea qué se necesita'},
+     ]},
+   ]},
 
   /* ⚠️ "Necesito transporte" NO existe en el catálogo del Worker (transporte
      solo está del lado de quien lo ofrece). Va como `nec-otro` con su propio
@@ -874,6 +907,27 @@ const INTENCIONES = [
    accion:'form', sit:'nec-otro', ctx:'Buscando transporte', acc:'Abrir el formulario',
    ph:'Ej.: Necesitamos cómo sacar a una señora enferma de la vereda'},
 
+  /* ⚠️ El catálogo del Worker no tiene una situación de reconstrucción, así
+     que entra por `nec-estructural` —la de edificación dañada—, que además es
+     de las pocas que admiten FOTO: para conseguir tejas y manos, la foto del
+     daño hace más que cualquier descripción. */
+  {k:'reconstruir', ico:'🧱', n:'Necesito reconstruir', img:'op-reconstruir.jpg',
+   col:'#c2410c', tint:'#fbe9df',
+   d:'Materiales o manos para levantar lo caído',
+   accion:'form', sit:'nec-estructural', ctx:'Reconstrucción', acc:'Abrir el formulario',
+   ph:'Ej.: Se cayó el techo de la cocina, necesitamos tejas y quien ayude',
+   subs:[{ pregunta:'¿Qué hace falta?', opciones:[
+     {k:'nec-estructural', n:'Materiales', d:'Tejas, cemento, madera, ladrillo',
+      det:'Hacen falta materiales.',
+      ph:'Ej.: Se cayó el techo de la cocina, necesitamos tejas y listones'},
+     {k:'nec-estructural', n:'Manos que ayuden', d:'Gente para levantar y despejar',
+      det:'Hacen falta manos.',
+      ph:'Ej.: Hay que levantar un muro caído, se necesitan 4 personas'},
+     {k:'nec-estructural', n:'Que alguien revise si es seguro',
+      d:'No sabemos si se puede habitar', det:'Piden revisión técnica.',
+      ph:'Ej.: La casa quedó agrietada, no sabemos si se puede entrar'},
+   ]}]},
+
   {k:'persona', ico:'👤', n:'Busco a una persona', img:'op-persona.jpg',
    col:'#7a2ea8', tint:'#f3e8fa',
    d:'Un familiar del que no sé nada',
@@ -883,10 +937,10 @@ const INTENCIONES = [
    col:'#1d7a4c', tint:'#e7f4ed',
    d:'Publícala con foto para que la reconozcan',
    accion:'form', ctx:'Mascotas', acc:'Abrir el formulario',
-   sub:[
+   subs:[{ pregunta:'¿Cuál es tu caso?', opciones:[
      {k:'busco-mascota', n:'Busco a mi mascota', d:'Se perdió y quiero publicarla'},
      {k:'ofr-mascota',   n:'Encontré una mascota', d:'La tengo y quiero reportarla'},
-   ]},
+   ]}]},
 
   {k:'registrar', ico:'📍', n:'Registrar un centro de acopio', img:'op-registrar.jpg',
    col:'#7c3f00', tint:'#f6ece0',
@@ -897,10 +951,30 @@ const INTENCIONES = [
    col:'#5d574e', tint:'#efece7',
    d:'Lo que se publica sobre un territorio',
    accion:'prensa', ctx:'Titulares publicados', acc:'Ver el informe completo', accUrl:'inteligencia.html'},
+
+  {k:'informes', ico:'📊', n:'Ver informes', img:'op-informes.jpg',
+   col:'#1b3f66', tint:'#e6ecf3',
+   d:'Cobertura de prensa y municipios de los que nadie habla',
+   accion:'url', url:'inteligencia.html'},
+
+  {k:'explorar', ico:'🗺️', n:'Ver el mapa completo', img:'op-mapa.jpg',
+   col:'#0f766e', tint:'#e3f2f0',
+   d:'Todo lo publicado, para filtrar a mano',
+   accion:'mapa'},
 ];
 
-const EXPLORAR = {k:'explorar', ico:'🗺️', n:'Explorar el mapa completo',
-  d:'Ver todo lo publicado y filtrar a mano', accion:'mapa'};
+/* Los dos caminos para decir dónde. Llevan imagen como las demás tarjetas:
+   mientras el archivo no exista queda el emoji sobre su color. */
+const OPCIONES_LUGAR = [
+  {k:'gps', ico:'📍', img:'op-ubicacion.jpg', col:'#b4321e', tint:'#fdeceb',
+   n:'Usar mi ubicación', d:'La tomamos del teléfono, no se publica'},
+  {k:'dep', ico:'🗺️', img:'op-departamento.jpg', col:'#1b5fa8', tint:'#e6eefa',
+   n:'Elegir un departamento', d:'Y después el municipio'},
+];
+
+// El mapa es una tarjeta más de la lista. Esta constante se conserva porque
+// `?ir=explorar` y la tecla Escape lo abren por nombre.
+const EXPLORAR = INTENCIONES.find((i) => i.k === 'explorar');
 
 /* El rótulo del evento. Está en UN solo sitio porque la emergencia cambia:
    empezó siendo el sismo y hoy incluye los incendios de Nariño (149
@@ -927,6 +1001,7 @@ const S = {
   // `listaModo` decide qué muestra el panel lateral: '' reportes · 'acopios'
   // puntos de donación · 'prensa' titulares. El mapa siempre muestra reportes.
   intencion: null, lugar: null, listaModo: '', dispo: 'hoy', detalle: null,
+  prensaSel: null,
   pt: {i:null, l:null},
   capasAcopio: new Map(),
 };
@@ -991,7 +1066,9 @@ function pintarPrensa(){
           `<li>${esc(t.t.slice(0, 95))}${t.t.length > 95 ? '…' : ''}</li>`).join('')}</ul>` : ''}
         <span class="aprox">Ubicación aproximada al centro del municipio</span>
       </div>`, {sticky:true, direction:'top'});
-    c.on('click', () => location.href = 'inteligencia.html');
+    // Antes se iba a inteligencia.html: sacaba a la persona del mapa para
+    // leer cuatro titulares que caben en el panel de al lado.
+    c.on('click', () => verPrensaMun(m.n));
     c.addTo(capaPrensa);
   });
   capaPrensa.addTo(mapa);
@@ -1457,15 +1534,14 @@ function tarjetaOp(I, n){
   const img = I.img
     ? `<img src="imagenes/${esc(I.img)}" alt="" loading="lazy" onerror="this.remove()">`
     : '';
-  return `<button type="button" class="op entra${I.urg ? ' op-urg' : ''}${I.k === 'explorar' ? ' op-sec' : ''}"
+  return `<button type="button" class="op entra${I.urg ? ' op-urg' : ''}"
     data-i="${esc(I.k)}" style="${est};--i:${n || 0}">
     <span class="op-img" aria-hidden="true">${I.ico}${img}</span>
     <span class="op-txt"><b>${esc(I.n)}</b><span>${esc(I.d)}</span></span></button>`;
 }
 
 function pintarOpciones(){
-  $('#ops').innerHTML = INTENCIONES.map(tarjetaOp).join('')
-    + tarjetaOp(EXPLORAR, INTENCIONES.length);
+  $('#ops').innerHTML = INTENCIONES.map(tarjetaOp).join('');
 }
 
 /**
@@ -1477,8 +1553,9 @@ function pintarOpciones(){
  * entender la pantalla completa antes de contestar lo primero.
  */
 function pasosDe(I){
-  const p = [];
-  if (I.sub) p.push('sub');
+  // Un enlace no necesita saber dónde: se abre y ya.
+  if (I.accion === 'url') return [];
+  const p = (I.subs || []).map((_, i) => `sub:${i}`);
   if (I.accion === 'voluntario') p.push('dispo');   // cuándo, y después dónde
   p.push('lugar');
   return p;
@@ -1488,10 +1565,25 @@ function elegirIntencion(k){
   const I = k === 'explorar' ? EXPLORAR : INTENCIONES.find((x) => x.k === k);
   if (!I) return;
   S.pt.i = I;
-  S.pt.sit = null;
+  S.pt.resp = [];
   S.pt.dep = null;
   S.pt.pasos = pasosDe(I);
   S.pt.idx = 0;
+  S.pt.lugarModo = null;
+  if (!S.pt.pasos.length) return ejecutar();
+  mostrarPaso();
+}
+
+/** Un paso atrás. Desde el drill de departamentos vuelve a las dos tarjetas
+ *  de lugar, y desde el primer paso, al menú. Es el botón que permite
+ *  explorar sin miedo a quedarse encerrado en una rama. */
+function atrasPaso(){
+  if ((S.pt.pasos || [])[S.pt.idx] === 'lugar' && S.pt.lugarModo) {
+    S.pt.lugarModo = null;
+    return mostrarPaso();
+  }
+  if (!S.pt.idx) return abrirPuerta();
+  S.pt.idx -= 1;
   mostrarPaso();
 }
 
@@ -1507,47 +1599,59 @@ function encabezadoPaso(){
   const donde = S.pt.l ? ` · ${nombreLugar(S.pt.l)}` : '';
   return `<span class="ico" aria-hidden="true">${I.ico}</span>
     <b>${esc(I.n)}</b>${donde ? `<span style="color:var(--tenue)">${esc(donde)}</span>` : ''}
-    <button type="button" class="btn btn-sm" data-pt-atras>Cambiar</button>`;
+    <button type="button" class="btn btn-sm" data-pt-atras>← Atrás</button>`;
 }
 
 function mostrarPaso(){
   const I = S.pt.i, paso = (S.pt.pasos || [])[S.pt.idx || 0];
   $('#pt-paso1').hidden = true;
-  $('#pt-paso2').hidden = paso !== 'lugar';
+  $('#pt-paso2').hidden = true;
   $('#pt-paso3').hidden = paso === 'lugar';
 
   if (paso === 'lugar') {
     $('#pt-titulo').textContent = '¿En qué lugar?';
-    $('#pt-sub').textContent = 'Sirve para enfocar el mapa en lo que te queda cerca. '
-      + 'Si no lo tienes claro, elige todo el país.';
+    $('#pt-sub').textContent = 'Sirve para enfocar el mapa en lo que te queda cerca.';
+    // Dos caminos y nada más. La lista de 33 departamentos y el buscador
+    // aparecen SOLO si elige el segundo: enseñarlo todo de una era volver a
+    // poner un muro de nombres en la primera pantalla.
+    if (!S.pt.lugarModo) {
+      $('#pt-paso2').hidden = true;
+      $('#pt-paso3').hidden = false;
+      $('#pt-elegido3').innerHTML = encabezadoPaso();
+      $('#pt-dispo').innerHTML = OPCIONES_LUGAR.map((o) => `
+        <button type="button" class="op" data-lugar="${esc(o.k)}"
+          style="--acc:${o.col};--tint:${o.tint}">
+          <span class="op-img" aria-hidden="true">${o.ico}<img
+            src="imagenes/${esc(o.img)}" alt="" loading="lazy" onerror="this.remove()"></span>
+          <span class="op-txt"><b>${esc(o.n)}</b><span>${esc(o.d)}</span></span>
+        </button>`).join('');
+      $('#pt-est').textContent = '';
+      return;
+    }
+    $('#pt-paso2').hidden = false;
+    $('#pt-paso3').hidden = true;
     $('#pt-elegido').innerHTML = encabezadoPaso();
     $('#pt-q').value = '';
     $('#pt-est').textContent = '';
-    S.pt.dep = null;
-    pintarChipsLugar();
     pintarNivel('');
     // El foco NO se pone en el buscador a propósito: en móvil abriría el
-    // teclado encima de los atajos, que es el camino más rápido.
+    // teclado encima de la lista, que es el camino más rápido.
     return;
   }
 
-  const opciones = paso === 'sub' ? I.sub : DISPO;
-  const pregunta = paso === 'sub' ? (I.pregunta || '¿Cuál es tu caso?') : '¿Cuándo puedes ayudar?';
+  const esSub = paso.startsWith('sub:');
+  const bloque = esSub ? (I.subs || [])[Number(paso.slice(4))] : null;
+  const opciones = esSub ? bloque.opciones : DISPO;
+  const pregunta = esSub ? bloque.pregunta : '¿Cuándo puedes ayudar?';
   $('#pt-titulo').textContent = pregunta;
-  $('#pt-sub').textContent = paso === 'sub'
+  $('#pt-sub').textContent = esSub
     ? 'Elige la que describe tu situación.'
     : 'Con eso te mostramos los sitios que necesitan manos cuando puedes ir, '
       + 'en vez de mandarte a buscar en el mapa.';
   $('#pt-elegido3').innerHTML = encabezadoPaso();
-  $('#pt-dispo').innerHTML = opciones.map((o) =>
-    `<button type="button" data-d="${esc(o.k)}"><b>${esc(o.n)}</b>
+  $('#pt-dispo').innerHTML = opciones.map((o, i) =>
+    `<button type="button" data-d="${esc(o.k)}" data-i="${i}"><b>${esc(o.n)}</b>
       <span>${esc(o.d)}</span></button>`).join('');
-}
-
-function pintarChipsLugar(){
-  $('#pt-lugares').innerHTML =
-    '<button type="button" class="zona" data-l="gps">📍 Usar mi ubicación</button>'
-    + '<button type="button" class="zona" data-l="pais">Todo el país</button>';
 }
 
 /**
@@ -1581,7 +1685,10 @@ function pintarNivel(q){
     }
     const deps = (S.geo || []).slice().sort((a, b) =>
       (b.a ? 1 : 0) - (a.a ? 1 : 0) || a.n.localeCompare(b.n));
-    caja.innerHTML = deps.map((d) =>
+    caja.innerHTML = `<button type="button" class="mun" data-l="volver-modo">
+        <small>← Volver</small></button>
+      <button type="button" class="mun" data-l="pais"><b>Todo el país</b></button>`
+      + deps.map((d) =>
       `<button type="button" class="mun" data-l="dep:${esc(d.c)}">
         ${esc(d.n)} ${d.a ? '<small>· con daño reportado</small>' : ''}</button>`).join('');
     return;
@@ -1666,6 +1773,7 @@ function sincronizarChips(){
  *  el modo y los filtros de la anterior no deben sobrevivir al cambio. */
 function limpiarModo(){
   S.listaModo = '';
+  S.prensaSel = null;
   cerrarDetalle();
   S.f.grupo.clear(); S.f.fam.clear(); S.f.q = '';
   $('#q').value = '';
@@ -1705,6 +1813,21 @@ async function modoVoluntario(){
   pintar();
 }
 
+/** Muestra en el panel los titulares de UN municipio del mapa. */
+async function verPrensaMun(nombre){
+  S.prensaSel = nombre;
+  if (S.listaModo !== 'prensa') {
+    S.listaModo = 'prensa';
+    $('#chips-grupo').hidden = true; $('#chips-fam').hidden = true;
+  }
+  cerrarDetalle();
+  if (!S.prensa) await cargarPrensa();
+  pintar();
+  // En pantalla chica el panel va debajo del mapa: sin esto, el clic no
+  // parece haber hecho nada.
+  if (!esEscritorio()) $('#conteo').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
 async function modoPrensa(){
   S.listaModo = 'prensa';
   $('#chips-grupo').hidden = true; $('#chips-fam').hidden = true;
@@ -1727,9 +1850,15 @@ function ejecutar(){
   pintarContexto();
 
   if (I.accion === 'form') {
-    abrirForm({sit:S.pt.sit || I.sit, grupo:S.pt.sit ? '' : I.grupo,
-               sits:I.sits, ph:I.ph, lugar:L});
-  } else if (I.accion === 'acopio') { abrirAcopio(L); }
+    const resp = (S.pt.resp || []).filter(Boolean);
+    const ult = (campo) => resp.reduce((v, r) => r[campo] || v, '');
+    const sit = ult('k') || I.sit;
+    abrirForm({sit, grupo: sit ? '' : I.grupo, sits:I.sits,
+               ph: ult('ph') || I.ph,
+               det: resp.map((r) => r.det).filter(Boolean),
+               lugar:L});
+  } else if (I.accion === 'url') { location.href = I.url; }
+  else if (I.accion === 'acopio') { abrirAcopio(L); }
   else if (I.accion === 'acopios') { modoAcopios(); }
   else if (I.accion === 'voluntario') { modoVoluntario(); }
   else if (I.accion === 'prensa') { modoPrensa(); }
@@ -2015,10 +2144,12 @@ function dist2(a, ref){
 function listaPrensa(){
   const L = S.lugar;
   const muns = S.prensa || [];
-  const l = !L ? muns
-    : (L.mun ? muns.filter((m) => norm(m.n) === norm(L.mun[1]))
-             : muns.filter((m) => casaDep(m.dep, L.dep.n)));
-  const donde = nombreLugar(L);
+  const sel = S.prensaSel;
+  const l = sel ? muns.filter((m) => norm(m.n) === norm(sel))
+    : (!L ? muns
+       : (L.mun ? muns.filter((m) => norm(m.n) === norm(L.mun[1]))
+                : muns.filter((m) => casaDep(m.dep, L.dep.n))));
+  const donde = sel || nombreLugar(L);
   const notas = l.reduce((s, m) => s + (m.notas || 0), 0);
 
   $('#conteo').textContent = notas
@@ -2037,7 +2168,10 @@ function listaPrensa(){
     return;
   }
 
-  $('#lista').innerHTML = l.map((m) => `
+  $('#lista').innerHTML =
+    (sel ? `<div class="conteo"><button class="btn btn-sm" data-prensa-todo>←
+       Ver todos los municipios</button></div>` : '')
+    + l.map((m) => `
     <div class="conteo" style="font-weight:600;color:var(--tinta)">
       ${esc(m.n)} · ${m.notas} titular${m.notas === 1 ? '' : 'es'}</div>
     ${(m.tit || []).map((t) => `<div class="nt">
@@ -2775,6 +2909,12 @@ function abrirForm(pre){
   // Ejemplo propio de la intención: "busco transporte" entra por `nec-otro`,
   // y sin esto vería el ejemplo genérico de "otra necesidad".
   if (pre && pre.ph && sitSel) $('#f-titulo').placeholder = pre.ph;
+  // Lo respondido en las preguntas previas entra como primeras líneas del
+  // detalle, editables: es contexto que quien va a ayudar necesita leer y que
+  // la persona no tiene por qué volver a escribir.
+  if (pre && pre.det && pre.det.length && !$('#f-detalle').value.trim()) {
+    $('#f-detalle').value = pre.det.join(' ');
+  }
   if (pre && pre.lugar) prefijarLugar(pre.lugar);
   if (sitSel) iniciarMini();
 }
@@ -2823,10 +2963,6 @@ async function iniciar(){
   // vino no tiene por qué esperar tres segundos de animación.
   ['#pt-intro', '#pt-telon'].forEach((s) =>
     $(s).addEventListener('click', saltarIntro));
-  $('#pt-saltar').addEventListener('click', () => {
-    S.pt = {i:EXPLORAR, l:null};
-    ejecutar();
-  });
   $('#ops').addEventListener('click', (e) => {
     const b = e.target.closest('.op'); if (b) elegirIntencion(b.dataset.i);
   });
@@ -2834,24 +2970,29 @@ async function iniciar(){
     if (e.target.closest('#pt-atras')) abrirPuerta();   // sin intro
   });
   $('#pt-q').addEventListener('input', (e) => pintarNivel(e.target.value));
-  $('#pt-lugares').addEventListener('click', (e) => {
-    const b = e.target.closest('[data-l]'); if (!b) return;
-    const v = b.dataset.l;
-    if (v === 'gps') return ubicarme();
-    if (v === 'pais') return elegirLugar(null);
-    const dep = (S.geo || []).find((d) => d.c === v.slice(4));
-    if (dep) elegirLugar({dep, mun:null});
-  });
   $('#pt-dispo').addEventListener('click', (e) => {
+    const lu = e.target.closest('[data-lugar]');
+    if (lu) {
+      if (lu.dataset.lugar === 'gps') return ubicarme();
+      S.pt.lugarModo = 'lista'; S.pt.dep = null;
+      return mostrarPaso();
+    }
     const b = e.target.closest('[data-d]'); if (!b) return;
-    if ((S.pt.pasos || [])[S.pt.idx] === 'sub') S.pt.sit = b.dataset.d;
-    else S.dispo = b.dataset.d;
+    const paso = (S.pt.pasos || [])[S.pt.idx] || '';
+    if (paso.startsWith('sub:')) {
+      const n = Number(paso.slice(4));
+      const op = ((S.pt.i.subs || [])[n] || {}).opciones[Number(b.dataset.i)];
+      S.pt.resp = (S.pt.resp || []).slice(0, n);
+      S.pt.resp[n] = op || null;
+    } else S.dispo = b.dataset.d;
     siguientePaso();
   });
   $('#pt-muns').addEventListener('click', (e) => {
     const b = e.target.closest('[data-l]'); if (!b) return;
     const v = b.dataset.l;
     if (v === 'volver') { S.pt.dep = null; $('#pt-q').value = ''; return pintarNivel(''); }
+    if (v === 'volver-modo') { S.pt.lugarModo = null; return mostrarPaso(); }
+    if (v === 'pais') return elegirLugar(null);
     if (v === 'dep-todo') return elegirLugar({dep:S.pt.dep, mun:null});
     const [tipo, dc, mc] = v.split(':');
     const dep = (S.geo || []).find((d) => d.c === dc);
@@ -2878,6 +3019,7 @@ async function iniciar(){
   $('#form-contacto').addEventListener('submit', enviarContacto);
 
   document.addEventListener('click', (e) => {
+    if (e.target.closest('[data-prensa-todo]')) { S.prensaSel = null; return pintar(); }
     if (e.target.closest('[data-cerrar-detalle]')) return cerrarDetalle();
     if (e.target.closest('[data-cerrar]')) return cerrarTodo();
     if (e.target.classList.contains('velo')) return cerrarTodo();
