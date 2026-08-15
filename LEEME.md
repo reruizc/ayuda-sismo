@@ -24,6 +24,62 @@ tools/ayuda-sismo/
   seed.py            publica puntos de prueba
 ```
 
+## La puerta de entrada: qué quieres hacer y dónde
+
+Quien llega no busca "un mapa": busca hacer **una** cosa. Antes, la página
+abría con todo encima —mapa, dos filas de filtros, capas de acopios y prensa,
+un formulario de 17 situaciones— y para dar el primer paso había que entender
+la interfaz completa.
+
+Ahora abre preguntando **qué** y **dónde**, en dos toques, y cada respuesta
+lleva a la herramienta que ya existía:
+
+| Intención | A dónde lleva |
+|---|---|
+| Necesito ayuda | Formulario abierto en el grupo *Necesito*, con el municipio ya puesto |
+| Hay personas atrapadas | Formulario en *rescate*, la situación más urgente del catálogo |
+| Quiero donar cosas | Mapa enfocado + capa de acopios + **la lista de acopios en el panel** |
+| Quiero ser voluntario | Mapa filtrado a lo que alguien está pidiendo + botón para ofrecerse |
+| Puedo ofrecer algo más | Formulario en el grupo *Puedo ayudar* |
+| Busco a una persona | Formulario en `busco-persona`, con su aviso de privacidad |
+| Mascota perdida o encontrada | Las dos situaciones de mascota juntas |
+| Ver qué dice la prensa | Titulares del municipio en el panel |
+| Explorar el mapa completo | La página tal como era |
+
+La puerta **no es un catálogo de datos más**: `INTENCIONES` es el puente entre
+"a qué vine" y lo que ya estaba construido. Ninguna intención agrega una
+categoría nueva al modelo; todas reusan el catálogo de situaciones, el filtro
+o la capa que corresponde.
+
+- **Se muestra una vez por sesión** (`sessionStorage`), no en cada recarga:
+  recargar sin querer en mitad de un formulario no debe devolver al menú. Se
+  vuelve a abrir con el botón **Inicio** o con **Cambiar** de la barra azul.
+- **No aparece** si se llegó por un enlace privado (`#/mi/…`) ni si la URL ya
+  trae la intención.
+- **Enlace directo**: `?ir=donar&dep=16&mun=001`. Sirve para que una
+  organización comparta exactamente lo que ofrece sin pasar por el menú.
+  Las claves son las de `INTENCIONES`; `dep` y `mun` son códigos de `geo.json`.
+- **La barra de contexto** (azul, bajo las zonas) recuerda con qué intención se
+  entró y ofrece la acción que sigue: quien viene a donar casi siempre termina
+  queriendo publicar lo que tiene. En móvil, esa acción **reemplaza el texto
+  del botón fijo**: ofrecerle "registrar una necesidad" a quien entró a donar
+  es mandarlo al formulario contrario.
+
+⚠️ La lista se filtra por **departamento** aunque se elija un municipio (el
+mapa sí hace zoom al municipio). Un municipio con cero reportes se vería como
+un mapa muerto, y la página tiene pocos reportes por definición al comienzo.
+
+⚠️ Los acopios ahora se listan en el panel, no solo como puntos del mapa: para
+saber si un punto recibe ropa o comida había que abrir su globo uno por uno, y
+quien va a donar necesita **compararlos**. Se ordenan por cercanía al lugar
+elegido, y si no hay ninguno en ese departamento se muestran los del país
+entero con un aviso — mandar a alguien con un mercado a ninguna parte es peor
+que ampliar el alcance.
+
+⚠️ `hidden` **no oculta** un elemento con `display:flex` de una clase: la regla
+de autor le gana a la del navegador. Por eso existe `.chips[hidden]`. Sin ella,
+esconder los filtros no hacía absolutamente nada.
+
 ## El catálogo de situaciones (y por qué no es una matriz)
 
 La primera versión combinaba **tipo** (necesito / ofrezco) × **categoría** (9).
@@ -78,6 +134,16 @@ permitirían promediar y recuperar la posición real. La coordenada exacta queda
 en la base y solo la ven moderación y el propio reportante.
 
 Medido en pruebas: desplazamientos de 93,1 m y 69,0 m sobre puntos conocidos.
+
+**3b. La dirección es opcional y se avisa que se publica tal cual.** El campo
+"dirección o señas" viaja como primera línea de `detalle` (es la columna que el
+servidor ya guarda y publica, así que no depende de un cambio de esquema; el
+`maxlength` del textarea bajó a 1000 para que la dirección no se coma el final
+del texto en el tope de 1200 del servidor). Escribir la dirección exacta de una
+casa **anula** el desplazamiento de 100 m de la regla 3, así que el campo lo
+dice en voz alta y sugiere una seña ("frente a la cancha") cuando es la propia
+vivienda. Para quien ofrece —un acopio, una bodega— la dirección exacta es
+justo lo que hace útil el reporte.
 
 **4. La foto se reduce y se re-codifica en el dispositivo, antes de subirla.**
 No es por peso — o no solo. Una foto de celular trae **EXIF con las coordenadas
