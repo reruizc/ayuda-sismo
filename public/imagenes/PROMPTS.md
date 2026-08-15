@@ -359,3 +359,79 @@ Exportar igual que las demás:
 > Tono: informativo y calmado, alguien que se orienta. NO fronteras
 > reconocibles de Colombia, NO banderas, NO texto en el mapa, NO gráficas de
 > datos, NO lupa de buscador.
+
+---
+
+# Pendientes de la ronda del 15-ago
+
+Mismo bloque de estilo de las `op-*` (58 px). Solo cambia sujeto y colores.
+
+| Archivo | Tarjeta | Trazo | Fondo |
+|---|---|---|---|
+| `op-donar-dinero.jpg` | Quiero donar dinero | `#1b5fa8` | `#e6eefa` |
+| `op-reconstruir.jpg` | Necesito reconstruir | `#c2410c` | `#fbe9df` |
+| `op-pido-voluntarios.jpg` | Necesito voluntarios | `#0f766e` | `#e3f2f0` |
+
+⚠️ `op-pido-voluntarios` y `op-voluntario` comparten color (los dos son verde
+azulado) pero son tarjetas OPUESTAS: una PIDE manos y la otra las OFRECE.
+Tienen que distinguirse por el dibujo, no por el color: la que pide muestra un
+llamado, la que ofrece muestra a alguien presentándose.
+
+## `op-reconstruir.jpg` — Necesito reconstruir
+
+> Ilustración editorial plana, cuadrada 1:1, para el ícono de una tarjeta de un
+> mapa de ayuda humanitaria tras un terremoto en Colombia.
+>
+> Sujeto: una pared de ladrillo a medio levantar, con una llana de albañil
+> apoyada encima y un ladrillo suelto a punto de colocarse. Composición
+> centrada, con margen generoso.
+>
+> Estilo: vectorial plano, formas gruesas y simples, sin degradados, sin
+> sombras realistas, sin textura de ruido. Trazo grueso y parejo. Debe leerse
+> con claridad reducida a 58×58 píxeles: un solo sujeto, siluetas limpias,
+> nada de detalle fino.
+>
+> Paleta estricta de tres colores: naranja ladrillo #c2410c para el trazo y
+> las formas principales, fondo durazno muy claro #fbe9df, y crudo #f7f5f1
+> para los vacíos. Sin ningún otro color.
+>
+> Tono: volver a levantar, obra en marcha. Es una pared SUBIENDO, no una
+> ruina: NO escombros, NO casa derrumbada, NO grietas, NO casco de rescate.
+> Sin texto, sin letras, sin números, sin logotipos, sin marcas de agua. Sin
+> rostros. Fondo plano, sin escena de fondo.
+
+## `op-pido-voluntarios.jpg` — Necesito voluntarios
+
+> Ilustración editorial plana, cuadrada 1:1, para el ícono de una tarjeta de un
+> mapa de ayuda humanitaria tras un terremoto en Colombia.
+>
+> Sujeto: tres manos levantadas juntas respondiendo a un llamado, vistas de
+> frente, de alturas ligeramente distintas. Composición centrada, con margen
+> generoso.
+>
+> Estilo: vectorial plano, formas gruesas y simples, sin degradados, sin
+> sombras realistas, sin textura de ruido. Trazo grueso y parejo. Debe leerse
+> con claridad reducida a 58×58 píxeles: un solo sujeto, siluetas limpias,
+> nada de detalle fino.
+>
+> Paleta estricta de tres colores: verde azulado #0f766e para el trazo y las
+> formas principales, fondo menta muy claro #e3f2f0, y crudo #f7f5f1 para los
+> vacíos. Sin ningún otro color.
+>
+> Tono: convocatoria, hacen falta manos. Son manos que RESPONDEN a un llamado,
+> no una sola persona ofreciéndose. NO herramientas, NO chalecos, NO megáfono,
+> NO rostros. Sin texto, sin letras, sin números, sin logotipos, sin marcas de
+> agua. Fondo plano, sin escena de fondo.
+
+## `op-donar-dinero.jpg` — Quiero donar dinero
+
+> Mismo bloque de estilo, cambiando:
+>
+> Sujeto: una mano que deja un billete doblado dentro de una alcancía sencilla
+> con ranura. Composición centrada, con margen generoso.
+>
+> Paleta: azul #1b5fa8 para el trazo, fondo azul muy claro #e6eefa, crudo
+> #f7f5f1 para los vacíos.
+>
+> Tono: aporte discreto y confiable. NO signos de peso ni de dólar, NO tarjeta
+> de crédito, NO monedas sueltas, NO logos de bancos, NO rostros.

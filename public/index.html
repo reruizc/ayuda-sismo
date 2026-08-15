@@ -343,11 +343,33 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid v
    familias se leen como las opciones finales y el segundo nivel sorprende. */
 .op-fam .op-mas{margin-left:auto; font-size:1.1rem; color:var(--tenue); flex:none}
 .op-fam b{font-size:1.05rem}
+/* Botón de volver. Va debajo de las tarjetas, centrado y con peso propio:
+   antes era un enlace gris arriba que se perdía contra el título. Alto
+   mínimo de 44 px porque en móvil esto se toca con el pulgar. */
 .pt-volver{
-  background:none; border:0; padding:.2rem 0 .55rem; color:var(--tenue);
-  font:inherit; font-size:.85rem; font-weight:600; cursor:pointer;
+  display:block; margin:1.1rem auto .2rem; min-height:44px;
+  padding:.7rem 2.2rem; border:0; border-radius:var(--r);
+  background:var(--azul); color:#fff;
+  font-family:var(--titulo); font-weight:700; font-size:.95rem;
+  cursor:pointer; box-shadow:var(--sombra);
 }
-.pt-volver:hover{color:var(--tinta)}
+.pt-volver:hover{background:#164e8a}
+
+/* Ventana de donaciones */
+.don{border:1px solid var(--linea); border-radius:var(--r); padding:.85rem .9rem; margin-bottom:.7rem}
+.don h3{margin:0 0 .2rem; font-family:var(--titulo); font-size:1rem}
+.don p{margin:0 0 .6rem; font-size:.9rem; color:var(--tenue); line-height:1.45}
+.don-btn{display:inline-block; text-decoration:none}
+.don-cta{display:flex; align-items:center; gap:.6rem; flex-wrap:wrap;
+  background:var(--papel); border-radius:8px; padding:.55rem .7rem}
+.don-lbl{font-size:.78rem; color:var(--tenue); flex:none}
+/* Tabular para que no se confundan 0/O ni 1/l al copiarla a mano. */
+.don-num{font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:1.15rem;
+  letter-spacing:.04em; font-variant-numeric:tabular-nums; user-select:all}
+.don-vig{margin:.5rem 0 0 !important; font-size:.82rem}
+.don-vig.vencida{color:var(--rojo); font-weight:600}
+.don-nota{font-size:.84rem; color:var(--tenue); line-height:1.45; margin:.2rem 0 0}
+.pt-volver:focus-visible{outline:3px solid #16130f; outline-offset:2px}
 @media (max-width:600px){ .ops-lista{grid-template-columns:1fr} }
 .op{display:flex; gap:.8rem; align-items:center; text-align:left;
   border:1px solid var(--linea); background:var(--tarjeta); border-radius:12px;
@@ -707,6 +729,60 @@ body.con-ctx .cuerpo{height:calc(100dvh - 196px)}
   </div>
 </div>
 
+<!-- ══════════ modal: donar dinero ══════════
+     ⚠️⚠️ ACÁ NO SE RECIBE PLATA. Este sitio no procesa pagos, no tiene
+     pasarela y no pide datos de tarjeta: solo muestra a dónde donar y manda a
+     los canales de cada organización. Un mapa ciudadano que reciba dinero es
+     un fraude esperando a pasar, y además nadie tendría cómo auditarlo.
+
+     ⚠️ Los datos son los que publicó cada entidad y se muestran TAL CUAL, sin
+     agregar nada que la fuente no diga (no dice tipo de cuenta, así que acá
+     tampoco). La cuenta de la Fundación Bancolombia tiene vigencia declarada
+     hasta el 30-ago-2026: pasada esa fecha el aviso cambia solo, porque una
+     cuenta vencida en pantalla manda plata a un lado que ya no la espera. -->
+<div class="velo" id="velo-donar" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="t-donar" style="max-width:560px">
+    <div class="modal-cab">
+      <div>
+        <h2 id="t-donar">Donar dinero</h2>
+        <p>Estos son canales de organizaciones que ya están operando en la zona.
+           <b>Este sitio no recibe donaciones</b>: cada enlace lleva a la entidad.</p>
+      </div>
+      <button class="cerrar" data-cerrar aria-label="Cerrar">&times;</button>
+    </div>
+    <div class="modal-cuerpo">
+
+      <div class="don">
+        <h3>Cruz Roja Colombiana</h3>
+        <p>Donación en línea con tarjeta, en el portal de la Cruz Roja.</p>
+        <a class="btn btn-pri don-btn" href="https://donar.cruzrojabogota.org.co"
+           target="_blank" rel="noopener noreferrer">Ir a donar en Cruz Roja →</a>
+      </div>
+
+      <div class="don">
+        <h3>Fundación Bancolombia</h3>
+        <p>Campaña de donaciones para las personas afectadas. Los recursos van a
+           alimentación, refugio, vestuario y acompañamiento, canalizados con
+           ProPacífico, ProChocó, ProRisaralda, Corporación Presentes y las
+           autoridades locales.</p>
+        <div class="don-cta">
+          <span class="don-lbl">Cuenta para donaciones</span>
+          <b class="don-num" id="don-cuenta">24542391932</b>
+          <button type="button" class="btn btn-sm" id="don-copiar">Copiar</button>
+        </div>
+        <p class="don-vig" id="don-vigencia"></p>
+      </div>
+
+      <p class="don-nota">
+        Verifica siempre en el canal oficial de la entidad antes de transferir.
+        Nadie de este sitio te va a escribir para pedirte plata ni datos de tu
+        tarjeta.
+      </p>
+      <button class="btn btn-pri" data-cerrar style="width:100%; margin-top:.6rem">Volver</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══════════ modal: registrar o corregir un acopio ══════════ -->
 <div class="velo" id="velo-acopio" hidden>
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="t-acopio" style="max-width:540px">
@@ -931,6 +1007,15 @@ const INTENCIONES = [
    col:'#b3730c', tint:'#faf0dd',
    d:'Dónde entregar mercados, ropa o agua',
    accion:'acopios', ctx:'Dónde entregar donaciones', acc:'Publicar lo que ofrezco', accSit:'ofr-viveres'},
+
+  /* Donar PLATA, aparte de donar cosas: son dos decisiones distintas y quien
+     quiere transferir no tiene por qué pasar por el mapa de acopios.
+     `accion:'donar'` abre la ventana con los canales; no pide lugar ni abre
+     formulario, porque una transferencia no ocurre en un municipio. */
+  {k:'donar-dinero', ico:'💳', n:'Quiero donar dinero', img:'op-donar-dinero.jpg',
+   col:'#1b5fa8', tint:'#e6eefa',
+   d:'A dónde transferir, en canales de organizaciones',
+   accion:'donar', ctx:'Donar dinero', acc:'Ver a dónde donar'},
 
   {k:'voluntario', ico:'🙋', n:'Quiero ser voluntario', img:'op-voluntario.jpg',
    col:'#0f766e', tint:'#e3f2f0',
@@ -1306,7 +1391,8 @@ const FAMILIAS = [
   {k:'ayudar', ico:'🤲', n:'Quiero ayudar', img:'fam-ayudar.jpg',
    col:'#0f766e', tint:'#e3f2f0',
    d:'Donar, ser voluntario, poner transporte o abrir un acopio',
-   ops:['donar', 'voluntario', 'psicologico', 'dar-transporte', 'mascota-hallada', 'registrar']},
+   ops:['donar-dinero', 'donar', 'voluntario', 'psicologico', 'dar-transporte',
+         'mascota-hallada', 'registrar']},
 
   {k:'necesito', ico:'🆘', n:'Necesito ayuda', img:'fam-necesito.jpg',
    col:'#b4321e', tint:'#fdeceb',
@@ -2092,9 +2178,11 @@ function pintarOpciones(){
   const ops = F.ops
     .map((k) => INTENCIONES.find((i) => i.k === k))
     .filter(Boolean);
+  // El "volver" va DEBAJO de las tarjetas: arriba competía con la decisión que
+  // la persona vino a tomar, y es la salida, no la entrada.
   $('#ops').innerHTML =
-    `<button type="button" class="pt-volver" data-f="">← Volver</button>
-     <div class="ops-lista">${ops.map(tarjetaOp).join('')}</div>`;
+    `<div class="ops-lista">${ops.map(tarjetaOp).join('')}</div>
+     <button type="button" class="pt-volver" data-f="">← Volver</button>`;
 }
 
 /** Abre una familia, o vuelve a las tres si `k` viene vacío. */
@@ -2127,8 +2215,9 @@ function verificarFamilias(){
  * entender la pantalla completa antes de contestar lo primero.
  */
 function pasosDe(I){
-  // Un enlace no necesita saber dónde: se abre y ya.
-  if (I.accion === 'url') return [];
+  // Un enlace no necesita saber dónde: se abre y ya. Donar tampoco: la
+  // transferencia no ocurre en un municipio.
+  if (I.accion === 'url' || I.accion === 'donar') return [];
   const p = (I.subs || []).map((_, i) => `sub:${i}`);
   if (I.accion === 'voluntario') p.push('dispo');   // cuándo, y después dónde
   p.push('lugar');
@@ -2450,6 +2539,7 @@ function ejecutar(){
                lugar:L});
   } else if (I.accion === 'url') { location.href = I.url; }
   else if (I.accion === 'acopio') { abrirAcopio(L); }
+  else if (I.accion === 'donar') { abrirDonar(); }
   else if (I.accion === 'acopios') { modoAcopios(); }
   else if (I.accion === 'voluntario') { modoVoluntario(); }
   else if (I.accion === 'prensa') { modoPrensa(); }
@@ -2837,6 +2927,36 @@ let detAuto = '';
 // sin pisar el que la persona eligió a mano.
 let urgAuto = '';
 
+/* Vigencia de la campaña de la Fundación Bancolombia, como la publicó la
+   entidad. Se compara contra el reloj del visitante —no hay servidor de por
+   medio— así que un equipo con la fecha corrida puede mostrar el aviso antes
+   de tiempo; para esto es aceptable: el error cae del lado de advertir de más,
+   nunca del de dar por vigente una cuenta que ya venció. */
+const DON_VIGENCIA = new Date('2026-08-30T23:59:59-05:00');
+
+function abrirDonar(){
+  const el = $('#don-vigencia');
+  const vencida = Date.now() > DON_VIGENCIA.getTime();
+  el.className = 'don-vig' + (vencida ? ' vencida' : '');
+  el.textContent = vencida
+    ? 'Ojo: la entidad anunció esta cuenta con vigencia hasta el 30 de agosto de 2026. '
+      + 'Ya pasó esa fecha, así que confirma con la Fundación Bancolombia antes de transferir.'
+    : 'Vigencia anunciada por la entidad: hasta el 30 de agosto de 2026.';
+  abrir('#velo-donar');
+}
+
+/* Copiar la cuenta: transcribir once dígitos a mano es justo donde se
+   equivoca la gente, y un dígito cambiado manda la plata a un desconocido. */
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('#don-copiar');
+  if (!b) return;
+  const n = $('#don-cuenta').textContent.trim();
+  navigator.clipboard?.writeText(n).then(
+    () => { b.textContent = 'Copiada ✓'; setTimeout(() => (b.textContent = 'Copiar'), 2000); },
+    () => { b.textContent = 'Selecciónala y cópiala'; }
+  );
+});
+
 function abrir(id){ $(id).hidden = false; document.body.style.overflow = 'hidden'; }
 function cerrarTodo(){
   document.querySelectorAll('.velo').forEach((v) => v.hidden = true);
@@ -3047,11 +3167,16 @@ function ponerPin(lat, lon, zoom){
 
 async function armarDeptos(){
   const geo = await cargarGeo();
-  // Los departamentos con daño reportado van primero, pero el resto del país
-  // sigue disponible: el sismo se sintió mucho más allá de esos cinco.
+  // Los departamentos con afectación reportada van primero, pero el resto del
+  // país sigue disponible: el sismo se sintió mucho más allá de esos siete.
+  //
+  // ⚠️ Dice "afectación" y no "daño por el sismo" porque Nariño y Tolima
+  // entran por los INCENDIOS FORESTALES. El sitio atiende las dos emergencias
+  // —lo dice su encabezado— y quien perdió la casa en un incendio llena el
+  // mismo formulario que quien la perdió en el terremoto.
   const af = geo.filter((d) => d.a), resto = geo.filter((d) => !d.a);
   $('#f-depto').innerHTML = '<option value="">Departamento…</option>'
-    + (af.length ? `<optgroup label="Con daño reportado">${af.map((d) =>
+    + (af.length ? `<optgroup label="Con afectación reportada">${af.map((d) =>
         `<option value="${esc(d.c)}">${esc(d.n)}</option>`).join('')}</optgroup>` : '')
     + `<optgroup label="Resto del país">${resto.map((d) =>
         `<option value="${esc(d.c)}">${esc(d.n)}</option>`).join('')}</optgroup>`;

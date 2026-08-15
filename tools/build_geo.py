@@ -25,10 +25,17 @@ import os
 import statistics
 import sys
 
-REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-DIVIPOLA = os.path.join(REPO, "Bases de datos", "test-presidencial", "divipola.json")
-GEOREF = os.path.join(REPO, "Bases de datos", "PUESTOS_GEOREF.csv")
-OUT = os.path.join(REPO, "ayuda-sismo", "public", "geo.json")
+AQUI = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+OUT = os.path.join(AQUI, "public", "geo.json")
+
+# ⚠️ Las dos fuentes viven en el monorepo `ricardoruiz.co`, que NO se movió con
+# este proyecto: son 6 MB de datos electorales que no tienen por qué viajar en
+# el repo del mapa. Se puede apuntar a otra copia con la variable de entorno
+# `DATOS_RR`. Al separar los repos estas rutas quedaron colgando de la carpeta
+# vieja y el script escribía a un `geo.json` que ya no existía.
+DATOS = os.environ.get("DATOS_RR") or os.path.expanduser("~/ricardoruiz.co/Bases de datos")
+DIVIPOLA = os.path.join(DATOS, "test-presidencial", "divipola.json")
+GEOREF = os.path.join(DATOS, "PUESTOS_GEOREF.csv")
 
 # Colombia continental + San Andrés. Descarta consulados (depto 88) y filas
 # con lat/lon corruptos, que en este CSV existen.
@@ -52,7 +59,14 @@ DEP_NOMBRES = {
 # código a propósito: los códigos de esta fuente son de la Registraduría
 # (Caldas=09, no 17) y escribirlos de memoria es como se cuelan los errores
 # silenciosos. El código sale del propio archivo.
-AFECTADOS = {"Valle del Cauca", "Risaralda", "Caldas", "Quindío", "Chocó"}
+#
+# ⚠️ No son solo los del sismo: Nariño y Tolima entran por los INCENDIOS
+# FORESTALES, que dejaron gente sin casa igual que el terremoto. El sitio
+# atiende las dos emergencias —lo dice su propio encabezado— y quien perdió
+# la casa en un incendio necesita el mismo formulario. Por eso la etiqueta
+# del selector habla de "afectación reportada" y no de daño por sismo.
+AFECTADOS = {"Valle del Cauca", "Risaralda", "Caldas", "Quindío", "Chocó",
+             "Nariño", "Tolima"}
 
 
 def leer_puestos():
