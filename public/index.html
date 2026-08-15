@@ -88,6 +88,52 @@ a{color:var(--azul)}
    enciende otra fuente de información. */
 .zona.prensa[aria-pressed="true"]{background:#1b5fa8; border-color:#1b5fa8; color:#fff}
 .zona.acopio[aria-pressed="true"]{background:var(--verde); border-color:var(--verde); color:#fff}
+.zona.dano[aria-pressed="true"]{background:#5b0f14; border-color:#5b0f14; color:#fff}
+
+/* ── daño evaluado desde satélite (Copernicus EMS) ──
+   Un solo tono granate, del oscuro al pálido. Los reportes ya usan diez
+   colores por familia: si el daño trajera colores propios, el mapa dejaría de
+   leerse. Acá el color dice solo QUÉ TAN GRAVE, y lo que separa un reporte de
+   un edificio evaluado es el tamaño y el aro blanco, no el matiz. */
+.dano-tip b{font-size:.86rem}
+.dano-tip .g{display:block; margin-top:.15rem; font-weight:600}
+.dano-tip .z{display:block; color:#6b6259; font-size:.74rem; margin-top:.25rem}
+.bloqueo-ico{
+  width:14px; height:14px; background:#16130f; border:2px solid #fff;
+  border-radius:2px; transform:rotate(45deg); box-shadow:0 1px 3px rgba(0,0,0,.35);
+}
+/* La leyenda va DENTRO del mapa y no como franja arriba: la página ya calcula
+   a mano el alto del cuerpo restando el de cada banda superior, y sumar otra
+   obligaría a tocar ese cálculo en tres reglas distintas. */
+.leyenda-dano{
+  background:rgba(255,255,255,.95); border:1px solid var(--linea); border-radius:8px;
+  padding:.5rem .6rem; max-width:250px; font-size:.72rem; line-height:1.35;
+  color:var(--tinta); box-shadow:var(--sombra);
+  /* Sin tope, en una ventana baja el recuadro es más alto que el mapa y se
+     corta por arriba: lo primero que desaparece es el título, y con él la
+     única señal de que ese color no es un reporte sino un edificio evaluado. */
+  max-height:58vh; overflow:auto; overscroll-behavior:contain;
+}
+.leyenda-dano h4{margin:0; font-size:.76rem; font-family:var(--titulo); display:inline}
+.leyenda-dano summary{cursor:pointer; margin-bottom:.35rem; list-style:none}
+.leyenda-dano summary::-webkit-details-marker{display:none}
+/* El triángulo se dibuja acá y no con el marcador del navegador, que en Safari
+   se sale del recuadro y en Firefox pinta de otro color. */
+.leyenda-dano summary::after{content:'▸'; margin-left:.3rem; color:var(--tenue)}
+.leyenda-dano details[open] summary::after{content:'▾'}
+.leyenda-dano .fila{display:flex; align-items:center; gap:.35rem; margin-bottom:.15rem}
+.leyenda-dano .pt{width:10px; height:10px; border-radius:50%; flex:none}
+.leyenda-dano .rombo{width:9px; height:9px; background:#16130f; transform:rotate(45deg); flex:none}
+/* La advertencia de cobertura no es una nota al pie: es la mitad del sentido
+   de la capa. Sin ella, un municipio sin puntos parece un municipio sin daño. */
+.leyenda-dano .ojo{
+  margin-top:.4rem; padding-top:.4rem; border-top:1px solid var(--linea); color:#8a3b12;
+}
+.leyenda-dano .cred{margin-top:.35rem; color:var(--tenue); font-size:.66rem}
+.leyenda-dano .cred a{color:var(--tenue)}
+/* En el teléfono el mapa mide medio alto de pantalla: el recuadro tiene que
+   caber ahí dentro, no en la ventana. */
+@media (max-width:860px){ .leyenda-dano{max-width:190px; font-size:.68rem; max-height:32vh} }
 .revok{
   display:inline-block; font-size:.66rem; font-weight:700; text-transform:uppercase;
   letter-spacing:.04em; background:#e7f4ed; color:#1d7a4c; border:1px solid #bfe3d0;
@@ -281,6 +327,28 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid v
 }
 
 .ops{display:grid; grid-template-columns:1fr 1fr; gap:.6rem}
+/* Dentro de `#ops` conviven dos niveles: las tres familias y la lista de
+   opciones de una de ellas. Cada uno trae su propia rejilla, así que el
+   contenedor deja de imponer columnas.
+   ⚠️ La clase la pone el JS y no un `:has()`: donde `:has()` no exista —
+   WebView viejo de Android— la regla entera se descarta y las tres familias
+   se acomodarían en dos columnas junto al bloque urgente. */
+.ops.ops-nivel{display:block}
+/* Las tres puertas van a lo ancho, una debajo de otra: son la única decisión
+   de la pantalla y compiten solo entre ellas. */
+.ops-fam{display:grid; grid-template-columns:1fr; gap:.6rem}
+.ops-lista{display:grid; grid-template-columns:1fr 1fr; gap:.6rem}
+.ops-urg{margin-bottom:.75rem}
+/* La flecha dice que la tarjeta ABRE algo, no que ejecuta. Sin ella las tres
+   familias se leen como las opciones finales y el segundo nivel sorprende. */
+.op-fam .op-mas{margin-left:auto; font-size:1.1rem; color:var(--tenue); flex:none}
+.op-fam b{font-size:1.05rem}
+.pt-volver{
+  background:none; border:0; padding:.2rem 0 .55rem; color:var(--tenue);
+  font:inherit; font-size:.85rem; font-weight:600; cursor:pointer;
+}
+.pt-volver:hover{color:var(--tinta)}
+@media (max-width:600px){ .ops-lista{grid-template-columns:1fr} }
 .op{display:flex; gap:.8rem; align-items:center; text-align:left;
   border:1px solid var(--linea); background:var(--tarjeta); border-radius:12px;
   padding:.7rem .85rem .7rem .7rem; color:var(--tinta); box-shadow:var(--sombra); width:100%;
@@ -843,6 +911,22 @@ const INTENCIONES = [
    d:'Dónde hacen falta manos, y ofrecerte',
    accion:'voluntario', ctx:'Dónde hacen falta manos', acc:'Ofrecerme como voluntario', accSit:'ofr-voluntario'},
 
+  /* Apoyo psicológico entra por `ofr-salud`: primeros auxilios psicológicos
+     son atención en salud, y el catálogo del Worker no tiene una situación
+     aparte. El ejemplo del formulario es lo que hace la diferencia — sin él,
+     una oferta de acompañamiento se lee igual que una de medicamentos. */
+  {k:'psicologico', ico:'🧠', n:'Quiero ayudar psicológicamente', img:'op-psicologico.jpg',
+   col:'#7a2ea8', tint:'#f3e8fa',
+   d:'Acompañamiento emocional a quien lo necesite',
+   accion:'form', sit:'ofr-salud', ctx:'Ofreciendo apoyo psicológico', acc:'Abrir el formulario',
+   ph:'Ej.: Psicóloga con tarjeta profesional, puedo atender por llamada o en Pereira'},
+
+  {k:'dar-transporte', ico:'🛻', n:'Puedo poner transporte', img:'op-dar-transporte.jpg',
+   col:'#4a5568', tint:'#eceef1',
+   d:'Un carro, una moto o un camión para mover ayuda',
+   accion:'form', sit:'ofr-transporte', ctx:'Ofreciendo transporte', acc:'Abrir el formulario',
+   ph:'Ej.: Camioneta con platón, puedo mover mercados dentro del Valle los fines de semana'},
+
   {k:'necesito', ico:'🆘', n:'Necesito ayuda', img:'op-necesito.jpg',
    col:'#b4321e', tint:'#fdeceb',
    d:'Víveres, agua o medicinas',
@@ -929,19 +1013,34 @@ const INTENCIONES = [
       ph:'Ej.: La casa quedó agrietada, no sabemos si se puede entrar'},
    ]}]},
 
+  /* ⚠️ Mismo caso que "Necesito transporte": el catálogo del Worker no tiene
+     una situación para PEDIR voluntarios (voluntario solo existe del lado de
+     quien se ofrece). Entra como `nec-otro` con su propio ejemplo. Si algún
+     día se agrega `nec-voluntario` allá, basta cambiar el `sit` de aquí. */
+  {k:'pido-voluntarios', ico:'🤝', n:'Necesito voluntarios', img:'op-pido-voluntarios.jpg',
+   col:'#0f766e', tint:'#e3f2f0',
+   d:'Manos para una jornada, un acopio o una casa',
+   accion:'form', sit:'nec-otro', ctx:'Pidiendo voluntarios', acc:'Abrir el formulario',
+   ph:'Ej.: Necesitamos 10 personas el sábado para clasificar mercados en el acopio'},
+
   {k:'persona', ico:'👤', n:'Busco a una persona', img:'op-persona.jpg',
    col:'#7a2ea8', tint:'#f3e8fa',
    d:'Un familiar del que no sé nada',
    accion:'form', sit:'busco-persona', ctx:'Buscando a una persona', acc:'Abrir el formulario'},
 
-  {k:'mascota', ico:'🐾', n:'Mascota perdida o encontrada', img:'op-mascota.jpg',
+  /* La tarjeta de mascota era UNA con una pregunta adentro ("¿la buscas o la
+     encontraste?"). Al repartir el menú en tres familias esa pregunta ya la
+     contesta el grupo por el que entró la persona: buscarla es necesitar
+     ayuda, haberla encontrado es ofrecerla. Son dos tarjetas y un paso menos. */
+  {k:'mascota', ico:'🐾', n:'Busco a mi mascota', img:'op-mascota.jpg',
    col:'#1d7a4c', tint:'#e7f4ed',
-   d:'Publícala con foto para que la reconozcan',
-   accion:'form', ctx:'Mascotas', acc:'Abrir el formulario',
-   subs:[{ pregunta:'¿Cuál es tu caso?', opciones:[
-     {k:'busco-mascota', n:'Busco a mi mascota', d:'Se perdió y quiero publicarla'},
-     {k:'ofr-mascota',   n:'Encontré una mascota', d:'La tengo y quiero reportarla'},
-   ]}]},
+   d:'Se perdió, quiero publicarla con foto',
+   accion:'form', sit:'busco-mascota', ctx:'Buscando una mascota', acc:'Abrir el formulario'},
+
+  {k:'mascota-hallada', ico:'🐕', n:'Encontré una mascota', img:'op-mascota-hallada.jpg',
+   col:'#1d7a4c', tint:'#e7f4ed',
+   d:'La tengo y quiero que la reconozcan',
+   accion:'form', sit:'ofr-mascota', ctx:'Mascota encontrada', acc:'Abrir el formulario'},
 
   {k:'registrar', ico:'📍', n:'Registrar un centro de acopio', img:'op-registrar.jpg',
    col:'#7c3f00', tint:'#f6ece0',
@@ -965,6 +1064,44 @@ const INTENCIONES = [
    d:'Todo lo publicado, para filtrar a mano',
    accion:'mapa'},
 ];
+
+/**
+ * Las tres puertas del menú.
+ *
+ * Antes las catorce opciones salían todas juntas en la primera pantalla. Eran
+ * catorce decisiones a la vez para alguien que abre esto en la calle, con el
+ * teléfono en una mano y sin saber todavía qué está buscando. Ahora la primera
+ * pregunta es una sola —¿vienes a ayudar, o necesitas ayuda?— y las opciones
+ * concretas aparecen dentro de la que se elija.
+ *
+ * ⚠️ El orden importa: "quiero ayudar" va primero porque es de lejos la
+ * intención más frecuente en los días siguientes a un desastre, y porque quien
+ * viene a pedir ayuda tiene además el acceso directo de arriba.
+ *
+ * Agregar una opción es meter su `k` en el `ops` de la familia que le
+ * corresponda. Una intención que no esté en ninguna familia queda inalcanzable
+ * desde el menú: `verificarFamilias()` lo avisa por consola en desarrollo.
+ */
+const FAMILIAS = [
+  {k:'ayudar', ico:'🤲', n:'Quiero ayudar', img:'fam-ayudar.jpg',
+   col:'#0f766e', tint:'#e3f2f0',
+   d:'Donar, ser voluntario, poner transporte o abrir un acopio',
+   ops:['donar', 'voluntario', 'psicologico', 'dar-transporte', 'mascota-hallada', 'registrar']},
+
+  {k:'necesito', ico:'🆘', n:'Necesito ayuda', img:'fam-necesito.jpg',
+   col:'#b4321e', tint:'#fdeceb',
+   d:'Víveres, salud, techo, transporte o buscar a alguien',
+   ops:['necesito', 'salud', 'alojamiento', 'transporte', 'pido-voluntarios',
+        'reconstruir', 'persona', 'mascota', 'rescate']},
+
+  {k:'ver', ico:'🗺️', n:'Ver el mapa e informes', img:'fam-ver.jpg',
+   col:'#1b3f66', tint:'#e6ecf3',
+   d:'Qué se publicó, dónde hay silencio y todo lo reportado',
+   ops:['prensa', 'informes', 'explorar']},
+];
+
+/** Familia a la que pertenece una intención, para poder volver a su submenú. */
+const famDe = (k) => FAMILIAS.find((f) => f.ops.includes(k)) || null;
 
 /* Los dos caminos para decir dónde. Llevan imagen como las demás tarjetas:
    mientras el archivo no exista queda el emoji sobre su color. */
@@ -1000,6 +1137,7 @@ const S = {
   caps: {fotos:false},
   prensa: null, verPrensa: false,
   acopios: null, verAcopios: false,
+  dano: null, verDano: false,
   // Puerta de entrada: con qué intención entró la persona y a qué lugar.
   // `listaModo` decide qué muestra el panel lateral: '' reportes · 'acopios'
   // puntos de donación · 'prensa' titulares. El mapa siempre muestra reportes.
@@ -1039,6 +1177,7 @@ const capaPuntos = L.layerGroup().addTo(mapa);
 // Capa aparte y por debajo: la prensa es contexto, los reportes son el dato.
 const capaPrensa = L.layerGroup();
 const capaAcopios = L.layerGroup();
+const capaDano = L.layerGroup();
 
 /**
  * Noticias sobre el mapa.
@@ -1076,6 +1215,139 @@ function pintarPrensa(){
   });
   capaPrensa.addTo(mapa);
   capaPrensa.eachLayer((l) => l.bringToBack && l.bringToBack());
+}
+
+/* ══════════ daño evaluado desde satélite · Copernicus EMS (EMSR916) ══════════
+ *
+ * Es la contraparte de todo lo demás que hay en el mapa. Los reportes son
+ * NECESIDAD DECLARADA por la gente; esto es DAÑO OBSERVADO por el servicio de
+ * emergencias de la Unión Europea sobre imagen de satélite: edificios
+ * destruidos o dañados, tramos de vía afectados y bloqueos de vía.
+ *
+ * ⚠️⚠️ NO CUBRE EL PAÍS, y esa advertencia va en la leyenda, no en una nota al
+ * pie. Se analizaron unas pocas manchas urbanas; el epicentro (San José del
+ * Palmar) no tiene ninguna. Por eso se dibuja el CONTORNO de cada zona
+ * analizada: así se ve dónde alcanza lo que sabemos y dónde simplemente nadie
+ * ha mirado. Un municipio sin puntos no es un municipio sin daño.
+ *
+ * ⚠️ "Posiblemente dañado" es fotointerpretación, no daño confirmado. Va en su
+ * propio grado y nunca se suma con "destruido" en una sola cifra.
+ */
+const DANO = {
+  3: {n:'Destruido',             c:'#5b0f14'},
+  2: {n:'Dañado',                c:'#a8321f'},
+  1: {n:'Posiblemente dañado',   c:'#d99b8c'},
+};
+
+const icoBloqueo = L.divIcon({
+  className:'', html:'<div class="bloqueo-ico"></div>',
+  iconSize:[14, 14], iconAnchor:[7, 7],
+});
+
+let ctrlLeyendaDano = null;
+
+function pintarDano(){
+  capaDano.clearLayers();
+  if (ctrlLeyendaDano) { mapa.removeControl(ctrlLeyendaDano); ctrlLeyendaDano = null; }
+  if (!S.verDano || !S.dano) { mapa.removeLayer(capaDano); return; }
+
+  const d = S.dano;
+  const zona = (i) => (d.zonas[i] || {}).n || '';
+
+  // 1. El contorno de lo analizado. `fill:false` no es un detalle estético:
+  //    con relleno, el polígono se comería los clics de todos los puntos que
+  //    tiene adentro, que son justamente el dato.
+  (d.zonas || []).forEach((z) => {
+    if (!z.poly) return;
+    L.polygon(z.poly, {
+      color:'#5b0f14', weight:1.4, opacity:.55, dashArray:'5 5', fill:false,
+    }).bindTooltip(
+      `<div class="dano-tip"><b>Zona analizada · ${esc(z.n)}</b>
+       <span class="z">${z.destruidos} destruidos · ${z.danados} dañados
+       · ${z.posibles} posibles${z.pob ? ` · ~${z.pob.toLocaleString('es-CO')} hab.` : ''}</span></div>`,
+      {sticky:true}).addTo(capaDano);
+  });
+
+  // 2. Tramos de vía dañados y bloqueos. Van antes que los edificios para que
+  //    queden por debajo: son menos y más gruesos.
+  (d.vias || []).forEach(([linea, iz]) => {
+    L.polyline(linea, {color:'#a8321f', weight:4, opacity:.9})
+      .bindTooltip(`<div class="dano-tip"><b>Vía dañada</b>
+        <span class="z">${esc(zona(iz))}</span></div>`, {sticky:true}).addTo(capaDano);
+  });
+
+  (d.bloqueos || []).forEach(([la, lo, iz]) => {
+    L.marker([la, lo], {icon:icoBloqueo, keyboard:false})
+      .bindTooltip(`<div class="dano-tip"><b>Vía bloqueada</b>
+        <span class="z">${esc(zona(iz))} · obstáculo visible desde satélite</span></div>`,
+        {direction:'top'}).addTo(capaDano);
+  });
+
+  // 3. Los edificios. Chicos y sin aro blanco: el aro y el tamaño son lo que
+  //    distingue de un vistazo un reporte de una persona de un edificio
+  //    evaluado, porque el color ya está ocupado por las familias de reporte.
+  (d.danos || []).forEach(([la, lo, g, iz, tipo]) => {
+    const c = DANO[g] || DANO[1];
+    L.circleMarker([la, lo], {
+      radius: g === 3 ? 4.5 : 3.5, color:c.c, weight:1,
+      fillColor:c.c, fillOpacity: g === 1 ? .55 : .9,
+    }).bindTooltip(`<div class="dano-tip">
+        <b>${esc(tipo || 'edificación')}</b>
+        <span class="g" style="color:${c.c}">${c.n}</span>
+        <span class="z">${esc(zona(iz))} · evaluado desde satélite</span>
+      </div>`, {direction:'top'}).addTo(capaDano);
+  });
+
+  capaDano.addTo(mapa);
+  // Por debajo de los reportes: el daño es contexto de dónde golpeó el sismo;
+  // el reporte es alguien pidiendo ayuda ahora.
+  capaDano.eachLayer((l) => l.bringToBack && l.bringToBack());
+
+  ctrlLeyendaDano = L.control({position:'bottomleft'});
+  ctrlLeyendaDano.onAdd = () => {
+    const el = L.DomUtil.create('div', 'leyenda-dano');
+    const t = d.total || {};
+    const fecha = d.ultima_entrega
+      ? new Date(d.ultima_entrega).toLocaleDateString('es-CO', {day:'numeric', month:'long'})
+      : null;
+    // El desglose se pliega en el teléfono —donde el mapa mide medio alto de
+    // pantalla y el recuadro completo se comía dos tercios— pero LA
+    // ADVERTENCIA NUNCA SE PLIEGA: va fuera del desplegable. Es la mitad del
+    // sentido de la capa, no un detalle que se consulta si a uno le da por ahí.
+    el.innerHTML = `
+      <details ${esEscritorio() ? 'open' : ''}>
+        <summary><h4>Daño visto desde satélite</h4></summary>
+        ${[3, 2, 1].map((g) => `<div class="fila">
+          <span class="pt" style="background:${DANO[g].c}"></span>
+          ${DANO[g].n}: <b>${g === 3 ? t.destruidos : g === 2 ? t.danados : t.posibles}</b></div>`).join('')}
+        ${t.bloqueos ? `<div class="fila"><span class="rombo"></span>
+          Vía bloqueada: <b>${t.bloqueos}</b></div>` : ''}
+        <div class="cred">© Unión Europea, Copernicus EMS
+          (<a href="${esc(d.fuente || '#')}" target="_blank" rel="noopener">EMSR916</a>)${
+          fecha ? ` · última entrega ${fecha}` : ''}</div>
+      </details>
+      <div class="ojo"><b>Solo ${t.zonas} zonas urbanas analizadas.</b>
+        Que un lugar no tenga puntos no significa que no tenga daño: significa
+        que nadie lo ha mirado desde satélite.</div>`;
+    // Sin esto, arrastrar sobre la leyenda mueve el mapa y hacer scroll dentro
+    // le hace zoom.
+    L.DomEvent.disableClickPropagation(el);
+    L.DomEvent.disableScrollPropagation(el);
+    return el;
+  };
+  ctrlLeyendaDano.addTo(mapa);
+}
+
+async function cargarDano(){
+  if (S.dano) return S.dano;
+  try {
+    const r = await fetch(`${CONFIG.API}/copernicus.json`);
+    const d = await r.json();
+    // `vacio` = el cron todavía no ha corrido. Se trata igual que un fallo:
+    // el botón vuelve a su sitio y no se enciende una capa sin nada dentro.
+    S.dano = (d && !d.vacio && d.danos) ? d : null;
+  } catch { S.dano = null; }
+  return S.dano;
 }
 
 /* ── íconos de acopio ──
@@ -1412,6 +1684,10 @@ function popupHTMLCompleto(r){
 function pintarZonas(){
   const afect = (S.geo || []).filter((d) => d.a);
   const nP = S.prensa ? S.prensa.length : 0;
+  // Los tres grados juntos, que es el número de edificios evaluados con algún
+  // daño. No se anuncia solo "destruidos": daría a entender que el resto está
+  // bien cuando lo que dice el dato es otra cosa.
+  const nD = S.dano ? (S.dano.danos || []).length : 0;
   $('#zonas').innerHTML =
     `<span class="rot">Ir a:</span>
      <button class="zona" data-z="" aria-pressed="${!S.zona}">Todo el país</button>` +
@@ -1421,7 +1697,10 @@ function pintarZonas(){
      <button class="zona acopio" id="tgl-acopios" aria-pressed="${S.verAcopios}">
        Acopios${S.acopios ? ` (${S.acopios.length})` : ''}</button>
      <button class="zona prensa" id="tgl-prensa" aria-pressed="${S.verPrensa}">
-       Noticias${nP ? ` (${nP})` : ''}</button>`;
+       Noticias${nP ? ` (${nP})` : ''}</button>
+     <button class="zona dano" id="tgl-dano" aria-pressed="${S.verDano}"
+       title="Edificios y vías con daño evaluado por Copernicus EMS. Cubre solo unas zonas urbanas.">
+       Daño satelital${nD ? ` (${nD})` : ''}</button>`;
 }
 
 /** Enfoca un departamento y filtra la lista a él. '' vuelve a nacional. */
@@ -1483,14 +1762,20 @@ function saltarIntro(){
  * al volver desde "Cambiar" la persona ya vio la pregunta y repetirle la
  * animación sería hacerle perder el tiempo.
  */
-function abrirPuerta(conIntro){
-  S.pt = {i:null, l:null};
+/**
+ * @param conIntro  animar la cortinilla (solo la primera vez)
+ * @param fam       familia a la que volver. Sin esto, salir de una opción
+ *                  devuelve a la pantalla raíz y obliga a volver a entrar a la
+ *                  familia por la que se venía — el "atrás" dejaría de deshacer
+ *                  un paso para deshacer dos.
+ */
+function abrirPuerta(conIntro, fam){
+  S.pt = {i:null, l:null, fam: fam || null};
   $('#pt-paso1').hidden = false;
   $('#pt-paso2').hidden = true;
   $('#pt-paso3').hidden = true;
-  $('#pt-titulo').textContent = '¿Qué necesitas hacer?';
-  $('#pt-sub').textContent = 'Elige una opción y te llevamos directo a lo que sirve. '
-    + 'Puedes cambiarla en cualquier momento.';
+  // El título y la bajada los pone `pintarOpciones`, que es quien sabe en qué
+  // nivel del menú estamos.
   $('#pt-ojo').textContent = EVENTOS;
   $('#pt-ojo-intro').textContent = EVENTOS;
   pintarOpciones();
@@ -1543,8 +1828,74 @@ function tarjetaOp(I, n){
     <span class="op-txt"><b>${esc(I.n)}</b><span>${esc(I.d)}</span></span></button>`;
 }
 
+/** Tarjeta de familia. Es la misma pieza que una opción, más grande y a lo
+ *  ancho: son tres decisiones, no catorce, y tienen que leerse de una. */
+function tarjetaFam(F, n){
+  const est = `--acc:${F.col};--tint:${F.tint}`;
+  const img = F.img
+    ? `<img src="imagenes/${esc(F.img)}" alt="" loading="lazy" onerror="this.remove()">`
+    : '';
+  return `<button type="button" class="op op-fam entra" data-f="${esc(F.k)}"
+    style="${est};--i:${n || 0}">
+    <span class="op-img" aria-hidden="true">${F.ico}${img}</span>
+    <span class="op-txt"><b>${esc(F.n)}</b><span>${esc(F.d)}</span></span>
+    <span class="op-mas" aria-hidden="true">→</span></button>`;
+}
+
+/**
+ * Pinta el nivel que corresponda: las tres familias, o las opciones de la que
+ * esté abierta. El título y la bajada cambian con el nivel — si se quedaran
+ * fijos en "¿Qué necesitas hacer?", entrar a una familia se sentiría como si
+ * la pantalla no hubiera cambiado.
+ */
 function pintarOpciones(){
-  $('#ops').innerHTML = INTENCIONES.map(tarjetaOp).join('');
+  const F = FAMILIAS.find((x) => x.k === S.pt.fam);
+  $('#ops').className = 'ops ops-nivel';
+
+  if (!F) {
+    $('#pt-titulo').textContent = '¿Qué necesitas hacer?';
+    $('#pt-sub').textContent = 'Elige por dónde empezar. '
+      + 'Puedes cambiarlo en cualquier momento.';
+    // El rescate NO se esconde detrás de un toque. Es la única opción de la
+    // página en la que el tiempo se mide en minutos, y hacer que alguien
+    // navegue un menú para reportar a una persona bajo escombros es un costo
+    // que no compensa ninguna limpieza de la pantalla.
+    const urg = INTENCIONES.find((i) => i.k === 'rescate');
+    $('#ops').innerHTML =
+      (urg ? `<div class="ops-urg">${tarjetaOp(urg, 0)}</div>` : '')
+      + `<div class="ops-fam">${FAMILIAS.map((f, i) => tarjetaFam(f, i + 1)).join('')}</div>`;
+    return;
+  }
+
+  $('#pt-titulo').textContent = F.n;
+  $('#pt-sub').textContent = F.d;
+  const ops = F.ops
+    .map((k) => INTENCIONES.find((i) => i.k === k))
+    .filter(Boolean);
+  $('#ops').innerHTML =
+    `<button type="button" class="pt-volver" data-f="">← Volver</button>
+     <div class="ops-lista">${ops.map(tarjetaOp).join('')}</div>`;
+}
+
+/** Abre una familia, o vuelve a las tres si `k` viene vacío. */
+function abrirFamilia(k){
+  S.pt.fam = k || null;
+  pintarOpciones();
+  // Volver arriba: al entrar a "Necesito ayuda" —nueve opciones— la lista
+  // arranca donde quedó el scroll del nivel anterior y la primera no se ve.
+  const caja = $('#pt-caja');
+  if (caja) caja.scrollTop = 0;
+}
+
+/** En desarrollo, avisa si una intención quedó fuera de las tres familias:
+ *  seguiría existiendo en el código y sería inalcanzable desde el menú. */
+function verificarFamilias(){
+  const dentro = new Set(FAMILIAS.flatMap((f) => f.ops));
+  const sueltas = INTENCIONES.filter((i) => !dentro.has(i.k)).map((i) => i.k);
+  if (sueltas.length) console.warn('intenciones fuera del menú:', sueltas.join(', '));
+  const rotas = FAMILIAS.flatMap((f) => f.ops)
+    .filter((k) => !INTENCIONES.some((i) => i.k === k));
+  if (rotas.length) console.warn('familias apuntan a intenciones inexistentes:', rotas.join(', '));
 }
 
 /**
@@ -1585,7 +1936,9 @@ function atrasPaso(){
     S.pt.lugarModo = null;
     return mostrarPaso();
   }
-  if (!S.pt.idx) return abrirPuerta();
+  // Desde el primer paso se vuelve al submenú por el que se entró, no a la
+  // raíz: el botón deshace UN paso, no dos.
+  if (!S.pt.idx) return abrirPuerta(false, (famDe((S.pt.i || {}).k) || {}).k);
   S.pt.idx -= 1;
   mostrarPaso();
 }
@@ -2923,6 +3276,7 @@ function abrirForm(pre){
 }
 
 async function iniciar(){
+  verificarFamilias();
   armarFiltros();
   armarForm();
   await cargarGeo();
@@ -2949,6 +3303,20 @@ async function iniciar(){
       pintarPrensa();
       return;
     }
+    const dn = e.target.closest('#tgl-dano');
+    if (dn) {
+      S.verDano = !S.verDano;
+      if (S.verDano) {
+        dn.textContent = 'Cargando…';
+        // Si la capa no llega, el botón se apaga solo: encenderlo sin datos
+        // dejaría un botón prendido y un mapa sin cambios, que se lee como que
+        // no hay daño en ninguna parte.
+        if (!await cargarDano()) S.verDano = false;
+      }
+      pintarZonas();
+      pintarDano();
+      return;
+    }
     const b = e.target.closest('.zona');
     if (b) irAZona(b.dataset.z);
   });
@@ -2967,8 +3335,22 @@ async function iniciar(){
   ['#pt-intro', '#pt-telon'].forEach((s) =>
     $(s).addEventListener('click', saltarIntro));
   $('#ops').addEventListener('click', (e) => {
+    // Familia y "volver" antes que la opción: la tarjeta de familia también
+    // lleva la clase `.op` (comparten pieza), así que si `.op` se evaluara
+    // primero intentaría abrir una intención con la llave de una familia.
+    const f = e.target.closest('[data-f]');
+    if (f) return abrirFamilia(f.dataset.f);
     const b = e.target.closest('.op'); if (b) elegirIntencion(b.dataset.i);
   });
+  /* ⚠️⚠️ El botón "← Atrás" de los pasos NO ESTABA CONECTADO A NADA (lo
+     encontró Santiago, PR #2). `encabezadoPaso()` lo pinta con `data-pt-atras`
+     y `atrasPaso()` existe desde el commit que se llama, precisamente,
+     "preguntas encadenadas, atrás y el lugar en dos tarjetas" — pero el único
+     listener buscaba `#pt-atras`, un id que no pone nadie. Quien entraba a una
+     opción equivocada quedaba encerrado ahí y tenía que recargar la página.
+     ⚠️ Son los DOS paneles: el botón se pinta en `#pt-elegido` (el de lugar) y
+     en `#pt-elegido3` (el de preguntas), y colgarlo de uno solo dejaba el otro
+     muerto. Un panel nuevo hay que sumarlo a esta lista. */
   ['#pt-elegido', '#pt-elegido3'].forEach((s) =>
     $(s).addEventListener('click', (e) => {
       if (e.target.closest('[data-pt-atras]')) atrasPaso();

@@ -14,13 +14,27 @@
  *   POST /contacto                mensaje intermediado hacia el reportante
  *   POST /abuso                   marcar un reporte para revisión
  *   GET  /inteligencia.json       pulso de prensa (lo recolecta el cron, no la visita)
+ *   GET  /copernicus.json         daño evaluado desde satélite (cron diario)
  *   GET  /admin/reportes          moderación (X-Admin-Token)
  *   POST /admin/estado            ocultar / verificar (X-Admin-Token)
  *   POST /admin/inteligencia      forzar una recolección (X-Admin-Token)
+ *   POST /admin/copernicus        forzar la lectura de Copernicus (X-Admin-Token)
  *   GET  /salud                   ping
  */
 import { recolectar as recolectarPrensa, leer as leerPrensa } from './inteligencia.js';
 import { leer as leerAcopios, refrescar as refrescarAcopios } from './acopios.js';
+import { leer as leerCopernicus, refrescar as refrescarCopernicus } from './copernicus.js';
+
+/**
+ * Los dos horarios del cron, para poder distinguirlos dentro de `scheduled`.
+ *
+ * ⚠️ TIENEN QUE SER IDÉNTICOS a los de `wrangler.toml`, carácter por carácter.
+ * Cloudflare entrega la expresión tal cual está escrita allá: si se cambia una
+ * y no la otra, la corrida diaria caería en la rama de prensa y Copernicus no
+ * se actualizaría nunca, sin un solo error en el log.
+ */
+const CRON_PRENSA = '17 */3 * * *';
+const CRON_DIARIO = '40 11 * * *';   // 06:40 en Colombia
 
 const ORIGENES = [
   'https://sismo.ricardoruiz.co',
@@ -629,6 +643,16 @@ export default {
           'Cache-Control': 'public, max-age=120, s-maxage=600',
         });
       }
+
+      if (ruta === '/copernicus.json' && req.method === 'GET') {
+        const d = await leerCopernicus(env);
+        // Cambia una vez al día como mucho, así que la ventana del edge es
+        // larga: la capa pesa más que las otras y no tiene por qué viajar
+        // completa en cada visita.
+        return json(d || { vacio: true }, 200, origin, {
+          'Cache-Control': 'public, max-age=1800, s-maxage=7200',
+        });
+      }
       if (ruta === '/reporte' && req.method === 'POST') return crearReporte(req, env, origin, ip);
       if (ruta === '/contacto' && req.method === 'POST') return contactar(req, env, origin, ip);
       if (ruta === '/abuso' && req.method === 'POST') return reportarAbuso(req, env, origin, ip);
@@ -652,6 +676,11 @@ export default {
           const ag = await recolectarPrensa(env);
           return json({ ok: true, notas: ag.totales.notas, medios: ag.totales.medios }, 200, origin);
         }
+        if (ruta === '/admin/copernicus' && req.method === 'POST') {
+          const d = await refrescarCopernicus(env);
+          return json({ ok: true, ...d.total, ultima_entrega: d.ultima_entrega,
+                        fallos: d.fallos || [] }, 200, origin);
+        }
       }
 
       return json({ error: 'ruta_desconocida' }, 404, origin);
@@ -662,26 +691,44 @@ export default {
     }
   },
 
-  /** Cron cada 3 horas: recolecta el pulso de prensa fuera de la visita. */
+  /**
+   * Dos ritmos distintos, por lo que mide cada fuente.
+   *
+   *   cada 3 h  → prensa. Los titulares aparecen y se apagan en horas.
+   *   diario    → Copernicus. Entrega uno o dos productos nuevos al día; pedir
+   *               su API cada 3 horas sería traer catorce veces lo mismo.
+   */
   async scheduled(evento, env, ctx) {
     // Los acopios se geocodifican en el cron y no en la visita: cada búsqueda
     // tarda ~1 s y nadie puede esperar eso al abrir el mapa.
     // EXPERIMENTO TEMPORAL: acopios desactivado para aislar la causa.
+
+    const diario = evento.cron === CRON_DIARIO;
+    // Un horario que no reconocemos es casi siempre una expresión cambiada en
+    // `wrangler.toml` y no acá: queda dicho en el log en vez de correr callado
+    // la tarea equivocada.
+    if (!diario && evento.cron !== CRON_PRENSA) console.warn('cron desconocido', evento.cron);
+
+    if (!diario) {
+      ctx.waitUntil(
+        recolectarPrensa(env)
+          .then((ag) => console.log('prensa', ag.totales.notas, 'notas',
+            ag.totales.medios, 'medios'))
+          // Si Google News falla, queda publicada la corrida anterior. Nunca se
+          // borra lo bueno por una recolección mala.
+          .catch((e) => console.error('prensa falló', e && e.message))
+      );
+      return;
+    }
+
     ctx.waitUntil(
-      recolectarPrensa(env)
-        .then((ag) => console.log('prensa', ag.totales.notas, 'notas',
-          ag.totales.medios, 'medios'))
-        // Si Google News falla, queda publicada la corrida anterior. Nunca se
-        // borra lo bueno por una recolección mala.
-        .catch((e) => console.error('prensa falló', e && e.message))
-    );
-    if (0) ctx.waitUntil(
-      recolectarPrensa(env)
-        .then((ag) => console.log('prensa', ag.totales.notas, 'notas',
-          ag.totales.medios, 'medios'))
-        // Si Google News falla, queda publicada la corrida anterior. Nunca se
-        // borra lo bueno por una recolección mala.
-        .catch((e) => console.error('prensa falló', e && e.message))
+      refrescarCopernicus(env)
+        .then((d) => console.log('copernicus', d.total.destruidos, 'destruidos',
+          d.total.danados, 'dañados', d.total.zonas, 'zonas'))
+        // Mismo criterio que la prensa: si Copernicus no responde queda la
+        // última copia buena. Una capa de daño desactualizada sigue sirviendo;
+        // una capa vacía en plena emergencia, no.
+        .catch((e) => console.error('copernicus falló', e && e.message))
     );
   },
 };

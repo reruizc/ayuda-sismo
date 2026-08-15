@@ -2,11 +2,21 @@ name = "ayuda-sismo"
 main = "src/index.js"
 compatibility_date = "2026-08-01"
 
-# Pulso de prensa: se recolecta cada 3 horas, no por visita. Así el visitante
-# nunca paga la latencia de 17 consultas a Google News ni de la lectura del
-# modelo, y el gasto no crece con el tráfico.
+# Dos ritmos, uno por fuente:
+#
+#   17 */3 * * *  Pulso de prensa. Cada 3 horas, no por visita: así el visitante
+#                 nunca paga la latencia de 17 consultas a Google News ni de la
+#                 lectura del modelo, y el gasto no crece con el tráfico.
+#   40 11 * * *   Copernicus EMS (daño evaluado desde satélite), una vez al día
+#                 a las 06:40 de Colombia. El servicio entrega uno o dos
+#                 productos nuevos por día; consultarlo cada 3 horas sería
+#                 traer catorce veces exactamente lo mismo.
+#
+# ⚠️ Las dos expresiones están repetidas en `src/index.js` (CRON_PRENSA y
+# CRON_DIARIO) porque el Worker las usa para saber qué tarea le toca. Cambiar
+# una sin la otra deja Copernicus sin actualizarse y sin ningún error visible.
 [triggers]
-crons = ["17 */3 * * *"]
+crons = ["17 */3 * * *", "40 11 * * *"]
 
 # La base de datos se crea con:
 #   npx wrangler d1 create ayuda-sismo

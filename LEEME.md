@@ -492,6 +492,58 @@ los reportes ciudadanos del mapa — municipios con necesidad reportada y sin un
 sola nota. Es lo que un monitor de prensa no puede responder, y necesita volumen
 de reportes para tener fuerza. Hoy solo hay datos de prueba.
 
+## Daño visto desde satélite · Copernicus EMS
+
+`worker/src/copernicus.js` + capa "Daño satelital" en el mapa. Es la contraparte
+de todo lo demás que hay en la página: los reportes son **necesidad declarada**
+por la gente, esto es **daño observado** por el servicio de emergencias de la
+Unión Europea sobre imagen de satélite.
+
+**⚠️⚠️ NO CUBRE EL PAÍS, y esa advertencia va en la leyenda del mapa, no en una
+nota al pie.** Se analizaron seis manchas urbanas; **el epicentro (San José del
+Palmar) no tiene ninguna**. Por eso se dibuja el **contorno punteado de cada
+zona analizada**: así se ve dónde alcanza lo que sabemos y dónde nadie ha
+mirado. Un municipio sin puntos no es un municipio sin daño.
+
+Al 14 de agosto: **622 edificios evaluados** (239 destruidos · 275 dañados · 108
+posiblemente dañados), **13 vías bloqueadas** y 26 tramos de vía dañados, en
+Buenaventura, Pereira, Quibdó, Cali (dos zonas) e Istmina.
+
+- **Fuente**: API pública sin clave.
+  `rapidmapping.emergency.copernicus.eu/backend/dashboard-api/public-activations/?code=EMSR916`.
+  Los vectores salen del bucket del visor cambiando el sufijo `_VT` por `.json`.
+- **Licencia**: reutilización libre citando
+  `© Unión Europea, Copernicus Emergency Management Service (EMSR916)`. El
+  crédito va en la leyenda, con enlace a la activación.
+- **Cron diario** a las 06:40 de Colombia, no cada 3 horas como la prensa:
+  Copernicus entrega uno o dos productos por día y consultarlo más seguido
+  traería catorce veces lo mismo. Disparo manual: `POST /admin/copernicus` con
+  `X-Admin-Token`.
+
+**Tres reglas del dato que no hay que deshacer:**
+
+1. **Una zona puede tener varias entregas** (producto inicial + monitoreos). Son
+   la MISMA zona re-evaluada, no zonas distintas: sumarlas contaría los mismos
+   edificios dos veces. Pasa hoy con Buenaventura (256 en el producto inicial,
+   335 en el monitoreo) y se conserva solo la última.
+2. **"Posiblemente dañado" es fotointerpretación**, no daño confirmado. Va en su
+   propio grado y nunca se suma con "destruido" en una sola cifra.
+3. **De las vías solo entran los tramos con daño.** Las intactas son más de
+   11.000 rasgos que multiplicarían el peso del archivo sin aportar una sola
+   decisión; los bloqueos, en cambio, son lo más accionable del paquete: le
+   dicen a quien va a llevar ayuda por dónde no puede pasar.
+
+Ver los datos antes de desplegar, sin tocar producción:
+
+```bash
+python3 tools/copernicus.py                       # resumen por zona
+python3 tools/copernicus.py --json public/cop.json  # el mismo archivo que sirve el Worker
+```
+
+Cuando se cierre la activación, o para otro evento, se cambia `ACTIVACION` en
+`worker/src/copernicus.js` (y `--codigo` en el script). Todo lo demás —zonas,
+productos, capas— lo descubre solo desde la API.
+
 ## Puntos de prueba
 
 ```bash
