@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.DS_Store
+node_modules/
+.wrangler/
+# Salidas de los scripts que se regeneran solas
+tools/*.bak

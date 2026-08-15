@@ -1,27 +1,61 @@
 # Mapa de ayuda · sismo del 10 de agosto de 2026
 
 Mapa abierto para registrar y encontrar necesidades tras el sismo M 7.4 con
-epicentro en San José del Palmar (Chocó). Cubre Cali, Pereira, Manizales,
-Armenia, Quibdó y cualquier punto del país por pin libre.
+epicentro en San José del Palmar (Chocó) y los incendios forestales de Nariño.
+Cubre Cali, Pereira, Manizales, Armenia, Quibdó y cualquier punto del país.
+
+**En producción:** <https://ayuda-sismo.pages.dev>
 
 No es un canal oficial y la página lo dice arriba, sin letra chica: si hay
 vidas en riesgo, el 123; personas desaparecidas, Cruz Roja y Medicina Legal.
 
+## Cómo contribuir
+
+El proyecto se hizo en emergencia y se va a entregar a organizaciones que lo
+mantengan. Los aportes son bienvenidos; tres cosas antes de empezar:
+
+1. **Lee las decisiones que no hay que deshacer** (más abajo). Varias parecen
+   detalles y son de privacidad: la ubicación desplazada 100 m, el contacto que
+   nunca se publica en casos de personas desaparecidas, la foto que se
+   re-codifica para borrarle el GPS. Si algo de eso estorba, hay una razón
+   escrita al lado.
+2. **Un PR mergeado no sale al aire.** La página está en Cloudflare Pages y se
+   despliega a mano (ver *Desplegar*).
+3. **`public/index.html` es un solo archivo con el JS adentro**, sin paso de
+   build. Antes de cada push hay que validar que el JS parsea, porque un error
+   de sintaxis deja la página en blanco:
+
+```bash
+python3 - <<'EOF'
+import re
+h = open('public/index.html', encoding='utf-8').read()
+b = re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>', h, re.S)
+open('/tmp/js.js', 'w', encoding='utf-8').write('\n'.join(b))
+EOF
+node -e "new Function(require('fs').readFileSync('/tmp/js.js','utf8')); console.log('JS OK')"
 ```
-ayuda-sismo/
-  public/          la página (va a Cloudflare Pages)
-    index.html     app completa: mapa, filtros, formulario, fotos, mensajes
-    geo.json       33 deptos · 1.122 municipios con centro (44 KB)
-    barrios.json   985 barrios de 4 ciudades (46 KB)
-    _headers       cabeceras de Pages
-  worker/          el backend (Cloudflare Workers + D1 + R2)
-    src/index.js
-    schema.sql
-    wrangler.toml
-tools/ayuda-sismo/
-  build_geo.py       regenera geo.json     (divipola + PUESTOS_GEOREF)
-  build_barrios.py   regenera barrios.json (GeoJSON de barrios)
-  seed.py            publica puntos de prueba
+
+Para verlo en local basta un servidor estático; la página detecta `localhost` y
+apunta sola al Worker local para no escribir en la base de producción:
+
+```bash
+python3 -m http.server 8765     # y abrir http://localhost:8765/public/
+```
+
+```
+public/          la página (se despliega a Cloudflare Pages)
+  index.html     app completa: puerta de entrada, mapa, formularios
+  inteligencia.html  informe de cobertura de prensa
+  geo.json       33 deptos · 1.122 municipios con centro (44 KB)
+  barrios.json   985 barrios de 4 ciudades (46 KB)
+  imagenes/      ilustraciones de las tarjetas (JPG de 240 px)
+worker/          el backend (Cloudflare Workers + D1 + R2)
+  src/index.js       reportes, mensajes, moderación
+  src/acopios.js     centros de acopio desde una hoja de Google
+  src/inteligencia.js  recolección de titulares
+tools/           scripts de datos (ver tools/LEEME.md)
+datos/           CSV de acopios listos para pegar en la hoja
+imagenes-fuente/ los PNG originales de las ilustraciones
 ```
 
 ## La puerta de entrada: qué quieres hacer y dónde
@@ -36,24 +70,37 @@ lleva a la herramienta que ya existía:
 
 | Intención | A dónde lleva |
 |---|---|
+| Quiero donar cosas | Mapa enfocado + capa de acopios + la lista de acopios en el panel |
+| Quiero ser voluntario | Pregunta cuándo puede ir y entrega una LISTA de sitios por cercanía |
 | Necesito ayuda | Formulario abierto en el grupo *Necesito*, con el municipio ya puesto |
-| Hay personas atrapadas | Formulario en *rescate*, la situación más urgente del catálogo |
-| Quiero donar cosas | Mapa enfocado + capa de acopios + **la lista de acopios en el panel** |
-| Quiero ser voluntario | Mapa filtrado a lo que alguien está pidiendo + botón para ofrecerse |
-| Puedo ofrecer algo más | Formulario en el grupo *Puedo ayudar* |
-| Busco a una persona | Formulario en `busco-persona`, con su aviso de privacidad |
-| Mascota perdida o encontrada | Las dos situaciones de mascota juntas |
-| Ver qué dice la prensa | Titulares del municipio en el panel |
-| Explorar el mapa completo | La página tal como era |
+| Hay personas atrapadas | Formulario en `nec-rescate` |
+| Busco alojamiento | Pregunta quién es y entra a `nec-refugio` con su ejemplo |
+| Busco atención médica | Pregunta para quién y qué necesita, y entra a `nec-salud` |
+| Busco transporte | `nec-otro` con ejemplo propio (ver aviso abajo) |
+| Necesito reconstruir | Pregunta qué hace falta y entra a `nec-estructural` |
+| Busco a una persona | `busco-persona`, con su aviso de privacidad |
+| Mascota perdida o encontrada | Pregunta si la busca o la encontró |
+| Registrar un centro de acopio | Formulario propio de seis campos |
+| Qué dicen las noticias | Titulares del territorio en el panel |
+| Ver informes | El informe completo de cobertura de prensa |
+| Ver el mapa completo | La página tal como era, para filtrar a mano |
+
+**Las preguntas se encadenan.** Cada intención declara en `subs` cuántas
+preguntas necesita antes de actuar, y `pasosDe()` las recorre de a una. Lo
+respondido entra al formulario como primeras líneas del detalle, editables: es
+contexto que quien va a ayudar necesita leer y que la persona no tiene por qué
+volver a escribir.
 
 La puerta **no es un catálogo de datos más**: `INTENCIONES` es el puente entre
 "a qué vine" y lo que ya estaba construido. Ninguna intención agrega una
 categoría nueva al modelo; todas reusan el catálogo de situaciones, el filtro
 o la capa que corresponde.
 
-- **Se muestra una vez por sesión** (`sessionStorage`), no en cada recarga:
-  recargar sin querer en mitad de un formulario no debe devolver al menú. Se
-  vuelve a abrir con el botón **Inicio** o con **Cambiar** de la barra azul.
+- **Se muestra SIEMPRE**, también al recargar y al volver otro día. Se probó
+  recordándola por sesión y la experiencia es peor: quien entra —o refresca— se
+  encuentra un mapa lleno de puntos sin saber qué hacer con él. El mapa solo no
+  dice nada; la pregunta sí. Hay un botón **← Atrás** que retrocede un paso, no
+  reinicia, para poder explorar sin quedar encerrado en una rama.
 - **No aparece** si se llegó por un enlace privado (`#/mi/…`) ni si la URL ya
   trae la intención.
 - **Enlace directo**: `?ir=donar&dep=16&mun=001`. Sirve para que una
@@ -85,11 +132,16 @@ está del lado de quien lo ofrece. "Busco transporte" entra como `nec-otro` con
 su propio ejemplo. Si algún día se agrega la situación al Worker, basta cambiar
 el `sit` de esa intención.
 
-⚠️ Al quitar "Puedo ofrecer algo más" del menú, **ofrecer alojamiento,
-transporte o atención médica ya no tiene tarjeta propia**. Sigue disponible
-dentro del formulario (grupo *Puedo ayudar*) y como acción secundaria de donar
-y voluntariado, pero quien tenga un cuarto libre ya no lo encuentra desde la
-primera pantalla. Es una decisión de producto, no un olvido.
+⚠️ **Ofrecer alojamiento, transporte o atención médica no tiene tarjeta
+propia.** Sigue disponible dentro del formulario (grupo *Puedo ayudar*) y como
+acción secundaria de donar y voluntariado, pero quien tenga un cuarto libre no
+lo encuentra desde la primera pantalla. Es una decisión de producto, no un
+olvido.
+
+⚠️ **"Necesito reconstruir" entra por `nec-estructural`** (edificación dañada)
+porque el catálogo del Worker no tiene una situación de reconstrucción. No es
+solo un parche: es de las pocas que admiten FOTO, y para conseguir tejas y
+manos la foto del daño hace más que cualquier descripción.
 
 ## La cara de la página
 
@@ -98,11 +150,11 @@ tipografía del sistema, ningún rastro de quién la mantiene. Eso no es solo
 estética — cuando alguien tiene que decidir en cuál confía y cuál está
 desactualizado, la identidad **es** la señal.
 
-- **Fraunces** (Google Fonts) solo en los títulos. El cuerpo del texto sigue en
-  la fuente del sistema: es lo que se lee con mala señal y no puede quedar en
-  blanco esperando un archivo. Con `display=swap` el título se ve desde el
-  primer pintado. **Cuesta ~19 KB** (el subconjunto `latin` de la variable, que
-  cubre los dos pesos en un solo archivo). Es la única descarga añadida.
+- **Arial del sistema en los títulos**, en peso alto y tracking apretado. Se
+  probó con Fraunces de Google Fonts (~19 KB) y se devolvió: la página se abre
+  en la calle con mala señal, y no pedir ni un archivo de fuente es una ventaja
+  real. La cara propia la ponen la trama, los colores por tarjeta y las
+  ilustraciones — no una tipografía descargada.
 - **Trama de rombos en CSS puro** (`--trama`: dos rayados a 45° cruzados). Cero
   peticiones, cero KB. Da textura de papel impreso sin una imagen de fondo que
   habría que descargar en la calle.
@@ -221,7 +273,7 @@ la capa dejaría de leerse como "acopios" y competiría con los colores de los
 reportes, que son el dato propio de la página. El símbolo lleva el tipo; el
 verde lleva la categoría.
 
-### Coordenadas: `tools/ayuda-sismo/geocodificar_acopios.py`
+### Coordenadas: `tools/geocodificar_acopios.py`
 
 Llena LATITUD y LONGITUD de la hoja, que son las columnas que mandan sobre el
 centro del municipio.
@@ -250,7 +302,7 @@ Gotchas del registro de placas, todos medidos:
 
 ## Desplegar
 
-Todo desde `ayuda-sismo/worker` salvo el paso de Pages.
+Todo desde `worker` salvo el paso de Pages.
 
 ```bash
 npx wrangler login
@@ -307,7 +359,7 @@ dos sitios: `CONFIG.API` de `public/index.html` y `API_BASE` de
 ```bash
 cd ../..
 npx wrangler pages project create ayuda-sismo --production-branch=main
-npx wrangler pages deploy ayuda-sismo/public --project-name=ayuda-sismo
+npx wrangler pages deploy public --project-name=ayuda-sismo
 ```
 
 **5. Dominio propio**
@@ -432,7 +484,7 @@ aparecía listada como municipio sin cobertura).
 Regenerar la lista tras cambiar `geo.json` o los diccionarios:
 
 ```bash
-python3 tools/ayuda-sismo/build_municipios_js.py
+python3 tools/build_municipios_js.py
 ```
 
 **Entrega 2, pendiente: zonas de silencio.** El cruce de esta cobertura contra
@@ -443,8 +495,8 @@ de reportes para tener fuerza. Hoy solo hay datos de prueba.
 ## Puntos de prueba
 
 ```bash
-python3 tools/ayuda-sismo/seed.py                    # contra localhost:8787
-python3 tools/ayuda-sismo/seed.py --api https://...  # contra el desplegado
+python3 tools/seed.py                    # contra localhost:8787
+python3 tools/seed.py --api https://...  # contra el desplegado
 ```
 
 18 reportes de ejemplo con las 3 familias de situación, repartidos entre
@@ -465,8 +517,8 @@ local sin bajar el límite real.
 ## Regenerar la geografía
 
 ```bash
-python3 tools/ayuda-sismo/build_geo.py       # geo.json  (deptos + municipios)
-python3 tools/ayuda-sismo/build_barrios.py   # barrios.json
+python3 tools/build_geo.py       # geo.json  (deptos + municipios)
+python3 tools/build_barrios.py   # barrios.json
 ```
 
 `geo.json` sale de `divipola.json` (nombres y códigos oficiales) cruzado con
@@ -494,12 +546,12 @@ GeoJSON de Armenia, es una línea en el dict `CIUDADES` del script y otra en
 ## Probar en local
 
 ```bash
-cd ayuda-sismo/worker
+cd worker
 npx wrangler d1 execute ayuda-sismo --local --file=schema.sql
 npx wrangler dev --port 8787 --local
 ```
 
 En otra terminal, desde la raíz del repo, `python3 -m http.server 8765` y abrir
-`http://localhost:8765/ayuda-sismo/public/index.html`. La página detecta que
+`http://localhost:8765/public/index.html`. La página detecta que
 está en localhost y apunta sola al Worker local, para no escribir en la base de
 producción.
