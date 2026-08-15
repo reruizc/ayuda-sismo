@@ -280,15 +280,23 @@ async function geocodificarNombre(nombre, municipio, centro) {
 async function geocodificarPendientes(env, items, max) {
   let usados = 0;
 
+  /* ⚠️ La caché se lee DE UNA, no fila por fila.
+     Antes esto hacía un SELECT por acopio: con 205 acopios en la hoja eran 205
+     consultas secuenciales a D1 en cada corrida —y en cada visita que
+     refrescara la copia—, cuando la tabla entera son unos cientos de filas
+     que caben de sobra en memoria. Una consulta en vez de 205. */
+  const cache = new Map();
+  try {
+    const r = await env.DB.prepare('SELECT clave, lat, lon, fuente FROM geocache').all();
+    for (const f of r.results || []) cache.set(f.clave, f);
+  } catch (e) {
+    console.error('geocache ilegible', e && e.message);   // se sigue sin caché
+  }
+
   for (const a of items) {
     if (!a.ap || !a.n) continue;                 // ya tiene punto propio
     const clave = `${norm(a.n)}|${norm(a.mu)}`;
-
-    let fila = null;
-    try {
-      fila = await env.DB.prepare('SELECT lat, lon, fuente FROM geocache WHERE clave = ?')
-        .bind(clave).first();
-    } catch { /* sin caché, se intenta */ }
+    const fila = cache.get(clave);
 
     if (fila) {
       // lat NULL = ya se buscó y no se encontró. No se vuelve a preguntar.
@@ -315,6 +323,10 @@ async function geocodificarPendientes(env, items, max) {
       ).bind(clave, res ? res.la : null, res ? res.lo : null,
              res ? `osm:${res.tipo}` : null, Date.now()).run();
     } catch { /* si no se puede cachear, igual se usa el resultado */ }
+    // También en el mapa en memoria: la hoja puede traer el mismo sitio dos
+    // veces y sin esto la segunda aparición volvería a preguntarle a OSM.
+    cache.set(clave, { clave, lat: res ? res.la : null, lon: res ? res.lo : null,
+                       fuente: res ? `osm:${res.tipo}` : null });
 
     if (res) { a.la = res.la; a.lo = res.lo; a.ap = 0; a.geo = `osm:${res.tipo}`; }
 

@@ -507,9 +507,9 @@ titulares. Un municipio sin periodistas se ve idéntico a uno sin problemas. Por
 eso el **hallazgo principal es el silencio**: cuántos municipios de la zona
 afectada no aparecen en una sola noticia. Medido: **88 de 101**.
 
-- **Fuente**: Google News RSS (`hl=es-419&gl=CO`), 17 consultas por tema y
-  ciudad. Gratis, sin API key. ⚠️ Devuelve **302**: hay que seguir la redirección
-  (`curl -L`; `fetch` con `redirect:'follow'`). Sin eso llegan cero resultados.
+- **Fuente**: el **RSS propio de 20 medios** (12 de la zona afectada, 8
+  nacionales), en `MEDIOS` dentro de `worker/src/inteligencia.js`. Ya NO se usa
+  Google News — ver "Google bloquea la ráfaga" más abajo.
 - **Clasificación determinista**, sin modelo de lenguaje: diccionarios de
   palabras y reglas. El único texto de IA es el párrafo azul del comienzo, va
   marcado y no produce ninguna cifra. Necesita `DEEPSEEK_API_KEY`; sin ella la
@@ -543,6 +543,125 @@ Regenerar la lista tras cambiar `geo.json` o los diccionarios:
 ```bash
 python3 tools/build_municipios_js.py
 ```
+
+### ⚠️⚠️ Google bloquea la ráfaga: por qué el cron devolvía CERO
+
+Diagnosticado el 15-ago-2026. Durante días la corrida programada publicó
+`notas:0, medios:0` mientras el disparo manual por HTTP traía 1.146 notas en
+dos segundos. **Mismo código, mismo minuto, resultado opuesto.**
+
+**La causa:** Google responde **HTTP 503** con su página
+`<title>Sorry...</title>` de bloqueo por consultas automatizadas. No es una
+excepción ni un timeout: es un rechazo bien formado que el código convertía en
+"no hay noticias".
+
+**El bloqueo es por IP de salida y VARÍA EN EL TIEMPO.** Al principio pegaba
+solo al cron —que sale siempre por el mismo centro de datos— mientras la
+llamada manual, que sale por otro, respondía 1.146 notas en el mismo minuto.
+Horas después, **las dos vías estaban bloqueadas**.
+
+⚠️⚠️ **Y una parte de eso nos la hicimos nosotros.** Diagnosticar el problema
+costó ~10 recolecciones de prueba en dos horas y media; con reintentos, más de
+300 peticiones a Google News. Es muy probable que eso ampliara el bloqueo a la
+segunda IP. **Al depurar esto NO se prueba contra Google en bucle**: se mira la
+bitácora de `corridas`, que para eso existe, y se deja pasar el cron.
+
+**Cuatro arreglos:**
+
+1. **No salir en ráfaga.** Tandas de 3 con 900 ms entre tandas y techo de 15 s
+   por petición. Nadie está esperando: es un cron cada 3 horas.
+2. **Abandonar cuando nos bloquean** (corta-circuitos). Si la primera tanda
+   vuelve entera con 503, se abandona la corrida. Y **un 503 no se reintenta**:
+   contra un bloqueo por abuso el reintento falla igual y solo duplica las
+   peticiones, de 17 a 34, justo cuando nos están diciendo que somos
+   demasiados. Medido: una corrida bloqueada pasa de 34 peticiones a **3**.
+3. **No publicar una corrida mala.** Cero notas, o más de la mitad de las
+   consultas fallidas, **se descarta y NO se escribe**: queda publicada la
+   última buena. Antes el agregado vacío se escribía encima del bueno y la
+   página quedaba muda sin que nadie se enterara.
+4. **Dejar rastro.** Tabla `corridas`: una fila por corrida, salga bien o mal,
+   con el detalle por consulta cuando falla (código HTTP, ms, y los primeros
+   300 caracteres del cuerpo cuando no es RSS — que es lo que delató el
+   "Sorry..."). Se retienen 30 días.
+
+⚠️ **Los arreglos 3 y 4 están verificados contra una corrida programada real**
+(06:17 UTC del 15-ago): falló entera, **no publicó**, y quedó anotada con las
+17 respuestas. El agregado bueno de 1.145 notas siguió en pie. Los arreglos 1
+y 2 reducen la probabilidad de que nos bloqueen, pero **no rescatan una IP ya
+bloqueada**: mientras dure, el pulso de prensa se queda con el último dato
+bueno y lo declara.
+
+### La salida: RSS propio de cada medio (15-ago-2026)
+
+Se cambió de fuente. Ahora se leen **20 feeds** que los propios periódicos
+publican para que los lean: sin buscador de por medio, sin antibot, sin una
+cuota secreta que un día se cierra. La lista vive en `MEDIOS`
+(`worker/src/inteligencia.js`) con `reg: 1` para los de la zona afectada.
+
+⚠️⚠️ **Cada URL fue PROBADA, no adivinada.** De 38 candidatos escritos de
+memoria solo acertaron 12; el resto daba 404 porque la ruta se inventó. Las que
+faltaban salieron leyendo el `<link rel="alternate" type="application/rss+xml">`
+del home de cada sitio — así aparecieron **El País de Cali (100 items)** y **El
+Diario de Pereira (99)**, los dos regionales más importantes de la zona. La
+prensa colombiana corre mayoritariamente sobre Arc XP, cuya ruta es
+`/arc/outboundfeeds/rss/?outputType=xml`. **Al agregar un medio, probarlo.**
+
+⚠️⚠️ **El filtro por tema es obligatorio y es LA diferencia con Google.** A
+Google se le pedía "terremoto Cali" y devolvía solo eso; el feed de un medio
+trae todo lo que publicó, incluido el fútbol. `esDelSismo()` exige una palabra
+del sismo (sismo, réplica, magnitud…) **o bien** una de emergencia
+(damnificados, albergue, acopio…) **junto con** un nombre de la zona. Esa
+segunda condición existe porque "ayuda humanitaria" a secas trae Gaza y
+"damnificados" trae una inundación en Barranquilla — los dos casos, probados.
+
+⚠️ **El User-Agent lleva token de navegador adelante.** Medido: El Diario de
+Pereira responde **403 al UA propio y 200 al híbrido**. Seguimos identificándonos
+y dejando URL de contacto; si un medio pide que paremos, se saca de `MEDIOS`.
+
+⚠️ **Infobae contesta 200 desde una IP residencial y 403 desde el Worker**: ahí
+el corte es por IP y ningún UA lo arregla. Queda en la lista porque la bitácora
+avisa si vuelve, y un caído de 20 no mueve nada.
+
+**Google News queda apagado detrás de `USAR_GOOGLE_NEWS=1`**, con su
+corta-circuitos. Si se enciende y falla, **no descarta la corrida**: lo que
+manda es el RSS directo.
+
+⚠️⚠️ **Las cifras de antes y de ahora NO son comparables.** Con Google la
+lectura daba ~1.145 titulares; con RSS directo da ~294. No es que se haya
+perdido cobertura: Google devolvía 17 búsquedas con mucho solapamiento y ruido
+de todo el país, y ahora se cuentan las notas del sismo de 20 medios concretos.
+El denominador cambió. El hallazgo principal —el silencio— se sostiene: **89 de
+101 municipios de la zona sin una sola nota**.
+
+Primera corrida real: **294 notas · 17 medios · 19 de 20 feeds vivos · 12 s**.
+Rinde así por medio (`del_feed` → `del sismo`): El País Cali 100→62, El Heraldo
+100→33, Semana 100→30, Caracol 100→29, Las2Orillas 150→27, Q'Hubo Cali 12→10.
+
+⚠️ **El `.catch(() => [])` era el verdadero problema.** Convertía "Google me
+bloqueó" en "no hay noticias": indistinguibles. Con eso, 17 fallos producían un
+agregado de ceros perfectamente bien formado que se publicaba como si nada.
+**Al tocar esta recolección, no vuelvas a colapsar el error con el vacío.**
+
+**Ver qué pasó:**
+
+```bash
+curl -s .../inteligencia.json | jq .ultima_corrida     # público, en cada respuesta
+curl -s .../admin/corridas -H "X-Admin-Token: $ADMIN_TOKEN" | jq   # últimas 40, con detalle
+```
+
+`ultima_corrida` viaja en `/inteligencia.json` a propósito: sin él, un agregado
+de hace ocho horas se ve exactamente igual que uno recién hecho.
+
+⚠️ Si vuelve a aparecer `503 (Google bloquea consultas automatizadas)` de forma
+sostenida, el camino NO es reintentar más —eso alarga el bloqueo—: es espaciar
+más las tandas, o cambiar de fuente.
+
+### Acopios: una consulta a D1, no 205
+
+La hoja tiene 205 filas y **ninguna traía coordenada**, así que
+`geocodificarPendientes` hacía **un `SELECT` por fila** contra `geocache` —205
+consultas secuenciales por corrida, y también en cada visita que refrescara la
+copia—. Ahora la caché se lee entera de una sola vez y se resuelve en memoria.
 
 **Entrega 2, pendiente: zonas de silencio.** El cruce de esta cobertura contra
 los reportes ciudadanos del mapa — municipios con necesidad reportada y sin una

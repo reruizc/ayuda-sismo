@@ -309,8 +309,9 @@ function render(d){
       </details>
       <details>
         <summary>Fuente y frecuencia</summary>
-        <p>${esc(d.metodo.fuente)}, con ${num(d.metodo.consultas)} consultas por tema y
-        municipio. Se recolecta cada 3 horas. Esta lectura reunió ${num(t.notas)}
+        <p>${esc(d.metodo.fuente)}. Se leen los ${num(d.metodo.consultas)} feeds cada 3
+        horas y el recorte por tema lo hace esta página, no un buscador.
+        Esta lectura reunió ${num(t.notas)}
         titulares de ${num(t.medios)} medios distintos
         (${num(d.medios_alcance.regional)} regionales).
         De la zona afectada, ${num(d.afectados_con_lectura)} municipios tienen al menos

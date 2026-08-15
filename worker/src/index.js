@@ -18,10 +18,14 @@
  *   GET  /admin/reportes          moderación (X-Admin-Token)
  *   POST /admin/estado            ocultar / verificar (X-Admin-Token)
  *   POST /admin/inteligencia      forzar una recolección (X-Admin-Token)
+ *   GET  /admin/corridas          bitácora de corridas del cron (X-Admin-Token)
  *   POST /admin/copernicus        forzar la lectura de Copernicus (X-Admin-Token)
  *   GET  /salud                   ping
  */
-import { recolectar as recolectarPrensa, leer as leerPrensa } from './inteligencia.js';
+import {
+  recolectar as recolectarPrensa, leer as leerPrensa,
+  anotarCorrida, ultimaCorrida,
+} from './inteligencia.js';
 import { leer as leerAcopios, refrescar as refrescarAcopios } from './acopios.js';
 import { leer as leerCopernicus, refrescar as refrescarCopernicus } from './copernicus.js';
 
@@ -635,11 +639,17 @@ export default {
       }
 
       if (ruta === '/inteligencia.json' && req.method === 'GET') {
-        const d = await leerPrensa(env);
+        const [d, corrida] = await Promise.all([leerPrensa(env), ultimaCorrida(env, 'prensa')]);
         // Todavía sin corrida del cron: se responde 200 con `vacio`, no un
         // error, para que la página muestre "aún no hay lectura" en vez de
         // parecer rota.
-        return json(d || { vacio: true }, 200, origin, {
+        //
+        // `ultima_corrida` viaja SIEMPRE, aunque el agregado sea el de hace
+        // horas: es lo que permite ver desde afuera que el cron se está
+        // cayendo. Sin esto, un agregado viejo se ve igual que uno fresco.
+        const cuerpo = d ? { ...d, ultima_corrida: corrida }
+                         : { vacio: true, ultima_corrida: corrida };
+        return json(cuerpo, 200, origin, {
           'Cache-Control': 'public, max-age=120, s-maxage=600',
         });
       }
@@ -673,8 +683,29 @@ export default {
                         geocodificados_ahora: d.geocodificados_ahora }, 200, origin);
         }
         if (ruta === '/admin/inteligencia' && req.method === 'POST') {
-          const ag = await recolectarPrensa(env);
-          return json({ ok: true, notas: ag.totales.notas, medios: ag.totales.medios }, 200, origin);
+          try {
+            const ag = await recolectarPrensa(env, { origen: 'manual' });
+            return json({ ok: true, notas: ag.totales.notas, medios: ag.totales.medios,
+                          recoleccion: ag.recoleccion }, 200, origin);
+          } catch (e) {
+            // Una corrida descartada NO es un 500: hizo lo correcto al no
+            // publicar. Se responde con el motivo y el detalle por medio.
+            if (e && e.descartada) {
+              return json({ ok: false, descartada: true, motivo: e.message, medios: e.diag },
+                          200, origin);
+            }
+            throw e;
+          }
+        }
+        // Bitácora de corridas: qué corrió, cuándo, si publicó y por qué no.
+        if (ruta === '/admin/corridas' && req.method === 'GET') {
+          const r = await env.DB.prepare(
+            `SELECT id, ts, tarea, origen, ok, publicado, ms, notas, medios, detalle
+             FROM corridas ORDER BY ts DESC LIMIT 40`
+          ).all();
+          return json({ corridas: (r.results || []).map((f) => ({
+            ...f, detalle: f.detalle ? JSON.parse(f.detalle) : null,
+          })) }, 200, origin);
         }
         if (ruta === '/admin/copernicus' && req.method === 'POST') {
           const d = await refrescarCopernicus(env);
@@ -699,9 +730,6 @@ export default {
    *               su API cada 3 horas sería traer catorce veces lo mismo.
    */
   async scheduled(evento, env, ctx) {
-    // Los acopios se geocodifican en el cron y no en la visita: cada búsqueda
-    // tarda ~1 s y nadie puede esperar eso al abrir el mapa.
-    // EXPERIMENTO TEMPORAL: acopios desactivado para aislar la causa.
 
     const diario = evento.cron === CRON_DIARIO;
     // Un horario que no reconocemos es casi siempre una expresión cambiada en
@@ -710,14 +738,40 @@ export default {
     if (!diario && evento.cron !== CRON_PRENSA) console.warn('cron desconocido', evento.cron);
 
     if (!diario) {
-      ctx.waitUntil(
-        recolectarPrensa(env)
-          .then((ag) => console.log('prensa', ag.totales.notas, 'notas',
-            ag.totales.medios, 'medios'))
-          // Si Google News falla, queda publicada la corrida anterior. Nunca se
-          // borra lo bueno por una recolección mala.
-          .catch((e) => console.error('prensa falló', e && e.message))
-      );
+      // ⚠️⚠️ UN SOLO waitUntil, y las dos tareas EN SERIE. Antes eran dos en
+      // paralelo: además de competir por el presupuesto de la invocación,
+      // volvía imposible atribuir un fallo. Primero lo que la página publica.
+      ctx.waitUntil((async () => {
+        try {
+          const ag = await recolectarPrensa(env, { origen: 'cron' });
+          console.log('prensa', ag.totales.notas, 'notas', ag.totales.medios, 'medios');
+        } catch (e) {
+          // Una corrida descartada ya quedó anotada en `corridas`; acá solo se
+          // registra para el tail en vivo.
+          console.error('prensa falló', e && e.message);
+        }
+
+        // Los acopios se geocodifican en el cron y no en la visita: cada
+        // búsqueda tarda ~1 s y nadie puede esperar eso al abrir el mapa.
+        const t0 = Date.now();
+        try {
+          const d = await refrescarAcopios(env, { geocodificar: 25 });
+          if (d) {
+            console.log('acopios', d.total, '·', d.geocodificados_ahora, 'geocodificados');
+            await anotarCorrida(env, {
+              tarea: 'acopios', origen: 'cron', ok: true, publicado: true,
+              ms: Date.now() - t0, notas: d.total,
+              detalle: { geocodificados: d.geocodificados_ahora, sin_ubicar: d.sin_ubicar },
+            });
+          }
+        } catch (e) {
+          console.error('acopios falló', e && e.message);
+          await anotarCorrida(env, {
+            tarea: 'acopios', origen: 'cron', ok: false, publicado: false,
+            ms: Date.now() - t0, detalle: { error: String((e && e.message) || e) },
+          });
+        }
+      })());
       return;
     }
 
