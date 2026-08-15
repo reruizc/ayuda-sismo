@@ -99,6 +99,9 @@ a{color:var(--azul)}
 .filtros{padding:.75rem 1rem; border-bottom:1px solid var(--linea)}
 .buscador{width:100%; padding:.55rem .7rem; border:1px solid var(--linea); border-radius:var(--r); font:inherit; font-size:.9rem}
 .chips{display:flex; flex-wrap:wrap; gap:.35rem; margin-top:.6rem}
+/* `display:flex` de la clase le gana al `display:none` que el navegador aplica
+   por el atributo hidden: sin esta regla, ocultar los filtros no hace nada. */
+.chips[hidden]{display:none}
 .chip{
   border:1px solid var(--linea); background:var(--tarjeta); border-radius:999px;
   padding:.28rem .62rem; font-size:.8rem; font-weight:600; color:var(--tenue);
@@ -381,7 +384,9 @@ body.con-ctx .cuerpo{height:calc(100dvh - 196px)}
 
           <div class="campo">
             <label for="f-detalle">Detalles <span class="ayuda" style="display:inline">(opcional)</span></label>
-            <textarea id="f-detalle" maxlength="1200" placeholder="Señas del lugar, qué se necesita exactamente, horarios…"></textarea>
+            <!-- 1000 y no 1200: la dirección viaja en la misma columna del
+                 servidor (tope 1200) y no puede comerse el final del texto. -->
+            <textarea id="f-detalle" maxlength="1000" placeholder="Señas del lugar, qué se necesita exactamente, horarios…"></textarea>
             <p class="ayuda" id="aviso-mask">Si escribes un teléfono aquí, lo ocultaremos antes de publicarlo.</p>
           </div>
 
@@ -419,6 +424,11 @@ body.con-ctx .cuerpo{height:calc(100dvh - 196px)}
               <select id="f-mun" aria-label="Municipio" disabled><option value="">Municipio…</option></select>
             </div>
             <select id="f-barrio" style="margin-bottom:.5rem" hidden><option value="">Barrio (opcional)…</option></select>
+            <input type="text" id="f-direccion" maxlength="160" style="margin-bottom:.5rem"
+                   placeholder="Dirección o señas para llegar (opcional)">
+            <p class="ayuda" id="aviso-dir" style="margin-bottom:.5rem">Se publica tal cual.
+              Si es tu casa y prefieres no exponerla, escribe solo una seña
+              (&laquo;frente a la cancha&raquo;).</p>
             <div id="mini"></div>
             <p class="ubi-est" id="ubi-est">Elige el municipio o toca el mapa para marcar el punto exacto.</p>
           </div>
@@ -770,6 +780,7 @@ function pintarAcopios(){
   if (!S.verAcopios || !S.acopios) { mapa.removeLayer(capaAcopios); return; }
 
   separarApilados(S.acopios);
+  S.capasAcopio.clear();
   S.acopios.forEach((a) => {
     if (a.la == null) return;
     const m = L.circleMarker([a._la ?? a.la, a._lo ?? a.lo], {
@@ -813,6 +824,7 @@ function pintarAcopios(){
         Ubicación del sitio según OpenStreetMap.</div>` : '')}
     `, {maxWidth:280});
     m.addTo(capaAcopios);
+    S.capasAcopio.set(a._ix, m);
   });
   capaAcopios.addTo(mapa);
 }
@@ -823,6 +835,9 @@ async function cargarAcopios(){
     const r = await fetch(`${CONFIG.API}/acopios.json`);
     const d = await r.json();
     S.acopios = (d && d.items) ? d.items.filter((a) => a.la != null) : [];
+    // Índice estable: la lista del panel se reordena por cercanía, así que
+    // necesita una llave que no dependa de su posición para hallar el punto.
+    S.acopios.forEach((a, i) => { a._ix = i; });
   } catch { S.acopios = []; }
   return S.acopios;
 }
@@ -906,6 +921,281 @@ function irAZona(cod){
   pintar();
 }
 
+/* ══════════════════════════════ puerta de entrada ══════════════════════════════ */
+
+/** Compara el nombre de departamento de una fuente externa (acopios, prensa)
+ *  con el de geo.json. No son la misma fuente, así que se compara sin tildes y
+ *  por contención en ambos sentidos ("Bogotá D.C." vs "Bogota"). */
+function casaDep(a, b){
+  const x = norm(a), y = norm(b);
+  if (!x || !y) return false;
+  return x === y || x.includes(y) || y.includes(x);
+}
+
+/** Nombre legible del lugar elegido.
+ *  Evita el "Bogota. D.C., Bogotá D.C." que sale de repetir municipio y
+ *  departamento cuando son el mismo sitio (Bogotá y San Andrés). */
+function nombreLugar(L){
+  if (!L) return 'todo el país';
+  const solo = (s) => norm(s).replace(/[^a-z0-9]/g, '');
+  if (!L.mun || solo(L.mun[1]) === solo(L.dep.n)) return L.dep.n;
+  return `${L.mun[1]}, ${L.dep.n}`;
+}
+
+/** Índice plano de los 1.122 municipios, construido una sola vez. */
+function indiceMun(){
+  if (S._idx) return S._idx;
+  const out = [];
+  (S.geo || []).forEach((d) => d.m.forEach((m) => out.push({d, m})));
+  S._idx = out;
+  return out;
+}
+
+function abrirPuerta(){
+  S.pt = {i:null, l:null};
+  $('#pt-paso1').hidden = false;
+  $('#pt-paso2').hidden = true;
+  $('#pt-titulo').textContent = '¿Qué necesitas hacer?';
+  $('#pt-sub').textContent = 'Elige una opción y te llevamos directo a lo que sirve. '
+    + 'Puedes cambiarla en cualquier momento.';
+  pintarOpciones();
+  $('#puerta').hidden = false;
+  document.body.style.overflow = 'hidden';
+}
+
+function cerrarPuerta(){
+  if ($('#puerta').hidden) return;
+  $('#puerta').hidden = true;
+  document.body.style.overflow = '';
+  // Se recuerda por sesión, no para siempre: recargar sin querer en mitad de
+  // un formulario no debería devolver a la persona al menú.
+  try { sessionStorage.setItem('sismo-puerta', '1'); } catch { /* modo privado */ }
+  setTimeout(() => mapa.invalidateSize(), 60);
+}
+
+function tarjetaOp(I){
+  return `<button type="button" class="op${I.urg ? ' op-urg' : ''}${I.k === 'explorar' ? ' op-sec' : ''}"
+    data-i="${esc(I.k)}"><span class="ico" aria-hidden="true">${I.ico}</span>
+    <span><b>${esc(I.n)}</b><span>${esc(I.d)}</span></span></button>`;
+}
+
+function pintarOpciones(){
+  $('#ops').innerHTML = INTENCIONES.map(tarjetaOp).join('') + tarjetaOp(EXPLORAR);
+}
+
+function elegirIntencion(k){
+  const I = k === 'explorar' ? EXPLORAR : INTENCIONES.find((x) => x.k === k);
+  if (!I) return;
+  S.pt.i = I;
+  $('#pt-paso1').hidden = true;
+  $('#pt-paso2').hidden = false;
+  $('#pt-titulo').textContent = '¿En qué lugar?';
+  $('#pt-sub').textContent = 'Sirve para enfocar el mapa en lo que te queda cerca. '
+    + 'Si no lo tienes claro, elige todo el país.';
+  $('#pt-elegido').innerHTML = `<span class="ico" aria-hidden="true">${I.ico}</span>
+    <b>${esc(I.n)}</b>
+    <button type="button" class="btn btn-sm" id="pt-atras">Cambiar</button>`;
+  $('#pt-q').value = '';
+  $('#pt-est').textContent = '';
+  pintarChipsLugar();
+  pintarMunicipios('');
+  // El foco NO se pone en el buscador a propósito: en móvil abriría el teclado
+  // encima de los atajos de departamento, que es el camino más rápido.
+}
+
+function pintarChipsLugar(){
+  const af = (S.geo || []).filter((d) => d.a);
+  // Bogotá entra como atajo aunque no esté golpeada: es de donde sale buena
+  // parte de la donación (19 de los 47 puntos de acopio están ahí).
+  const bog = (S.geo || []).find((d) => d.c === '16');
+  const chips = [
+    '<button type="button" class="zona" data-l="gps">📍 Usar mi ubicación</button>',
+    '<button type="button" class="zona" data-l="pais">Todo el país</button>',
+    ...af.map((d) => `<button type="button" class="zona" data-l="dep:${esc(d.c)}">${esc(d.n)}</button>`),
+    bog ? `<button type="button" class="zona" data-l="dep:16">${esc(bog.n)}</button>` : '',
+  ];
+  $('#pt-lugares').innerHTML = chips.join('');
+}
+
+function pintarMunicipios(q){
+  const n = norm(q.trim());
+  let l = indiceMun();
+  // Sin búsqueda se listan los municipios de los departamentos con daño: es la
+  // gente que está adentro. El resto del país aparece al escribir.
+  l = n ? l.filter((x) => norm(x.m[1]).includes(n) || norm(x.d.n).includes(n))
+        : l.filter((x) => x.d.a);
+  const tot = l.length;
+  $('#pt-muns').innerHTML = tot
+    ? l.slice(0, 80).map((x) =>
+        `<button type="button" class="mun" data-l="mun:${esc(x.d.c)}:${esc(x.m[0])}">
+          ${esc(x.m[1])} <small>· ${esc(x.d.n)}</small></button>`).join('')
+      + (tot > 80 ? `<div class="ubi-est" style="padding:.6rem .8rem">
+          ${tot - 80} municipios más. Escribe para afinar.</div>` : '')
+    : `<div class="vacio" style="padding:1.4rem">No encontramos ese municipio.
+        <br>Puedes seguir con <b>todo el país</b> y marcar el punto a mano.</div>`;
+}
+
+/** Ubica a la persona en el municipio cuyo centro le queda más cerca. */
+function ubicarme(){
+  if (!navigator.geolocation) {
+    $('#pt-est').textContent = 'Tu navegador no permite ubicación. Elige el municipio en la lista.';
+    return;
+  }
+  $('#pt-est').textContent = 'Buscando tu ubicación…';
+  navigator.geolocation.getCurrentPosition((p) => {
+    const {latitude:la, longitude:lo} = p.coords;
+    let mejor = null, dmin = Infinity;
+    indiceMun().forEach((x) => {
+      if (x.m[2] == null) return;
+      // Distancia plana con la longitud corregida por latitud: sobra para
+      // comparar municipios y evita traer una librería.
+      const dy = x.m[2] - la, dx = (x.m[3] - lo) * Math.cos(la * Math.PI / 180);
+      const d = dy * dy + dx * dx;
+      if (d < dmin) { dmin = d; mejor = x; }
+    });
+    if (!mejor) { $('#pt-est').textContent = 'No pudimos ubicarte. Elige el municipio en la lista.'; return; }
+    elegirLugar({dep:mejor.d, mun:mejor.m});
+  }, () => {
+    $('#pt-est').textContent = 'No pudimos obtener tu ubicación. Elige el municipio en la lista.';
+  }, {enableHighAccuracy:true, timeout:10000, maximumAge:60000});
+}
+
+function elegirLugar(L){
+  S.pt.l = L;
+  ejecutar();
+}
+
+/** Enfoca el mapa en el lugar elegido y filtra la lista a su departamento.
+ *  La lista se filtra por DEPARTAMENTO aunque se haya elegido un municipio:
+ *  un municipio con cero reportes se vería como un mapa muerto. */
+function irALugar(L){
+  if (!L) { irAZona(''); return; }
+  S.zona = L.dep.c;
+  pintarZonas();
+  if (L.mun && L.mun[2] != null) mapa.setView([L.mun[2], L.mun[3]], 12, {animate:false});
+  else mapa.fitBounds([[L.dep.b[0], L.dep.b[1]], [L.dep.b[2], L.dep.b[3]]],
+    {animate:false, padding:[16, 16]});
+  pintar();
+}
+
+/* ══════════════════════════════ modos del panel ══════════════════════════════ */
+
+function sincronizarChips(){
+  document.querySelectorAll('#chips-grupo .chip').forEach((b) =>
+    b.setAttribute('aria-pressed', S.f.grupo.has(b.dataset.k)));
+  document.querySelectorAll('#chips-fam .chip').forEach((b) =>
+    b.setAttribute('aria-pressed', S.f.fam.has(b.dataset.k)));
+}
+
+/** Devuelve el panel a su estado normal. Se llama al empezar cada intención:
+ *  el modo y los filtros de la anterior no deben sobrevivir al cambio. */
+function limpiarModo(){
+  S.listaModo = '';
+  S.f.grupo.clear(); S.f.fam.clear(); S.f.q = '';
+  $('#q').value = '';
+  sincronizarChips();
+  $('#chips-grupo').hidden = false;
+  $('#chips-fam').hidden = false;
+  $('#q').placeholder = 'Buscar por municipio, barrio o palabra…';
+}
+
+async function modoAcopios(){
+  S.listaModo = 'acopios';
+  S.f.grupo.clear(); S.f.fam.clear(); sincronizarChips();
+  $('#chips-grupo').hidden = true; $('#chips-fam').hidden = true;
+  $('#q').placeholder = 'Buscar un punto de acopio…';
+  $('#conteo').textContent = 'Cargando puntos de acopio…';
+  $('#lista').innerHTML = '';
+  S.verAcopios = true;
+  await cargarAcopios();
+  pintarZonas();
+  pintarAcopios();
+  pintar();
+}
+
+/** Voluntario: el mapa y la lista se recortan a lo que alguien está pidiendo.
+ *  No inventa una categoría "voluntariado": usa el filtro que ya existe. */
+function modoVoluntario(){
+  limpiarModo();
+  S.f.grupo = new Set(['necesito']);
+  S.f.fam.clear();
+  sincronizarChips();
+  pintar();
+}
+
+async function modoPrensa(){
+  S.listaModo = 'prensa';
+  $('#chips-grupo').hidden = true; $('#chips-fam').hidden = true;
+  $('#q').placeholder = 'Buscar por municipio, barrio o palabra…';
+  $('#conteo').textContent = 'Cargando titulares…';
+  $('#lista').innerHTML = '';
+  S.verPrensa = true;
+  await cargarPrensa();
+  pintarZonas();
+  pintarPrensa();
+  pintar();
+}
+
+function ejecutar(){
+  const I = S.pt.i || EXPLORAR, L = S.pt.l || null;
+  S.intencion = I; S.lugar = L;
+  cerrarPuerta();
+  limpiarModo();
+  irALugar(L);
+  pintarContexto();
+
+  if (I.accion === 'form') {
+    abrirForm({sit:I.sit, grupo:I.grupo, sits:I.sits, lugar:L});
+  } else if (I.accion === 'acopios') { modoAcopios(); }
+  else if (I.accion === 'voluntario') { modoVoluntario(); }
+  else if (I.accion === 'prensa') { modoPrensa(); }
+  else { limpiarModo(); pintar(); }
+}
+
+function pintarContexto(){
+  const I = S.intencion, L = S.lugar, ctx = $('#ctx');
+  // En móvil el botón fijo es LA acción de la página: si alguien entró a donar,
+  // ofrecerle "registrar una necesidad" es mandarlo al formulario contrario.
+  $('#fab').textContent = (I && I.accSit) ? I.acc : 'Registrar una necesidad';
+  if (!I || I.accion === 'mapa') {
+    ctx.hidden = true;
+    document.body.classList.remove('con-ctx');
+    return;
+  }
+  ctx.innerHTML = `<span class="ctx-t">${I.ico} ${esc(I.ctx || I.n)} · ${esc(nombreLugar(L))}</span>
+    <span class="ctx-acc">
+      ${I.acc ? `<button class="btn btn-sm" id="ctx-acc">${esc(I.acc)}</button>` : ''}
+      <button class="btn btn-sm" id="ctx-cambiar">Cambiar</button>
+    </span>`;
+  ctx.hidden = false;
+  document.body.classList.add('con-ctx');
+  setTimeout(() => mapa.invalidateSize(), 60);
+}
+
+/** Acción secundaria de la barra de contexto. */
+function accionContexto(){
+  const I = S.intencion;
+  if (!I) return;
+  if (I.accUrl) { location.href = I.accUrl; return; }
+  abrirForm({sit:I.accSit || I.sit, grupo:I.grupo, sits:I.sits, lugar:S.lugar});
+}
+
+/** Entrada directa por URL: ?ir=donar&dep=16&mun=001
+ *  Sirve para que una organización comparta el enlace exacto de lo que ofrece
+ *  sin obligar a nadie a pasar por el menú. */
+function puertaDesdeURL(){
+  const p = new URLSearchParams(location.search);
+  const k = p.get('ir');
+  if (!k) return false;
+  const I = k === 'explorar' ? EXPLORAR : INTENCIONES.find((x) => x.k === k);
+  if (!I) return false;
+  const dep = (S.geo || []).find((d) => d.c === p.get('dep'));
+  const mun = (dep && p.get('mun')) ? dep.m.find((m) => m[0] === p.get('mun')) : null;
+  S.pt = {i:I, l: dep ? {dep, mun} : null};
+  ejecutar();
+  return true;
+}
+
 /* ══════════════════════════════ filtros y lista ══════════════════════════════ */
 function filtrados(){
   const q = norm(S.f.q.trim());
@@ -924,7 +1214,11 @@ function filtrados(){
 
 function pintar(){
   const vis = filtrados();
+  // El mapa SIEMPRE muestra los reportes: son el dato propio de esta página.
+  // Lo que cambia con el modo es el panel lateral.
   dibujarMapa(vis);
+  if (S.listaModo === 'acopios') return listaAcopios();
+  if (S.listaModo === 'prensa') return listaPrensa();
 
   const urg = vis.filter((r) => r.u === 'alta' && r.p !== 'ofrezco').length;
   const ofr = vis.filter((r) => r.p === 'ofrezco').length;
@@ -963,6 +1257,121 @@ function pintar(){
       </div>
     </article>`;
   }).join('');
+}
+
+/** Lista de puntos de acopio en el panel.
+ *
+ * Hasta ahora los acopios solo existían como puntos del mapa, y para saber si
+ * un punto recibe ropa o comida había que abrir su globo uno por uno. Quien
+ * viene a donar necesita compararlos: qué reciben, a qué hora y qué tan lejos.
+ */
+function listaAcopios(){
+  const dep = S.lugar && S.lugar.dep;
+  const q = norm(S.f.q.trim());
+  let l = (S.acopios || []).slice();
+  const enZona = dep ? l.filter((a) => casaDep(a.dp, dep.n)) : l;
+  // Si no hay ninguno en su departamento se muestran los del país entero en vez
+  // de una lista vacía: mandar a alguien con un mercado a ninguna parte es peor.
+  const ampliado = dep && !enZona.length;
+  l = ampliado ? l : enZona;
+  if (q) l = l.filter((a) => norm(`${a.n} ${a.mu} ${a.dp} ${a.ne || ''} ${a.d || ''}`).includes(q));
+
+  // Orden por cercanía al punto elegido; sin punto, los revisados primero.
+  const ref = S.lugar && S.lugar.mun && S.lugar.mun[2] != null
+    ? [S.lugar.mun[2], S.lugar.mun[3]] : null;
+  if (ref) {
+    l.sort((a, b) => dist2(a, ref) - dist2(b, ref));
+  } else {
+    l.sort((a, b) => (b.rev ? 1 : 0) - (a.rev ? 1 : 0));
+  }
+
+  $('#conteo').textContent = l.length
+    ? `${l.length} punto${l.length === 1 ? '' : 's'} de acopio`
+      + (ampliado ? ' · en todo el país' : (dep ? ` en ${dep.n}` : ''))
+    : 'Sin puntos de acopio con esta búsqueda';
+
+  if (!l.length) {
+    $('#lista').innerHTML = `<div class="vacio">No tenemos puntos de acopio registrados aquí.
+      <br><br>Si conoces uno, escríbenos a
+      <a href="mailto:hola@ricardoruiz.co">hola@ricardoruiz.co</a> y lo publicamos.</div>`;
+    return;
+  }
+
+  $('#lista').innerHTML =
+    (ampliado ? `<div class="conteo">No hay ninguno en ${esc(dep.n)}.
+      Estos son los más cercanos que tenemos.</div>` : '')
+    + l.map((a) => {
+      const tel = (a.tel || '').replace(/[^\d+]/g, '');
+      const ruta = a.d ? `https://www.google.com/maps/search/?api=1&query=${
+        encodeURIComponent([a.d, a.mu, a.dp, 'Colombia'].filter(Boolean).join(', '))}` : '';
+      return `<article class="item" data-ac="${a._ix}" tabindex="0">
+        <div class="item-txt">
+          <div class="ac-cab">
+            <h3>${esc(a.n)}</h3>
+            ${a.rev ? `<span class="revok">revisado ${esc(a.rev)}</span>`
+                    : '<span class="sinrev">sin revisar</span>'}
+          </div>
+          <div class="ac-m">${esc([a.mu, a.dp].filter(Boolean).join(', '))}${
+            a.tipo ? ` · ${esc(a.tipo)}` : ''}</div>
+          ${a.d ? `<p class="ac-d"><strong>${esc(a.d)}</strong></p>` : ''}
+          ${a.ne ? `<p class="ac-m">Recibe: ${esc(a.ne)}</p>` : ''}
+          ${a.h ? `<p class="ac-m">Horario: ${esc(a.h)}${a.di ? ` · ${esc(a.di)}` : ''}</p>` : ''}
+          ${a.vol ? '<p class="ac-m" style="color:var(--verde);font-weight:600">Necesita voluntarios</p>' : ''}
+          <div class="ac-acc">
+            ${ruta ? `<a href="${esc(ruta)}" target="_blank" rel="noopener">Cómo llegar →</a>` : ''}
+            ${tel ? `<a href="tel:${esc(tel)}">Llamar</a>` : ''}
+          </div>
+          ${a.ap ? '<p class="ac-m" style="color:#8a8378">El punto del mapa es el centro del municipio: guíate por la dirección.</p>' : ''}
+        </div>
+      </article>`;
+    }).join('');
+}
+
+function dist2(a, ref){
+  if (a.la == null) return Infinity;
+  const dy = a.la - ref[0], dx = (a.lo - ref[1]) * Math.cos(ref[0] * Math.PI / 180);
+  return dy * dy + dx * dx;
+}
+
+/** Titulares de prensa del lugar elegido.
+ *
+ * ⚠️ Esto cuenta COBERTURA, no realidad: un municipio sin periodistas se ve
+ * igual que uno sin problemas. Por eso el vacío no se disimula — es el
+ * hallazgo, y así lo dice el texto. */
+function listaPrensa(){
+  const L = S.lugar;
+  const muns = S.prensa || [];
+  const l = !L ? muns
+    : (L.mun ? muns.filter((m) => norm(m.n) === norm(L.mun[1]))
+             : muns.filter((m) => casaDep(m.dep, L.dep.n)));
+  const donde = nombreLugar(L);
+  const notas = l.reduce((s, m) => s + (m.notas || 0), 0);
+
+  $('#conteo').textContent = notas
+    ? `${notas} titular${notas === 1 ? '' : 'es'} sobre ${donde}`
+    : `Sin titulares sobre ${donde}`;
+
+  if (!notas) {
+    $('#lista').innerHTML = `<div class="vacio" style="text-align:left; padding:1.4rem 1rem">
+      <b style="color:var(--tinta)">No hay un solo titular sobre ${esc(donde)}
+      en la última lectura.</b>
+      <p style="margin:.6rem 0 0">Esto mide la <b>cobertura de prensa</b>, no lo que está
+      pasando: un municipio del que nadie informa se ve idéntico a uno sin problemas.
+      El silencio es justamente el hallazgo.</p>
+      <p style="margin:.6rem 0 0"><a href="inteligencia.html">Ver el informe completo →</a></p>
+    </div>`;
+    return;
+  }
+
+  $('#lista').innerHTML = l.map((m) => `
+    <div class="conteo" style="font-weight:600;color:var(--tinta)">
+      ${esc(m.n)} · ${m.notas} titular${m.notas === 1 ? '' : 'es'}</div>
+    ${(m.tit || []).map((t) => `<div class="nt">
+      <a href="${esc(t.u)}" target="_blank" rel="noopener">${esc(t.t)}</a>
+      <div class="m">${esc(t.m || 'sin medio')}${t.ts ? ` · ${hace(t.ts)}` : ''}</div>
+    </div>`).join('')}`).join('')
+    + `<div class="vacio" style="padding:1.2rem">
+        <a href="inteligencia.html">Ver el informe completo de prensa →</a></div>`;
 }
 
 function armarFiltros(){
@@ -1020,7 +1429,7 @@ async function cargar(){
 }
 
 /* ══════════════════════════════ formulario ══════════════════════════════ */
-let miniMapa = null, miniPin = null, grupoSel = '', sitSel = '', fotoData = null;
+let miniMapa = null, miniPin = null, grupoSel = '', sitSel = '', fotoData = null, pinPend = null;
 
 function abrir(id){ $(id).hidden = false; document.body.style.overflow = 'hidden'; }
 function cerrarTodo(){
@@ -1051,12 +1460,50 @@ function armarForm(){
   });
 }
 
+function botonSit(k){
+  const v = SIT[k]; if (!v) return '';
+  return `<button type="button" class="sit" data-s="${k}" aria-pressed="${k === sitSel}">
+    <span class="punto" style="background:${(FAM[v.f] || FAM.otro).c}"></span>
+    ${esc(v.n)}</button>`;
+}
+
 function pintarSituaciones(){
-  const lista = Object.entries(SIT).filter(([, v]) => v.g === grupoSel);
-  $('#op-sit').innerHTML = lista.map(([k, v]) =>
-    `<button type="button" class="sit" data-s="${k}" aria-pressed="false">
-      <span class="punto" style="background:${(FAM[v.f] || FAM.otro).c}"></span>
-      ${esc(v.n)}</button>`).join('');
+  $('#op-sit').innerHTML = Object.keys(SIT)
+    .filter((k) => SIT[k].g === grupoSel).map(botonSit).join('');
+}
+
+function marcarGrupos(){
+  $('#op-grupo').querySelectorAll('.grupo').forEach((o) =>
+    o.setAttribute('aria-pressed', o.dataset.g === grupoSel));
+}
+
+/** Deja el formulario abierto en lo que la persona eligió en la puerta.
+ *  `sits` (una lista corta) sirve para casos que cruzan grupos: mascota
+ *  perdida y mascota encontrada son la misma pregunta para quien llega. */
+function prefijarSituacion(pre){
+  if (pre.sits && pre.sits.length) {
+    grupoSel = ''; sitSel = '';
+    marcarGrupos();
+    $('#op-sit').innerHTML = pre.sits.map(botonSit).join('');
+    $('#resto').hidden = true;
+    return;
+  }
+  grupoSel = pre.sit ? (SIT[pre.sit] || {}).g || '' : (pre.grupo || '');
+  sitSel = pre.sit && SIT[pre.sit] ? pre.sit : '';
+  marcarGrupos();
+  pintarSituaciones();
+  if (sitSel) aplicarSituacion();
+  else $('#resto').hidden = true;
+}
+
+/** Deja el departamento, el municipio y el punto del mapa ya puestos. */
+function prefijarLugar(L){
+  if (!L || !L.dep) return;
+  $('#f-depto').value = L.dep.c;
+  alCambiarDepto();
+  if (!L.mun) return;
+  const i = L.dep.m.indexOf(L.mun);
+  if (i >= 0) { $('#f-mun').value = String(i); alCambiarMun(); }
 }
 
 /** Ajusta el resto del formulario a la situación elegida. */
@@ -1155,7 +1602,7 @@ async function alElegirFoto(e){
 
 /* ── ubicación ── */
 function iniciarMini(){
-  if (miniMapa) { setTimeout(() => miniMapa.invalidateSize(), 60); return; }
+  if (miniMapa) { setTimeout(() => miniMapa.invalidateSize(), 60); aplicarPinPend(); return; }
   miniMapa = L.map('mini', {attributionControl:false}).setView([4.6, -75.9], 6);
   L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
     {maxZoom:19}).addTo(miniMapa);
@@ -1163,10 +1610,20 @@ function iniciarMini(){
   // Nace dentro de un modal oculto: sin invalidateSize mide 0 px y pinta los
   // tiles corridos. El setTimeout espera a que asiente el layout.
   setTimeout(() => miniMapa.invalidateSize(), 60);
+  aplicarPinPend();
+}
+
+/** El lugar de la puerta de entrada puede llegar ANTES de que exista el
+ *  minimapa (cuando solo se preseleccionó un grupo, el bloque sigue oculto).
+ *  Se guarda y se aplica en cuanto el mapa nace, en vez de perderse. */
+function aplicarPinPend(){
+  if (!pinPend) return;
+  const p = pinPend; pinPend = null;
+  ponerPin(p[0], p[1], p[2]);
 }
 
 function ponerPin(lat, lon, zoom){
-  if (!miniMapa) return;
+  if (!miniMapa) { pinPend = [lat, lon, zoom]; return; }
   if (miniPin) miniPin.setLatLng([lat, lon]);
   else {
     miniPin = L.marker([lat, lon], {draggable:true}).addTo(miniMapa);
@@ -1273,11 +1730,16 @@ async function enviarReporte(e){
   const d = (S.geo || []).find((x) => x.c === depSel.value);
   const personas = parseInt($('#f-personas').value, 10);
 
+  // La dirección viaja DENTRO de detalle, como primera línea: es el campo que
+  // el servidor ya guarda y publica, y así no depende de un cambio de esquema.
+  const dir = $('#f-direccion').value.trim();
+  const det = $('#f-detalle').value.trim();
+
   const cuerpo = {
     sit: sitSel,
     urgencia: $('#f-urgencia').value,
     titulo,
-    detalle: $('#f-detalle').value.trim(),
+    detalle: [dir ? `Dirección: ${dir}` : '', det].filter(Boolean).join('\n'),
     depto: d ? d.n : '',
     municipio: (d && munSel.value !== '') ? d.m[Number(munSel.value)][1] : '',
     barrio: (!barSel.hidden && barSel.value !== '' && S.barrios && S.barrios[barSel.dataset.clave])
@@ -1295,7 +1757,19 @@ async function enviarReporte(e){
   const btn = $('#f-enviar');
   btn.disabled = true;
   btn.textContent = tsMontado ? 'Verificando…' : 'Publicando…';
+  const t0 = Date.now();
   cuerpo.turnstile = await tokenTurnstile();
+  /* Diagnóstico de por qué NO llegó token. Sin esto solo se sabe que falló,
+     no dónde: si el script quedó bloqueado, si el widget no se montó o si el
+     reto no alcanzó a resolverse. */
+  cuerpo.tsdiag = [
+    'cfg=' + (CONFIG.TURNSTILE ? 'si' : 'no'),
+    'api=' + (window.turnstile ? (typeof window.turnstile.render === 'function' ? 'lista' : 'vacia') : 'ausente'),
+    'montado=' + tsMontado,
+    'id=' + (tsId === null ? 'null' : String(tsId)),
+    'espera=' + (Date.now() - t0) + 'ms',
+    'token=' + (cuerpo.turnstile ? cuerpo.turnstile.length + 'ch' : 'vacio'),
+  ].join(' ');
   btn.textContent = 'Publicando…';
   try {
     const r = await fetch(`${CONFIG.API}/reporte`, {
@@ -1486,11 +1960,13 @@ function montarTurnstile(){
   }
 }
 
-function abrirForm(){
+function abrirForm(pre){
   formAbiertoEn = Date.now();
   $('#form').hidden = false;
   $('#exito').hidden = true;
   abrir('#velo-form');
+  if (pre && (pre.sit || pre.grupo || pre.sits)) prefijarSituacion(pre);
+  if (pre && pre.lugar) prefijarLugar(pre.lugar);
   if (sitSel) iniciarMini();
 }
 
@@ -1525,8 +2001,46 @@ async function iniciar(){
     if (b) irAZona(b.dataset.z);
   });
 
-  [$('#btn-reportar'), $('#fab')].forEach((b) => b.addEventListener('click', abrirForm));
+  // Sin envolver, el listener le pasaría el MouseEvent como preselección.
+  [$('#btn-reportar'), $('#fab')].forEach((b) => b.addEventListener('click', () => {
+    const I = S.intencion;
+    abrirForm(I && I.accSit ? {sit:I.accSit, lugar:S.lugar} : {lugar:S.lugar});
+  }));
   $('#btn-mis').addEventListener('click', verMisReportes);
+  $('#btn-puerta').addEventListener('click', abrirPuerta);
+
+  /* ── puerta de entrada ── */
+  $('#pt-saltar').addEventListener('click', () => {
+    S.pt = {i:EXPLORAR, l:null};
+    ejecutar();
+  });
+  $('#ops').addEventListener('click', (e) => {
+    const b = e.target.closest('.op'); if (b) elegirIntencion(b.dataset.i);
+  });
+  $('#pt-elegido').addEventListener('click', (e) => {
+    if (e.target.closest('#pt-atras')) abrirPuerta();
+  });
+  $('#pt-q').addEventListener('input', (e) => pintarMunicipios(e.target.value));
+  $('#pt-lugares').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-l]'); if (!b) return;
+    const v = b.dataset.l;
+    if (v === 'gps') return ubicarme();
+    if (v === 'pais') return elegirLugar(null);
+    const dep = (S.geo || []).find((d) => d.c === v.slice(4));
+    if (dep) elegirLugar({dep, mun:null});
+  });
+  $('#pt-muns').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-l]'); if (!b) return;
+    const [, dc, mc] = b.dataset.l.split(':');
+    const dep = (S.geo || []).find((d) => d.c === dc);
+    const mun = dep && dep.m.find((m) => m[0] === mc);
+    if (dep && mun) elegirLugar({dep, mun});
+  });
+  $('#ctx').addEventListener('click', (e) => {
+    if (e.target.closest('#ctx-cambiar')) return abrirPuerta();
+    if (e.target.closest('#ctx-acc')) return accionContexto();
+  });
+
   $('#btn-gps').addEventListener('click', ubicacionActual);
   $('#f-depto').addEventListener('change', alCambiarDepto);
   $('#f-mun').addEventListener('change', alCambiarMun);
@@ -1554,11 +2068,32 @@ async function iniciar(){
       const m = S.capas.get(it.dataset.id);
       if (m) { mapa.setView(m.getLatLng(), Math.max(mapa.getZoom(), 15)); m.openPopup(); }
     }
+
+    // Tarjeta de acopio: los enlaces de llamar y cómo llegar mandan primero.
+    const ac = e.target.closest('.item[data-ac]');
+    if (ac && !e.target.closest('a')) {
+      const m = S.capasAcopio.get(Number(ac.dataset.ac));
+      if (m) { mapa.setView(m.getLatLng(), Math.max(mapa.getZoom(), 14)); m.openPopup(); }
+    }
   });
 
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') cerrarTodo(); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    // Con la puerta abierta, Escape equivale a "ver el mapa": cerrarTodo la
+    // dejaría en pantalla y además desbloquearía el scroll del fondo.
+    if (!$('#puerta').hidden) { S.pt = {i:EXPLORAR, l:null}; ejecutar(); return; }
+    cerrarTodo();
+  });
   window.addEventListener('hashchange', rutaHash);
   rutaHash();
+
+  /* La puerta se abre sola, salvo tres casos: se llegó por un enlace privado
+     (#/mi/…), el enlace ya trae la intención (?ir=…), o ya se eligió en esta
+     misma sesión del navegador. */
+  let vista = false;
+  try { vista = sessionStorage.getItem('sismo-puerta') === '1'; } catch { /* modo privado */ }
+  const privada = /^#\/mi\//.test(location.hash);
+  if (!privada && !puertaDesdeURL() && !vista) abrirPuerta();
 
   /* ⚠️ El `onload` del <script> NO sirve: cuando dispara, `window.turnstile`
      ya existe pero `render` todavía no ("render is not a function"). La API se

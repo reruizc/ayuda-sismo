@@ -356,6 +356,18 @@ async function crearReporte(req, env, origin, ip) {
     contacto || null, contacto ? contactoTipo : null, contactoPub, token,
     ipHash, (captcha.verificado && !sospechoso) ? 0 : 1).run();
 
+  // Diagnóstico del captcha, solo el último. Sirve para saber POR QUÉ un
+  // reporte llegó sin verificar sin tener que leer logs en vivo.
+  const diag = limpiar(b.tsdiag, 220);
+  if (diag) {
+    try {
+      await env.DB.prepare(
+        `INSERT INTO externos (id, ts, datos) VALUES ('diag-turnstile', ?, ?)
+         ON CONFLICT(id) DO UPDATE SET ts = excluded.ts, datos = excluded.datos`
+      ).bind(Date.now(), JSON.stringify({ id, diag, verificado: captcha.verificado })).run();
+    } catch { /* el diagnóstico nunca puede tumbar un reporte */ }
+  }
+
   return json({ ok: true, id, token }, 200, origin);
 }
 
