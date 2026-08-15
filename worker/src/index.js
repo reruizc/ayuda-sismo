@@ -666,12 +666,16 @@ export default {
   async scheduled(evento, env, ctx) {
     // Los acopios se geocodifican en el cron y no en la visita: cada búsqueda
     // tarda ~1 s y nadie puede esperar eso al abrir el mapa.
+    // EXPERIMENTO TEMPORAL: acopios desactivado para aislar la causa.
     ctx.waitUntil(
-      refrescarAcopios(env, { geocodificar: 25 })
-        .then((d) => d && console.log('acopios', d.total, '·', d.geocodificados_ahora, 'geocodificados'))
-        .catch((e) => console.error('acopios falló', e && e.message))
+      recolectarPrensa(env)
+        .then((ag) => console.log('prensa', ag.totales.notas, 'notas',
+          ag.totales.medios, 'medios'))
+        // Si Google News falla, queda publicada la corrida anterior. Nunca se
+        // borra lo bueno por una recolección mala.
+        .catch((e) => console.error('prensa falló', e && e.message))
     );
-    ctx.waitUntil(
+    if (0) ctx.waitUntil(
       recolectarPrensa(env)
         .then((ag) => console.log('prensa', ag.totales.notas, 'notas',
           ag.totales.medios, 'medios'))

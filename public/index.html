@@ -10,29 +10,21 @@
 <meta property="og:description" content="Registra lo que necesitas o lo que puedes ofrecer, y mira el mapa de necesidades cerca de ti.">
 <meta property="og:type" content="website">
 <link rel="preconnect" href="https://unpkg.com">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<!-- UNA sola familia descargada, y solo para títulos. El cuerpo del texto
-     sigue en la fuente del sistema: es lo que se lee con mala señal, y no
-     puede quedar en blanco esperando un archivo. `display=swap` garantiza que
-     el título se vea desde el primer pintado aunque la fuente no llegue. -->
-<link rel="stylesheet"
-  href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&display=swap">
 <style>
-/* Tipografía: el CUERPO va en la fuente del sistema —cero descarga, esta
-   página se abre en la calle con mala señal y batería baja— y solo los
-   TÍTULOS traen Fraunces, que es lo que le da cara propia a la página.
-   Antes no se descargaba nada; el cambio es deliberado: sin identidad, esto
-   se ve igual a las decenas de mapas improvisados del terremoto y nadie
-   distingue cuál se mantiene al día. */
+/* Tipografía: TODO del sistema, cero descarga. Los títulos van en Arial con
+   peso alto y tracking apretado; el cuerpo, en la fuente del aparato.
+   La página se abre en la calle, con mala señal y batería baja, así que no
+   pedir ni un archivo de fuente es una ventaja real. La cara propia la ponen
+   la trama de rombos, los colores por tarjeta y las ilustraciones — no una
+   tipografía de pago por descarga. */
 :root{
   --tinta:#16130f; --tenue:#5d574e; --papel:#f7f5f1; --tarjeta:#fff;
   --linea:#e0dbd2; --rojo:#b4321e; --rojo-claro:#fdeceb;
   --verde:#1d7a4c; --azul:#1b5fa8; --morado:#7a2ea8;
   --sombra:0 1px 2px rgba(0,0,0,.05),0 4px 16px rgba(0,0,0,.06);
   --r:10px;
-  --titulo:'Fraunces',Georgia,'Times New Roman',serif;
+  --titulo:Arial,'Helvetica Neue',Helvetica,sans-serif;
   /* Trama de rombos: dos rayados a 45° cruzados. Es CSS puro — ni una
      petición más ni un KB de imagen— y le da textura de papel impreso a una
      página que se veía como una plantilla en blanco. */
@@ -40,7 +32,8 @@
     repeating-linear-gradient(45deg, rgba(180,50,30,.05) 0 1.5px, transparent 1.5px 13px),
     repeating-linear-gradient(-45deg, rgba(180,50,30,.05) 0 1.5px, transparent 1.5px 13px);
 }
-h1,h2,.pt-caja h1,.op b,.ctx-t{font-family:var(--titulo)}
+h1,h2,h3,.pt-caja h1,.op b,.ctx-t{font-family:var(--titulo); letter-spacing:-.02em}
+.pt-caja h1,.pt-intro h1{font-weight:900}
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
 body{
@@ -130,6 +123,21 @@ a{color:var(--azul)}
 .chip[aria-pressed="true"]{background:var(--tinta); border-color:var(--tinta); color:#fff}
 .punto{width:8px; height:8px; border-radius:50%; flex:none}
 .conteo{padding:.5rem 1rem; font-size:.82rem; color:var(--tenue); border-bottom:1px solid var(--linea)}
+/* Ficha del punto seleccionado. En pantalla grande el globo del mapa se queda
+   con el nombre y la dirección —lo que hace falta para reconocer el punto— y
+   todo lo demás se lee acá, sin tapar el mapa ni obligar a hacer scroll dentro
+   de un globo de 280 px. */
+.detalle{padding:1rem; border-bottom:2px solid var(--tinta); background:#fbfaf8}
+.detalle[hidden]{display:none}
+.detalle-cab{display:flex; gap:.7rem; align-items:flex-start; margin-bottom:.5rem}
+.detalle h3{font-size:1.15rem; line-height:1.25}
+.detalle .cerrar{margin-left:auto; font-size:1.4rem}
+.detalle p{margin:.35rem 0; font-size:.92rem}
+.detalle .campo-d{margin:.5rem 0; font-size:.92rem}
+.detalle .campo-d b{display:block; font-size:.76rem; text-transform:uppercase;
+  letter-spacing:.05em; color:var(--tenue); margin-bottom:.1rem}
+.detalle .pop-acc{margin-top:.8rem}
+.detalle .pop-acc a{font-weight:700; font-size:.92rem}
 .lista{overflow-y:auto; flex:1; -webkit-overflow-scrolling:touch}
 
 .item{padding:.8rem 1rem; border-bottom:1px solid var(--linea); cursor:pointer; display:flex; gap:.7rem}
@@ -316,8 +324,16 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid v
 .dispo button:hover{border-color:var(--tenue)}
 .dispo b{display:block; font-size:1.1rem}
 .dispo span{display:block; font-size:.9rem; color:var(--tenue); margin-top:.15rem}
-.sitio-cerca{font-size:.8rem; font-weight:700; color:var(--verde)}
+.sitio-cerca{font-size:.8rem; font-weight:700; color:var(--morado)}
 .sitio-lejos{font-size:.8rem; color:var(--tenue)}
+/* Sombreado morado: los sitios a los que esta persona sí puede ir —cerca, o
+   con horario que le sirve—. Es una pista visual, no una promesa: por eso el
+   borde y no un check, y por eso la leyenda dice de qué depende. */
+.item.item-viable{background:#f7f0fb; border-left:4px solid var(--morado)}
+.item.item-viable:hover{background:#f2e7f8}
+.leyenda-viable{padding:.55rem 1rem; font-size:.8rem; color:var(--tenue);
+  border-bottom:1px solid var(--linea); background:#faf8fb}
+.leyenda-viable b{color:var(--morado)}
 .mun-lista{max-height:42vh; overflow-y:auto; border:1px solid var(--linea);
   border-radius:var(--r); background:var(--tarjeta); margin-top:.7rem}
 /* Área de toque generosa: esta lista se recorre con el pulgar y en movimiento. */
@@ -464,6 +480,7 @@ body.con-ctx .cuerpo{height:calc(100dvh - 196px)}
       <div class="chips" id="chips-fam" role="group" aria-label="Sobre qué"></div>
     </div>
     <div class="conteo" id="conteo">Cargando reportes…</div>
+    <div class="detalle" id="detalle" hidden></div>
     <div class="lista" id="lista"></div>
   </aside>
 </main>
@@ -905,7 +922,7 @@ const S = {
   // Puerta de entrada: con qué intención entró la persona y a qué lugar.
   // `listaModo` decide qué muestra el panel lateral: '' reportes · 'acopios'
   // puntos de donación · 'prensa' titulares. El mapa siempre muestra reportes.
-  intencion: null, lugar: null, listaModo: '', dispo: 'ya',
+  intencion: null, lugar: null, listaModo: '', dispo: 'ya', detalle: null,
   pt: {i:null, l:null},
   capasAcopio: new Map(),
 };
@@ -1115,7 +1132,12 @@ function pintarAcopios(){
           encodeURIComponent([a.d, a.mu, a.dp, 'Colombia'].filter(Boolean).join(', '))}`
       : '';
 
-    m.bindPopup(`
+    m.on('click', () => verDetalle('acopio', a._ix));
+    m.bindPopup(esEscritorio() ? `
+      <h3>${esc(a.n)}</h3>
+      ${a.d ? `<div style="font-size:.86rem"><strong>${esc(a.d)}</strong></div>` : ''}
+      <div style="font-size:.8rem;color:#5d574e">${
+        esc([a.mu, a.dp].filter(Boolean).join(', '))}</div>` : `
       <h3>${esc(a.n)}${badge}</h3>
       <div style="font-size:.8rem;color:#5d574e;margin-bottom:.3rem">
         ${esc([a.mu, a.dp].filter(Boolean).join(', '))}${a.tipo ? ` · ${esc(a.tipo)}` : ''}</div>
@@ -1174,12 +1196,110 @@ function dibujarMapa(items){
       fillOpacity: r.p === 'ofrezco' ? .5 : .9,
     });
     m.bindPopup(() => popupHTML(r), {maxWidth:290});
+    m.on('click', () => verDetalle('reporte', r.i));
     m.addTo(capaPuntos);
     S.capas.set(r.i, m);
   });
 }
 
+/* ── ficha lateral (solo pantalla grande) ──
+ *
+ * En un teléfono el globo del mapa ES la ficha: no hay panel al lado que se vea
+ * al tiempo. En pantalla grande sí lo hay, y meter foto, detalle, contacto y
+ * dos botones dentro de un globo de 280 px que tapa el mapa es peor que
+ * ponerlo al lado. Por eso el globo se queda con lo mínimo para reconocer el
+ * punto —nombre y dirección— y el resto se lee a la derecha.
+ */
+const esEscritorio = () => window.matchMedia('(min-width:861px)').matches;
+
+function verDetalle(tipo, id){
+  if (!esEscritorio()) return;
+  S.detalle = {tipo, id};
+  pintarDetalle();
+}
+
+function cerrarDetalle(){
+  S.detalle = null;
+  $('#detalle').hidden = true;
+}
+
+function pintarDetalle(){
+  const caja = $('#detalle');
+  if (!S.detalle) { caja.hidden = true; return; }
+
+  if (S.detalle.tipo === 'acopio') {
+    const a = (S.acopios || []).find((x) => x._ix === S.detalle.id);
+    if (!a) return cerrarDetalle();
+    const tel = (a.tel || '').replace(/[^\d+]/g, '');
+    const ruta = a.d ? `https://www.google.com/maps/search/?api=1&query=${
+      encodeURIComponent([a.d, a.mu, a.dp, 'Colombia'].filter(Boolean).join(', '))}` : '';
+    caja.innerHTML = `
+      <div class="detalle-cab">
+        ${iconoAcopio(a, 40)}
+        <div><h3>${esc(a.n)}</h3>
+          <div class="ac-m">${esc([a.mu, a.dp].filter(Boolean).join(', '))}${
+            a.tipo ? ` · ${esc(a.tipo)}` : ''}</div></div>
+        <button class="cerrar" data-cerrar-detalle aria-label="Cerrar">&times;</button>
+      </div>
+      ${a.rev ? `<span class="revok">revisado ${esc(a.rev)}</span>`
+              : '<span class="sinrev">sin revisar</span>'}
+      ${a.d ? `<div class="campo-d"><b>Dirección</b>${esc(a.d)}</div>` : ''}
+      ${a.ne ? `<div class="campo-d"><b>Recibe</b>${esc(a.ne)}</div>` : ''}
+      ${a.h ? `<div class="campo-d"><b>Horario</b>${esc(a.h)}${
+        a.di ? ` · ${esc(a.di)}` : ''}</div>` : ''}
+      ${a.vol ? '<p style="color:var(--verde);font-weight:700">Necesitan voluntarios</p>' : ''}
+      ${a.c ? `<div class="campo-d"><b>Contacto</b>${esc(a.c)}</div>` : ''}
+      <div class="pop-acc">
+        ${ruta ? `<a href="${esc(ruta)}" target="_blank" rel="noopener">Cómo llegar →</a>` : ''}
+        ${tel ? `<a href="tel:${esc(tel)}">Llamar ${esc(a.tel)}</a>` : ''}
+      </div>
+      ${a.ap ? `<p class="ac-m" style="color:#8a8378">El punto está en el centro del
+        municipio. Guíate por la dirección, no por el pin.</p>` : ''}`;
+    caja.hidden = false;
+    return;
+  }
+
+  const r = S.items.find((x) => x.i === S.detalle.id);
+  if (!r) return cerrarDetalle();
+  const s = SIT[r.s] || {};
+  const fam = FAM[r.c] || FAM.otro;
+  caja.innerHTML = `
+    <div class="detalle-cab">
+      <div><h3>${esc(r.ti)}</h3>
+        <div class="ac-m"><span style="color:${fam.c};font-weight:700">${esc(s.n || fam.n)}</span>
+          · ${esc(URG[r.u] || '')} · ${hace(r.t)}</div></div>
+      <button class="cerrar" data-cerrar-detalle aria-label="Cerrar">&times;</button>
+    </div>
+    ${r.fo ? `<img class="pop-foto" src="${esc(urlFoto(r.fo))}" alt="" loading="lazy">` : ''}
+    ${r.d ? `<div class="campo-d"><b>Detalles</b>${esc(r.d)}</div>` : ''}
+    <div class="campo-d"><b>Dónde</b>${
+      esc([r.b, r.mu, r.dp].filter(Boolean).join(', ') || 'Sin ubicación')}</div>
+    ${r.n ? `<div class="campo-d"><b>Personas</b>${r.n}</div>` : ''}
+    ${r.k ? `<div class="campo-d"><b>Contacto</b>${esc(r.k)}</div>` : ''}
+    <p class="ac-m" style="color:#8a8378">Ubicación aproximada (~100 m) para proteger
+      a quien pide ayuda.</p>
+    <div class="pop-acc">
+      <button class="btn btn-sm" data-contactar="${esc(r.i)}">${
+        r.p === 'ofrezco' ? 'Escribir' : 'Tengo información'}</button>
+      <button class="btn btn-sm" data-abuso="${esc(r.i)}">Reportar</button>
+    </div>`;
+  caja.hidden = false;
+}
+
 function popupHTML(r){
+  // En pantalla grande el globo es solo la etiqueta del punto: el detalle
+  // completo se pinta al lado, en #detalle.
+  if (esEscritorio()) {
+    const d = document.createElement('div');
+    d.innerHTML = `<h3>${esc(r.ti)}</h3>
+      <div style="font-size:.82rem;color:#5d574e">${
+        esc([r.b, r.mu, r.dp].filter(Boolean).join(', ') || 'Sin ubicación')}</div>`;
+    return d;
+  }
+  return popupHTMLCompleto(r);
+}
+
+function popupHTMLCompleto(r){
   const s = SIT[r.s] || {};
   const fam = FAM[r.c] || FAM.otro;
   const d = document.createElement('div');
@@ -1505,6 +1625,7 @@ function sincronizarChips(){
  *  el modo y los filtros de la anterior no deben sobrevivir al cambio. */
 function limpiarModo(){
   S.listaModo = '';
+  cerrarDetalle();
   S.f.grupo.clear(); S.f.fam.clear(); S.f.q = '';
   $('#q').value = '';
   sincronizarChips();
@@ -1777,8 +1898,13 @@ function listaVoluntario(){
   const ref = (S.lugar && S.lugar.punto)
     || (S.lugar && S.lugar.mun && S.lugar.mun[2] != null
         ? [S.lugar.mun[2], S.lugar.mun[3]] : null);
+  // "Viable" = le queda cerca, o su horario casa con cuando puede ir. No es
+  // una promesa: es lo que sabemos, y por eso la leyenda dice de qué depende.
   const casa = (a) => !dispo.dias || !a.di
     || (dispo.dias === 'lv' ? true : /todos/i.test(a.di));
+  const cercaDe = (a) => ref && a.la != null
+    && Math.sqrt(dist2(a, ref)) * 111.32 <= 5;
+  const viable = (a) => cercaDe(a) || (!!a.di && casa(a));
   l.sort((a, b) => (casa(b) - casa(a))
     || (ref ? dist2(a, ref) - dist2(b, ref) : 0)
     || (b.rev ? 1 : 0) - (a.rev ? 1 : 0));
@@ -1800,17 +1926,21 @@ function listaVoluntario(){
     return;
   }
 
+  const nViables = vis.filter(viable).length;
   $('#lista').innerHTML =
     (ampliado ? `<div class="conteo">Ninguno marcó que necesite voluntarios.
        Estos son los acopios de la zona: casi siempre hacen falta manos, pero
        confirma por teléfono antes de ir.</div>` : '')
+    + (nViables ? `<div class="leyenda-viable">Los <b>marcados en morado</b> te
+       quedan a menos de 5 km o abren cuando dijiste que puedes ir.</div>` : '')
     + vis.map((a) => {
       const tel = (a.tel || '').replace(/[^\d+]/g, '');
       const ruta = a.d ? `https://www.google.com/maps/search/?api=1&query=${
         encodeURIComponent([a.d, a.mu, a.dp, 'Colombia'].filter(Boolean).join(', '))}` : '';
       const km = ref && a.la != null
         ? Math.round(Math.sqrt(dist2(a, ref)) * 111.32 * 10) / 10 : null;
-      return `<article class="item" data-ac="${a._ix}" tabindex="0">
+      return `<article class="item${viable(a) ? ' item-viable' : ''}"
+        data-ac="${a._ix}" tabindex="0">
         ${iconoAcopio(a, 34)}
         <div class="item-txt">
           <div class="ac-cab"><h3>${esc(a.n)}</h3>
@@ -2708,6 +2838,7 @@ async function iniciar(){
   $('#form-contacto').addEventListener('submit', enviarContacto);
 
   document.addEventListener('click', (e) => {
+    if (e.target.closest('[data-cerrar-detalle]')) return cerrarDetalle();
     if (e.target.closest('[data-cerrar]')) return cerrarTodo();
     if (e.target.classList.contains('velo')) return cerrarTodo();
 
@@ -2724,6 +2855,7 @@ async function iniciar(){
     if (it) {
       const m = S.capas.get(it.dataset.id);
       if (m) { mapa.setView(m.getLatLng(), Math.max(mapa.getZoom(), 15)); m.openPopup(); }
+      verDetalle('reporte', it.dataset.id);
     }
 
     // Tarjeta de acopio: los enlaces de llamar y cómo llegar mandan primero.
@@ -2731,6 +2863,7 @@ async function iniciar(){
     if (ac && !e.target.closest('a')) {
       const m = S.capasAcopio.get(Number(ac.dataset.ac));
       if (m) { mapa.setView(m.getLatLng(), Math.max(mapa.getZoom(), 14)); m.openPopup(); }
+      verDetalle('acopio', Number(ac.dataset.ac));
     }
   });
 

@@ -1,4 +1,4 @@
-﻿NOMBRE,CIUDAD O MUNICIPIO,DEPARTAMENTO,DIRECCION NO SITIOS,NECESIDAD,HORARIO ABRE,HORARIO CIERRE,TODOS LOS DIAS O LV,REQUIERE VOLUNTARIOS,CONTACTO,TELEFONO,ULTIMA REVISION,TIPO DE LUGAR,LATITUD,LONGITUD
+﻿NOMBRE,CIUDAD O MUNICIPIO,DEPARTAMENTO,DIRECCION,NECESIDAD,HORARIO ABRE,HORARIO CIERRE,TODOS LOS DIAS O LV,REQUIERE VOLUNTARIOS,CONTACTO,TELEFONO,ULTIMA REVISION,TIPO DE LUGAR,LATITUD,LONGITUD
 MUJERES X LA DEMOCRACIA,Bogotá,Bogotá D.C.,Carrera 15 # 82 - 81 Edificio Alianza,UTENSILIOS DE COCINA,8:00,18:00,TODOS LOS DIAS,NO,LAURA HERRERA,3176793111,agosto 14,FUNDACION PRIVADA,4.668272,-74.056012
 Cruz Roja - Samu Sur,Bogotá,Bogotá D.C.,Avenida Carrera 68 #31-41 sur,"Agua potable, alimentos no perecederos, cobijas, colchonetas, aseo personal",SIN DATO,SIN DATO,SIN DATO,NO,SIN DATO,SIN DATO,agosto 14,CRUZ ROJA,,
 Cruz Roja - Samu Norte,Bogotá,Bogotá D.C.,Calle 134 - Carrera 7B Bis #132-31,"Agua potable, alimentos no perecederos, cobijas, colchonetas, aseo personal",SIN DATO,SIN DATO,SIN DATO,NO,SIN DATO,SIN DATO,agosto 14,CRUZ ROJA,,
@@ -9,7 +9,7 @@ Cruz Roja - Palacio de los Deportes,Bogotá,Bogotá D.C.,Calle 63 #59A-06,"Agua 
 Fundación Universitaria Juan N. Corpas,Bogotá,Bogotá D.C.,Carrera 111 No. 159A-61,"Alimentos no perecederos, aseo, colchonetas",8:00,14:00,SIN DATO,NO,SIN DATO,SIN DATO,agosto 14,HOSPITAL,,
 Universidad Católica de Colombia,Bogotá,Bogotá D.C.,Diagonal 46A #15B-12,"Alimentos no perecederos, aseo, colchonetas",SIN DATO,SIN DATO,SIN DATO,NO,SIN DATO,SIN DATO,agosto 14,UNIVERSIDAD,4.634584,-74.068954
 Fundación Universitaria Horizonte,Bogotá,Bogotá D.C.,Calle 69 #14-30,"Alimentos no perecederos, aseo, colchonetas",SIN DATO,SIN DATO,SIN DATO,NO,SIN DATO,SIN DATO,agosto 14,FUNDACION PRIVADA,4.656111,-74.06311
-Plazoleta Jairo Varela,Cali,Valle del Cauca,Plazoleta Jairo Varela,"Agua, guantes de construcción, gafas de seguridad, cascos, colchonetas",SIN DATO,SIN DATO,SIN DATO,NO,SIN DATO,SIN DATO,agosto 14,ESPACIO PUBLICO,3.455020,-76.534800
+Plazoleta Jairo Varela,Cali,Valle del Cauca,Plazoleta Jairo Varela,"Agua, guantes de construcción, gafas de seguridad, cascos, colchonetas",SIN DATO,SIN DATO,SIN DATO,NO,SIN DATO,SIN DATO,agosto 14,ESPACIO PUBLICO,,
 Banco de Alimentos de Cali,Cali,Valle del Cauca,Calle 24 #6-103,"Alimentos no perecederos, agua embotellada, primeros auxilios",SIN DATO,SIN DATO,SIN DATO,NO,SIN DATO,SIN DATO,agosto 14,,,
 Fundación Banco Arquidiocesano de Alimentos,Medellín,Antioquia,Carrera 52 #30A-97,"Alimentos no perecederos, aseo, colchonetas, ropa, mantas",SIN DATO,SIN DATO,SIN DATO,NO,SIN DATO,SIN DATO,agosto 14,FUNDACION PRIVADA,,
 Fundación Saciar,Medellín,Antioquia,Carrera 50 #25-261,"Alimentos no perecederos, aseo, colchonetas, ropa, mantas",SIN DATO,SIN DATO,SIN DATO,NO,SIN DATO,SIN DATO,agosto 14,FUNDACION PRIVADA,,
@@ -67,7 +67,7 @@ CASA AZUL,Bogotá,Bogotá D.C.,CARRERA 20 #45A- 33,SIN DATO,10:00 AM,7:00 PM,SIN
 CASA DE LA MEMORIA USAQUÉN,Bogotá,Bogotá D.C.,CALLE 161a #7 F 55,"No se necesita agua · Se siguen recibiendo donaciones de mercado e implementos de aseo personal de todo tipo 🛒: · Herramientas de mano, botas de trabajo, linternas, pilas, cascos, guantes de carnaza,…",8:00 AM,1:00 PM,SIN DATO,NO,SIN DATO,3108514846,agosto 14,SIN DATO,4.737135,-74.025925
 CASA MAFAPO,Bogotá,Bogotá D.C.,Cra 21 #58-56,SIN DATO,SIN DATO,SIN DATO,SIN DATO,NO,SIN DATO,SIN DATO,agosto 14,SIN DATO,4.646343,-74.070996
 CASA PCN,Bogotá,Bogotá D.C.,Cl. 12d #1a-10,"Hoy hasta las 6pm y mañana de 9am-6pm · NECESITAN · Bolsa industrial paquetes de 10 · Gotas para los ojos hidratantes y antibióticas · Loratadina, cetirizina, gasa, micropore, vendas, isodine,…",9:00 AM,6:00 PM,SIN DATO,NO,SIN DATO,SIN DATO,agosto 14,SIN DATO,,
-C.C. Gran Estación,Bogotá,Bogotá D.C.,"Calle 26 #62-47, Bogotá D.C",SIN DATO,SIN DATO,Viernes 14 DE 7:00PM,SIN DATO,NO,SIN DATO,SIN DATO,agosto 14,CENTRO COMERCIAL,4.645470,-74.103370
+C.C. Gran Estación,Bogotá,Bogotá D.C.,"Calle 26 #62-47, Bogotá D.C",SIN DATO,SIN DATO,Viernes 14 DE 7:00PM,SIN DATO,NO,SIN DATO,SIN DATO,agosto 14,CENTRO COMERCIAL,,
 CC PLAZA IMPERIAL - SUBA,Bogotá,Bogotá D.C.,Cra. 104 #148 - 07,SIN DATO,8:00 AM,22:00,SIN DATO,NO,SIN DATO,SIN DATO,agosto 14,CENTRO COMERCIAL,4.748592,-74.095368
 Colombia cuida a Colombia,Bogotá,Bogotá D.C.,Carrera 15 # 82-81,SIN DATO,SIN DATO,18:00,SIN DATO,NO,SIN DATO,SIN DATO,agosto 14,FUNDACIÓN,4.668272,-74.056012
 COMPENSAR CRA 60,Bogotá,Bogotá D.C.,Carrera 60 #66 B - 05,"🧼 Kits de aseo para adultos, niños y bebés · 👶 Pañales y pañitos húmedos · 🥫 Alimentos no perecederos · 🐶🐱 Comida para animales · 📦 Si pueden, por favor lleven las donaciones en cajas para facilitar…",SIN DATO,18:00,SIN DATO,NO,SIN DATO,SIN DATO,agosto 14,PRIVADO,4.66829,-74.084358
@@ -97,10 +97,10 @@ TEATRO DE GARAJE,Bogotá,Bogotá D.C.,Carrera 10 # 54A-27,SIN DATO,SIN DATO,Desd
 THE SPOT PARK,Bogotá,Bogotá D.C.,CARRERA 13A #37-68,SIN DATO,SIN DATO,SIN DATO,SIN DATO,NO,SIN DATO,SIN DATO,agosto 14,SIN DATO,,
 UNIVERSIDAD NACIONAL - CAPILLA,Bogotá,Bogotá D.C.,Universidad Nacional,SIN DATO,SIN DATO,SIN DATO,SIN DATO,NO,SIN DATO,SIN DATO,agosto 14,UNIVERSIDAD,,
 UNIAGRARIA,Bogotá,Bogotá D.C.,CALLE 170 #54A - 10 SALA DE JUNTAS BLOQUE C,"KITS DE HIGIENE PERSONAL, KITS DE HABITAT (COBIJAS, SABANAS, COLCHONETAS SENCILLA, ALMOHADA, TOLDILLOS) MASCOTAS ( CONCENTRADO, ALIMENTO HUMEDO, SNACKS, MEDICAMENTOS, GUACALES)",SIN DATO,SIN DATO,SIN DATO,NO,SIN DATO,SIN DATO,agosto 14,SIN DATO,4.753377,-74.053501
-UNICENTRO,Bogotá,Bogotá D.C.,CARRERA15 #124-30,"🚨 ÚLTIMA HORA - Información Acopio Unicentro, Bogotá. (9 am - 6 pm) · Actualización: 1:55 pm, agosto 14. · ⛑️ El equipo médico acaba de confirmar la total excases de medicamento MUY necesarios para…",9:00 AM,9:00 PM,SIN DATO,NO,SIN DATO,3106486849,agosto 14,CENTRO COMERCIAL,4.702752,-74.042681
+CENTRO COMERCIAL UNICENTRO,Bogotá,Bogotá D.C.,CARRERA 15 #124-30,"🚨 ÚLTIMA HORA - Información Acopio Unicentro, Bogotá. (9 am - 6 pm) · Actualización: 1:55 pm, agosto 14. · ⛑️ El equipo médico acaba de confirmar la total excases de medicamento MUY necesarios para…",9:00 AM,9:00 PM,SIN DATO,NO,SIN DATO,3106486849,agosto 14,CENTRO COMERCIAL,4.702752,-74.042681
 UNIVERSIDAD COOPERATIVA,Bogotá,Bogotá D.C.,CARRERA 9 # 172-90,SIN DATO,SIN DATO,SIN DATO,SIN DATO,NO,SIN DATO,SIN DATO,agosto 14,UNIVERSIDAD,4.750478,-74.031561
 UNIVERSIDAD DISTRITAL BOSA,Bogotá,Bogotá D.C.,Calle 52 Sur # 93D - 97,SIN DATO,SIN DATO,SIN DATO,SIN DATO,NO,SIN DATO,SIN DATO,agosto 14,UNIVERSIDAD,4.638187,-74.185829
-VIVE CLARO,Bogotá,Bogotá D.C.,CARRERA 60 #42-41,SIN DATO,SIN DATO,Viernes 14 y sábado 15 desde medio día,SIN DATO,NO,SIN DATO,3162733960,agosto 14,PRIVADO,4.652710,-74.096670
+VIVE CLARO,Bogotá,Bogotá D.C.,CARRERA 60 #42-41,SIN DATO,SIN DATO,Viernes 14 y sábado 15 desde medio día,SIN DATO,NO,SIN DATO,3162733960,agosto 14,PRIVADO,,
 Cuerpo Bomberos Mosquera,Mosquera,Cundinamarca,"Calle 2 # 5E-36, Mosquera",SIN DATO,SIN DATO,Desde 4:30pm,SIN DATO,NO,SIN DATO,SIN DATO,agosto 14,BOMBEROS,,
 Cuerpo de Bomberos Cajicá,Cajicá,Cundinamarca,Transversal 5A N° 3-140 Sur,SIN DATO,8:00 AM,5:00 PM,SIN DATO,NO,SIN DATO,SIN DATO,agosto 14,BOMBEROS,,
 FUNZA Interpark -,Funza,Cundinamarca,"Parque industrial interpark kilometro 6,5 autopista Medellín - cundinamarca · https://share.google/MJBcbrilI3AACcMZV",SIN DATO,SIN DATO,YA MISMO,SIN DATO,NO,SIN DATO,3173088779,agosto 14,PRIVADO,,

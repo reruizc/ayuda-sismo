@@ -157,9 +157,17 @@ function desescapar(s) {
 
 async function traer(q) {
   const url = `${GNEWS}?q=${encodeURIComponent(q)}&hl=es-419&gl=CO&ceid=CO:es`;
-  const r = await fetch(url, { headers: { 'User-Agent': UA }, redirect: 'follow' });
-  if (!r.ok) return [];
-  return parsearRSS(await r.text());
+  try {
+    const r = await fetch(url, { headers: { 'User-Agent': UA }, redirect: 'follow' });
+    const txt = await r.text();
+    console.log('DIAG traer', q.slice(0, 24), 'http', r.status, 'bytes', txt.length,
+      'ct', r.headers.get('content-type'), 'cuerpo', JSON.stringify(txt.slice(0, 200)));
+    if (!r.ok) return [];
+    return parsearRSS(txt);
+  } catch (e) {
+    console.log('DIAG traer', q.slice(0, 24), 'THREW', e && e.name, e && e.message);
+    return [];
+  }
 }
 
 /* ─────────────────────────── clasificación ─────────────────────────── */
