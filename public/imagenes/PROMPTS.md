@@ -279,3 +279,83 @@ pareja: mismo peso visual, mismo nivel de detalle.
 > el de ningún país real, NO banderas, NO globo terráqueo. Las formas son
 > abstractas. Sin personas. Sin texto, sin letras, sin números, sin logotipos,
 > sin marcas de agua. Fondo plano, sin escena de fondo.
+
+
+---
+
+# Las tres tarjetas de FAMILIA (la primera pantalla)
+
+Son las tres decisiones grandes del inicio, arriba de las catorce opciones.
+Se pintan en un cuadro de **76×76 px** (más grande que las `op-*`, que van a
+58) con `object-fit: cover`, así que la fuente debe ser **cuadrada**.
+
+⚠️ **Estas tres se ven juntas, una debajo de otra.** Tienen que leerse como un
+conjunto: mismo grosor de trazo, mismo aire alrededor y sujetos de tamaño
+parecido. Si una trae el dibujo grande y otra chiquito, la pantalla se ve
+desordenada aunque cada imagen por separado esté bien.
+
+⚠️ **El sujeto debe ocupar cerca del 70% del alto.** `fam-ayudar` quedó con el
+dibujo en una franja central y a 76 px se lee más pequeño de lo que debería;
+las que falten conviene pedirlas más llenas.
+
+Exportar igual que las demás:
+
+    sips -Z 240 -s format jpeg -s formatOptions 78 entrada.png --out fam-ayudar.jpg
+
+| Archivo | Tarjeta | Trazo | Fondo |
+|---|---|---|---|
+| `fam-ayudar.jpg` | Quiero ayudar | `#0f766e` | `#e3f2f0` |
+| `fam-necesito.jpg` | Necesito ayuda | `#b4321e` | `#fdeceb` |
+| `fam-ver.jpg` | Ver el mapa e informes | `#1b3f66` | `#e6ecf3` |
+
+## `fam-ayudar.jpg` — Quiero ayudar ✅ hecha
+
+> Ilustración editorial plana, cuadrada 1:1, para la tarjeta principal de un
+> mapa de ayuda humanitaria tras un terremoto en Colombia.
+>
+> Sujeto: dos manos que entregan y reciben una caja de ayuda entre sí, vistas
+> de perfil y encontrándose en el centro. El sujeto ocupa cerca del 70% del
+> alto del cuadro, centrado, con margen parejo arriba y abajo.
+>
+> Estilo: vectorial plano, formas gruesas y simples, sin degradados, sin
+> sombras realistas, sin textura de ruido. Trazo grueso y parejo. Debe leerse
+> con claridad reducida a 76×76 píxeles: un solo sujeto, siluetas limpias,
+> nada de detalle fino.
+>
+> Paleta estricta de tres colores: verde azulado #0f766e para el trazo y las
+> formas principales, fondo menta muy claro #e3f2f0, y crudo #f7f5f1 para los
+> vacíos. Sin ningún otro color.
+>
+> Tono: digno y sereno, ayuda mutua entre vecinos. NO dramático, NO
+> catastrófico, NO caricaturesco, NO tierno. Sin texto, sin letras, sin
+> números, sin logotipos, sin banderas, sin marcas de agua. Sin rostros.
+> Fondo plano, sin escena de fondo.
+
+## `fam-necesito.jpg` — Necesito ayuda
+
+> Mismo bloque de estilo, cambiando:
+>
+> Sujeto: dos manos abiertas hacia arriba, juntas, pidiendo; sobre ellas un
+> techo sencillo a dos aguas que las cubre, dibujado con el mismo trazo. El
+> sujeto ocupa cerca del 70% del alto del cuadro.
+>
+> Paleta: rojo tierra #b4321e para el trazo, fondo crema rosado #fdeceb,
+> crudo #f7f5f1 para los vacíos.
+>
+> Tono: pedir ayuda con dignidad, nunca lástima. NO personas heridas, NO
+> llanto, NO rostros, NO escombros con gente.
+
+## `fam-ver.jpg` — Ver el mapa e informes
+
+> Mismo bloque de estilo, cambiando:
+>
+> Sujeto: un pliego de mapa desplegado visto de frente, con un pin de
+> ubicación simple encima y una línea de relieve; el mapa ocupa cerca del 70%
+> del alto del cuadro.
+>
+> Paleta: azul noche #1b3f66 para el trazo, fondo azul muy claro #e6ecf3,
+> crudo #f7f5f1 para los vacíos.
+>
+> Tono: informativo y calmado, alguien que se orienta. NO fronteras
+> reconocibles de Colombia, NO banderas, NO texto en el mapa, NO gráficas de
+> datos, NO lupa de buscador.
