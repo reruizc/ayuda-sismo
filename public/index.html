@@ -418,7 +418,7 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid v
 const LOCAL = ['localhost', '127.0.0.1'].includes(location.hostname);
 const CONFIG = {
   API: LOCAL ? 'http://localhost:8787' : 'https://ayuda-sismo.reruizc.workers.dev',
-  TURNSTILE: '',
+  TURNSTILE: '0x4AAAAAAEQU0HH2L5Ccynh0',
   REFRESCO_MS: 60000,
   FOTO_LADO_MAX: 1280,
   FOTO_CALIDAD: .82,
@@ -907,6 +907,7 @@ function pintarSituaciones(){
 function aplicarSituacion(){
   const s = SIT[sitSel]; if (!s) return;
   $('#resto').hidden = false;
+  montarTurnstile();
   $('#f-titulo').placeholder = s.ej || '';
 
   // El contacto público no es una opción del usuario cuando se trata de una
@@ -1277,6 +1278,30 @@ function rutaHash(){
 
 let formAbiertoEn = 0;
 
+let tsMontado = false;
+
+/**
+ * Monta el captcha una sola vez.
+ *
+ * Se llama desde el callback de Turnstile y también al elegir la situación:
+ * el contenedor vive dentro del bloque que solo aparece entonces, y así queda
+ * visible pase lo que pase con el orden de carga. El guard evita el
+ * "Turnstile already has been loaded" de montarlo dos veces.
+ */
+function montarTurnstile(){
+  if (tsMontado || !CONFIG.TURNSTILE) return;
+  if (!window.turnstile || typeof window.turnstile.render !== 'function') return;
+  try {
+    window.turnstile.render('#turnstile', {sitekey: CONFIG.TURNSTILE});
+    window.turnstile.render('#turnstile-c', {sitekey: CONFIG.TURNSTILE});
+    tsMontado = true;
+  } catch (e) {
+    // Si no se puede montar, el reporte igual se envía y queda marcado para
+    // moderación. No se bloquea el formulario por el captcha.
+    console.error('turnstile', e && e.message);
+  }
+}
+
 function abrirForm(){
   formAbiertoEn = Date.now();
   $('#form').hidden = false;
@@ -1351,14 +1376,16 @@ async function iniciar(){
   window.addEventListener('hashchange', rutaHash);
   rutaHash();
 
-  if (CONFIG.TURNSTILE) {
+  /* ⚠️ El `onload` del <script> NO sirve: cuando dispara, `window.turnstile`
+     ya existe pero `render` todavía no ("render is not a function"). La API se
+     inicializa aparte. Hay que usar el callback explícito documentado. */
+  if (CONFIG.TURNSTILE && !window._tsCargando) {
+    window._tsCargando = true;
+    window.onloadTurnstileCallback = montarTurnstile;
     const s = document.createElement('script');
-    s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
+    s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js'
+          + '?onload=onloadTurnstileCallback&render=explicit';
     s.async = true; s.defer = true;
-    s.onload = () => {
-      window.turnstile?.render('#turnstile', {sitekey:CONFIG.TURNSTILE});
-      window.turnstile?.render('#turnstile-c', {sitekey:CONFIG.TURNSTILE});
-    };
     document.head.appendChild(s);
   }
 }

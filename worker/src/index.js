@@ -171,7 +171,14 @@ async function hashIp(ip, salt) {
  */
 async function verificarTurnstile(token, ip, env) {
   if (!env.TURNSTILE_SECRET) return { ok: true, verificado: false };
-  if (!token) return { ok: false, verificado: false };
+  /* ⚠️ Token AUSENTE no se rechaza: se acepta y se marca para moderación.
+     Quien tenga mala señal, un bloqueador o un navegador viejo puede no lograr
+     cargar el script de Turnstile, y en este sitio eso sería impedirle reportar
+     a un desaparecido. Mismo principio que el resto del módulo: tumbar la
+     recepción en plena emergencia es peor que recibir spam. Le quedan encima
+     el honeypot, los 5 segundos y el límite por IP.
+     Token PRESENTE pero inválido sí se rechaza: eso ya es manipulación. */
+  if (!token) return { ok: true, verificado: false };
   try {
     const body = new FormData();
     body.append('secret', env.TURNSTILE_SECRET);
@@ -180,6 +187,10 @@ async function verificarTurnstile(token, ip, env) {
     const r = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify',
       { method: 'POST', body });
     const data = await r.json();
+    // Los códigos de Cloudflare distinguen "la clave secreta está mal"
+    // (invalid-input-secret) de "el token es falso" (invalid-input-response).
+    // Sin esto, ambos casos se ven idénticos desde afuera.
+    if (!data.success) console.error('turnstile', JSON.stringify(data['error-codes'] || []));
     return { ok: !!data.success, verificado: !!data.success };
   } catch {
     // Si Cloudflare no responde, dejamos pasar y marcamos para revisión.
