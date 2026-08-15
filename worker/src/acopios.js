@@ -97,6 +97,53 @@ function indices(cab) {
 
 const BBOX = { latMin: -4.3, latMax: 13.6, lonMin: -82.0, lonMax: -66.8 };
 
+/**
+ * Lee una coordenada de la hoja, aunque venga con el punto donde no va.
+ *
+ * ⚠️⚠️ La hoja es PÚBLICA y la edita gente con configuraciones regionales
+ * distintas. Al pegar `4.668272` en un libro donde el punto es separador de
+ * MILES, Google Sheets guarda el número 4.668.272 y lo exporta así; con
+ * `Number()` eso da NaN y la coordenada se descartaba en silencio. Medido: 162
+ * de 162 perdidas, y el mapa mandaba todos los puntos al centro del municipio
+ * sin que nadie se enterara.
+ *
+ * Los dígitos siempre están completos: lo único que se pierde es dónde iba el
+ * punto. Y en Colombia la parte entera está acotada —la latitud va de -4,3 a
+ * 13,6 y la longitud de -82 a -66,8— así que se prueban las dos posiciones
+ * posibles y se acepta SOLO si una cae dentro del país. Si las dos caen (o
+ * ninguna), devuelve null: prefiere el centro del municipio, que se declara
+ * aproximado, antes que un punto inventado que parece exacto.
+ *
+ *   '4.668272' → 4.668272      (ya venía bien)
+ *   '4.668.272' → 4.668272     (punto como separador de miles)
+ *   '4,668,272.00' → 4.668272  (el mismo número en formato de EE. UU.)
+ *   '339,018.00' → 3.39018     (33,9018 quedaría fuera de Colombia)
+ */
+export function coordenada(txt, cual) {
+  const s = String(txt ?? '').replace(/\s/g, '');
+  if (!s) return null;
+  const lo = cual === 'lat' ? BBOX.latMin : BBOX.lonMin;
+  const hi = cual === 'lat' ? BBOX.latMax : BBOX.lonMax;
+  const enRango = (v) => Number.isFinite(v) && v >= lo && v <= hi;
+
+  const directo = Number(s.replace(',', '.'));
+  // Un 0 es la celda vacía a la que alguien le puso formato de número, no la
+  // isla nula frente a África.
+  if (directo === 0) return null;
+  if ((s.match(/[.,]/g) || []).length <= 1 && enRango(directo)) return directo;
+
+  const signo = s.startsWith('-') ? -1 : 1;
+  const digitos = s.replace(/\D/g, '');
+  if (!digitos) return null;
+  const validos = [];
+  for (const corte of [1, 2]) {
+    if (digitos.length <= corte) continue;
+    const v = signo * Number(`${digitos.slice(0, corte)}.${digitos.slice(corte)}`);
+    if (enRango(v)) validos.push(v);
+  }
+  return validos.length === 1 ? validos[0] : null;
+}
+
 export function normalizarFilas(filas) {
   if (!filas.length) return { items: [], sin_ubicar: 0 };
   const ix = indices(filas[0]);
@@ -112,12 +159,12 @@ export function normalizarFilas(filas) {
     if (!nombre) continue;                       // fila vacía o de relleno
 
     const muni = g(f, ix.municipio);
-    let la = Number(g(f, ix.lat));
-    let lo = Number(g(f, ix.lon));
+    let la = coordenada(g(f, ix.lat), 'lat');
+    let lo = coordenada(g(f, ix.lon), 'lon');
     let aprox = false;
     let dep = g(f, ix.depto);
 
-    if (!Number.isFinite(la) || !Number.isFinite(lo) || la === 0 || lo === 0) {
+    if (la == null || lo == null) {
       const c = CENTRO.get(norm(muni));
       if (c) { la = c[2]; lo = c[3]; aprox = true; if (!dep) dep = c[1]; }
       else { la = null; lo = null; sinUbicar++; }
