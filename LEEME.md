@@ -72,7 +72,7 @@ lleva a la herramienta que ya existía:
 |---|---|
 | Quiero donar cosas | Mapa enfocado + capa de acopios + la lista de acopios en el panel |
 | Quiero ser voluntario | Pregunta cuándo puede ir y entrega una LISTA de sitios por cercanía |
-| Necesito ayuda | Formulario abierto en el grupo *Necesito*, con el municipio ya puesto |
+| Necesito ayuda | Qué falta, para cuántos y si alguien no puede esperar; enruta a víveres, salud u otra |
 | Hay personas atrapadas | Formulario en `nec-rescate` |
 | Busco alojamiento | Pregunta quién es y entra a `nec-refugio` con su ejemplo |
 | Busco atención médica | Pregunta para quién y qué necesita, y entra a `nec-salud` |
@@ -116,12 +116,24 @@ Ahora sale un rótulo con lo elegido y un "Cambiar" para quien de verdad se
 equivocó. Si se entró por un GRUPO (como "Necesito ayuda", que no fija la
 situación) el selector se queda: ahí todavía hay que elegir.
 
+**Una respuesta puede mover la urgencia.** En víveres, decir que hay un bebé,
+un adulto mayor o alguien enfermo sube el reporte a urgencia alta: dejarlo en
+media sería desperdiciar la respuesta. Va **propuesta, no impuesta** — el
+selector sigue ahí y se puede bajar.
+
 ⚠️⚠️ **El detalle auto-generado se reemplaza; lo que escribe la persona, nunca.**
 La condición no puede ser "el campo está vacío": con eso, quien abría un flujo,
 se devolvía y entraba por otro se llevaba el detalle del primero — se vio un
 reporte de "busco a mi mascota" que decía "tiene collar con placa", una frase
 del flujo contrario, en el campo que la gente lee para reconocer al animal. Se
-distingue con `detAuto`.
+distingue con `detAuto`, y la urgencia arrastraba igual (`urgAuto`): un reporte
+donde nadie estaba en condición especial salía en alta heredada del anterior.
+
+⚠️ **El formulario NO se limpia entre flujos.** `detAuto` y `urgAuto` tapan los
+dos campos que la puerta llena, pero si más adelante se auto-completan otros
+(dirección, número de personas) van a arrastrar igual. La solución de fondo es
+limpiar el formulario al empezar un flujo nuevo, respetando lo que la persona
+haya escrito.
 
 **Las preguntas se encadenan.** Cada intención declara en `subs` cuántas
 preguntas necesita antes de actuar, y `pasosDe()` las recorre de a una. Lo

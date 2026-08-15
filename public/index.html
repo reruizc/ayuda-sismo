@@ -947,10 +947,56 @@ const INTENCIONES = [
    accion:'form', sit:'ofr-transporte', ctx:'Ofreciendo transporte', acc:'Abrir el formulario',
    ph:'Ej.: Camioneta con platón, puedo mover mercados dentro del Valle los fines de semana'},
 
+  /* Antes esta tarjeta abría el formulario en el GRUPO "Necesito" y dejaba
+     que la persona eligiera entre siete situaciones y llenara el resto a mano.
+     Quien tiene hambre no está para leer un catálogo: ahora la primera
+     pregunta reparte sola hacia víveres, salud u otra, y las dos siguientes
+     capturan lo único que una brigada necesita para decidir qué cargar —
+     cuántos son y si hay alguien que no aguanta esperar.
+
+     ⚠️ La cuenta de personas y quiénes son NO cambia la situación: solo la
+     primera pregunta lleva `k`, porque `ejecutar()` se queda con el último
+     `k` no vacío y una respuesta posterior lo pisaría. */
   {k:'necesito', ico:'🆘', n:'Necesito ayuda', img:'op-necesito.jpg',
    col:'#b4321e', tint:'#fdeceb',
-   d:'Víveres, agua o medicinas',
-   accion:'form', grupo:'necesito', ctx:'Registrando lo que necesitas', acc:'Abrir el formulario'},
+   d:'Comida, agua, medicinas, aseo o cobijas',
+   accion:'form', grupo:'necesito', ctx:'Registrando lo que necesitas', acc:'Abrir el formulario',
+   subs:[
+     { pregunta:'¿Qué es lo que más falta?', opciones:[
+       {k:'nec-viveres', n:'Comida',            d:'Mercado, comida preparada',
+        det:'Falta comida.',            ph:'Ej.: Somos 4 y no tenemos mercado desde el lunes'},
+       {k:'nec-viveres', n:'Agua potable',      d:'No hay agua o no es apta',
+        det:'Falta agua potable.',      ph:'Ej.: Llevamos tres días sin agua, la del tanque se acabó'},
+       {k:'nec-salud',   n:'Medicamentos',      d:'Fórmula, curaciones, insumos',
+        det:'Faltan medicamentos.',     ph:'Ej.: Mi mamá es diabética y se le acabó la insulina'},
+       {k:'nec-viveres', n:'Elementos de aseo', d:'Jabón, pañales, toallas',
+        det:'Faltan elementos de aseo.', ph:'Ej.: Necesitamos pañales y jabón, hay dos bebés'},
+       {k:'nec-viveres', n:'Cobijas o ropa',    d:'Para el frío o para cambiarse',
+        det:'Faltan cobijas o ropa.',   ph:'Ej.: Dormimos en el colegio y no hay cobijas'},
+       {k:'nec-otro',    n:'Otra cosa',         d:'Cuéntame en el formulario',
+        ph:'Ej.: Describe en una línea qué hace falta'},
+     ]},
+     { pregunta:'¿Para cuántas personas?', opciones:[
+       {n:'1 o 2 personas',  d:'Yo, o yo y alguien más', det:'Para 1 o 2 personas.'},
+       {n:'De 3 a 5',        d:'Una familia',            det:'Para 3 a 5 personas.'},
+       {n:'De 6 a 15',       d:'Varias familias',        det:'Para 6 a 15 personas.'},
+       {n:'Más de 15',       d:'Un albergue o un barrio', det:'Para más de 15 personas.'},
+     ]},
+     /* Esta es la que cambia lo que se carga en el camión. Un mercado para
+        cuatro adultos y uno donde hay un bebé y una señora en diálisis no son
+        el mismo mercado, y hoy esa diferencia solo aparecía si a la persona se
+        le ocurría escribirla. */
+     { pregunta:'¿Hay alguien que no pueda esperar?', opciones:[
+       {n:'Sí, niños pequeños',  d:'Bebés o menores de 5 años',
+        det:'Hay niños pequeños.', urg:'alta'},
+       {n:'Sí, adultos mayores', d:'Personas de la tercera edad',
+        det:'Hay adultos mayores.', urg:'alta'},
+       {n:'Sí, alguien enfermo', d:'Enfermedad o discapacidad',
+        det:'Hay una persona enferma o con discapacidad.', urg:'alta'},
+       {n:'No',                  d:'Todos podemos esperar un poco',
+        det:'Nadie en condición especial.'},
+     ]},
+   ]},
 
   {k:'rescate', ico:'⛑️', n:'Hay personas atrapadas', urg:1, img:'op-rescate.jpg',
    col:'#8c2616', tint:'#fadfda',
@@ -2298,6 +2344,10 @@ function ejecutar(){
                // un grupo o una lista, la persona todavía tiene que elegir y
                // esconder el selector la dejaría sin poder hacerlo.
                fijo: !!sit && !I.sits,
+               // Decir que hay un bebé o alguien enfermo y que el reporte
+               // salga en urgencia media es desperdiciar la respuesta. Queda
+               // propuesta, no impuesta: el selector sigue ahí y se puede bajar.
+               urg: ult('urg'),
                lugar:L});
   } else if (I.accion === 'url') { location.href = I.url; }
   else if (I.accion === 'acopio') { abrirAcopio(L); }
@@ -2684,6 +2734,9 @@ let miniMapa = null, miniPin = null, grupoSel = '', sitSel = '', fotoData = null
 // para saber si lo que hay en el campo lo escribió la persona o lo pusimos
 // nosotros: lo nuestro se puede reemplazar, lo suyo no.
 let detAuto = '';
+// Lo mismo para la urgencia: qué valor pusimos nosotros, para poder cambiarlo
+// sin pisar el que la persona eligió a mano.
+let urgAuto = '';
 
 function abrir(id){ $(id).hidden = false; document.body.style.overflow = 'hidden'; }
 function cerrarTodo(){
@@ -3375,6 +3428,16 @@ function abrirForm(pre){
     }
   }
   if (pre && pre.lugar) prefijarLugar(pre.lugar);
+  /* ⚠️ La urgencia arrastra igual que el detalle. Si un flujo la sube a "alta"
+     por un bebé y el siguiente responde que nadie está en condición especial,
+     sin esto el segundo reporte sale en alta heredada del primero — y una
+     urgencia inflada le quita sentido a la palabra justo donde más importa.
+     Se reemplaza lo que pusimos nosotros o el valor por defecto; una elección
+     deliberada de la persona ("baja") se respeta. */
+  if (pre && pre.fijo && $('#f-urgencia')) {
+    const el = $('#f-urgencia'), nueva = pre.urg || 'media';
+    if (el.value === urgAuto || el.value === 'media') { el.value = nueva; urgAuto = nueva; }
+  }
   fijarSituacion(!!(pre && pre.fijo) && !!sitSel);
   if (sitSel) iniciarMini();
 }
