@@ -10,6 +10,7 @@ Python estándar, sin dependencias, salvo donde se indique.
 | `geocodificar_acopios.py` | Llena LATITUD/LONGITUD con el registro de placas de Catastro Bogotá |
 | `importar_hoja_bogota.py` | Trae la hoja pública de voluntariado y donaciones de Bogotá |
 | `seed.py` | Publica reportes de prueba contra un Worker local |
+| `copernicus.py` | Resume el daño evaluado por Copernicus EMS antes de desplegarlo |
 
 ## Necesitan las bases de datos grandes
 

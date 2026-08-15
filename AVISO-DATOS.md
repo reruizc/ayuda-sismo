@@ -15,3 +15,10 @@ La licencia MIT cubre el **código**. Los datos tienen otras reglas:
   "revisado". Quien reuse este código debe conservar esa distinción a la vista:
   mandar gente con mercados a una dirección equivocada cuesta gasolina y tiempo
   que en una emergencia no sobran.
+- **Daño visto desde satélite**: Copernicus Emergency Management Service,
+  activación EMSR916. Reutilización libre citando **© Unión Europea, Copernicus
+  Emergency Management Service (EMSR916)**; el crédito va en la leyenda del mapa
+  y no se quita. Quien reuse este código debe conservar también la advertencia
+  de cobertura: la capa analiza unas pocas manchas urbanas, así que **un lugar
+  sin puntos no es un lugar sin daño**, y mostrarla como si cubriera el
+  territorio afirma algo que el dato no dice.
