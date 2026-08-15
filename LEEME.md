@@ -80,6 +80,41 @@ que ampliar el alcance.
 de autor le gana a la del navegador. Por eso existe `.chips[hidden]`. Sin ella,
 esconder los filtros no hacía absolutamente nada.
 
+⚠️ **`nec-transporte` no existe** en el catálogo del Worker: transporte solo
+está del lado de quien lo ofrece. "Busco transporte" entra como `nec-otro` con
+su propio ejemplo. Si algún día se agrega la situación al Worker, basta cambiar
+el `sit` de esa intención.
+
+⚠️ Al quitar "Puedo ofrecer algo más" del menú, **ofrecer alojamiento,
+transporte o atención médica ya no tiene tarjeta propia**. Sigue disponible
+dentro del formulario (grupo *Puedo ayudar*) y como acción secundaria de donar
+y voluntariado, pero quien tenga un cuarto libre ya no lo encuentra desde la
+primera pantalla. Es una decisión de producto, no un olvido.
+
+## La cara de la página
+
+Diez mapas improvisados del terremoto se ven iguales: plantilla en blanco,
+tipografía del sistema, ningún rastro de quién la mantiene. Eso no es solo
+estética — cuando alguien tiene que decidir en cuál confía y cuál está
+desactualizado, la identidad **es** la señal.
+
+- **Fraunces** (Google Fonts) solo en los títulos. El cuerpo del texto sigue en
+  la fuente del sistema: es lo que se lee con mala señal y no puede quedar en
+  blanco esperando un archivo. Con `display=swap` el título se ve desde el
+  primer pintado. **Cuesta ~19 KB** (el subconjunto `latin` de la variable, que
+  cubre los dos pesos en un solo archivo). Es la única descarga añadida.
+- **Trama de rombos en CSS puro** (`--trama`: dos rayados a 45° cruzados). Cero
+  peticiones, cero KB. Da textura de papel impreso sin una imagen de fondo que
+  habría que descargar en la calle.
+- **Cada tarjeta tiene color propio** (`col` y `tint` de `INTENCIONES`): filo
+  izquierdo y fondo de la cajita de imagen. Es lo que hace que la cuadrícula se
+  lea de un vistazo aunque todavía no haya ni una foto.
+- **Las imágenes son opcionales por diseño.** El `<img>` lleva
+  `onerror="this.remove()"`, así que mientras el archivo no exista queda el
+  emoji sobre el color. La página nunca se ve rota ni "en construcción"; se ve
+  terminada, y cada foto que llega la mejora. Convención de nombres y tamaños
+  en `public/imagenes/LEEME.txt`.
+
 ## El catálogo de situaciones (y por qué no es una matriz)
 
 La primera versión combinaba **tipo** (necesito / ofrezco) × **categoría** (9).

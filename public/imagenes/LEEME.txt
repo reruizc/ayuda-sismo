@@ -1,0 +1,28 @@
+Imágenes de las tarjetas del menú de entrada
+============================================
+
+Una por opción, cuadrada, y con el nombre EXACTO que espera el código
+(campo `img` de INTENCIONES en index.html):
+
+  op-necesito.jpg      Necesito ayuda
+  op-rescate.jpg       Hay personas atrapadas
+  op-alojamiento.jpg   Busco alojamiento
+  op-salud.jpg         Busco atención médica
+  op-transporte.jpg    Busco transporte
+  op-persona.jpg       Busco a una persona
+  op-mascota.jpg       Mascota perdida o encontrada
+  op-donar.jpg         Quiero donar cosas
+  op-voluntario.jpg    Quiero ser voluntario
+  op-prensa.jpg        Ver qué dice la prensa
+
+Formato: cuadrada 1:1, se muestra a 58x58 px. Exportar a 240x240 px
+(el doble del tamaño en pantallas retina) y comprimir:
+
+  sips -Z 240 -s format jpeg -s formatOptions 78 entrada.png --out op-necesito.jpg
+
+Cada archivo debería pesar menos de 20 KB. Son diez imágenes en la primera
+pantalla: si cada una pesa 200 KB, la página tarda más en abrir que lo que
+mejora el que se vea bonita.
+
+Mientras un archivo no exista, la tarjeta muestra el emoji sobre su color.
+No se ve rota: se ve terminada. Se pueden ir agregando de a una.
