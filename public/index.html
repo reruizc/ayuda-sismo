@@ -431,12 +431,12 @@ body.con-ctx .cuerpo{height:calc(100dvh - 196px)}
       <div class="mun-lista" id="pt-muns"></div>
     </div>
 
-    <!-- Paso propio del voluntariado: primero cuándo puede, y después la
-         lista de sitios. Mandarlo al mapa a buscar puntos verdes es pedirle
-         que haga el trabajo que la página debería hacer por él. -->
+    <!-- Panel de preguntas por tarjetas. Una intención puede encadenar varias
+         antes del lugar: mascota pregunta si la busca o la encontró, y el
+         voluntariado, cuándo puede ayudar. Una pregunta por pantalla se
+         responde de un toque; un formulario con todo junto, no. -->
     <div id="pt-paso3" hidden>
       <div class="pt-elegido" id="pt-elegido3"></div>
-      <h2 class="pt-nivel">¿Cuándo puedes ir?</h2>
       <div class="dispo" id="pt-dispo"></div>
     </div>
 
@@ -882,7 +882,11 @@ const INTENCIONES = [
   {k:'mascota', ico:'🐾', n:'Mascota perdida o encontrada', img:'op-mascota.jpg',
    col:'#1d7a4c', tint:'#e7f4ed',
    d:'Publícala con foto para que la reconozcan',
-   accion:'form', sits:['busco-mascota','ofr-mascota'], ctx:'Mascotas', acc:'Abrir el formulario'},
+   accion:'form', ctx:'Mascotas', acc:'Abrir el formulario',
+   sub:[
+     {k:'busco-mascota', n:'Busco a mi mascota', d:'Se perdió y quiero publicarla'},
+     {k:'ofr-mascota',   n:'Encontré una mascota', d:'La tengo y quiero reportarla'},
+   ]},
 
   {k:'registrar', ico:'📍', n:'Registrar un centro de acopio', img:'op-registrar.jpg',
    col:'#7c3f00', tint:'#f6ece0',
@@ -922,7 +926,7 @@ const S = {
   // Puerta de entrada: con qué intención entró la persona y a qué lugar.
   // `listaModo` decide qué muestra el panel lateral: '' reportes · 'acopios'
   // puntos de donación · 'prensa' titulares. El mapa siempre muestra reportes.
-  intencion: null, lugar: null, listaModo: '', dispo: 'ya', detalle: null,
+  intencion: null, lugar: null, listaModo: '', dispo: 'hoy', detalle: null,
   pt: {i:null, l:null},
   capasAcopio: new Map(),
 };
@@ -1464,26 +1468,80 @@ function pintarOpciones(){
     + tarjetaOp(EXPLORAR, INTENCIONES.length);
 }
 
+/**
+ * Los pasos que faltan antes de actuar, en orden.
+ *
+ * Una pregunta por pantalla, cada una de un toque. Antes el voluntariado
+ * preguntaba el lugar y después la disponibilidad, y mascota resolvía su
+ * ambigüedad con dos botones adentro del formulario: las dos cosas obligaban a
+ * entender la pantalla completa antes de contestar lo primero.
+ */
+function pasosDe(I){
+  const p = [];
+  if (I.sub) p.push('sub');
+  if (I.accion === 'voluntario') p.push('dispo');   // cuándo, y después dónde
+  p.push('lugar');
+  return p;
+}
+
 function elegirIntencion(k){
   const I = k === 'explorar' ? EXPLORAR : INTENCIONES.find((x) => x.k === k);
   if (!I) return;
   S.pt.i = I;
-  $('#pt-paso1').hidden = true;
-  $('#pt-paso2').hidden = false;
-  $('#pt-paso3').hidden = true;
-  $('#pt-titulo').textContent = '¿En qué lugar?';
-  $('#pt-sub').textContent = 'Sirve para enfocar el mapa en lo que te queda cerca. '
-    + 'Si no lo tienes claro, elige todo el país.';
-  $('#pt-elegido').innerHTML = `<span class="ico" aria-hidden="true">${I.ico}</span>
-    <b>${esc(I.n)}</b>
-    <button type="button" class="btn btn-sm" id="pt-atras">Cambiar</button>`;
-  $('#pt-q').value = '';
-  $('#pt-est').textContent = '';
+  S.pt.sit = null;
   S.pt.dep = null;
-  pintarChipsLugar();
-  pintarNivel('');
-  // El foco NO se pone en el buscador a propósito: en móvil abriría el teclado
-  // encima de los atajos de departamento, que es el camino más rápido.
+  S.pt.pasos = pasosDe(I);
+  S.pt.idx = 0;
+  mostrarPaso();
+}
+
+/** Avanza al siguiente paso; si no queda ninguno, ejecuta. */
+function siguientePaso(){
+  S.pt.idx = (S.pt.idx || 0) + 1;
+  if (S.pt.idx >= (S.pt.pasos || []).length) return ejecutar();
+  mostrarPaso();
+}
+
+function encabezadoPaso(){
+  const I = S.pt.i;
+  const donde = S.pt.l ? ` · ${nombreLugar(S.pt.l)}` : '';
+  return `<span class="ico" aria-hidden="true">${I.ico}</span>
+    <b>${esc(I.n)}</b>${donde ? `<span style="color:var(--tenue)">${esc(donde)}</span>` : ''}
+    <button type="button" class="btn btn-sm" data-pt-atras>Cambiar</button>`;
+}
+
+function mostrarPaso(){
+  const I = S.pt.i, paso = (S.pt.pasos || [])[S.pt.idx || 0];
+  $('#pt-paso1').hidden = true;
+  $('#pt-paso2').hidden = paso !== 'lugar';
+  $('#pt-paso3').hidden = paso === 'lugar';
+
+  if (paso === 'lugar') {
+    $('#pt-titulo').textContent = '¿En qué lugar?';
+    $('#pt-sub').textContent = 'Sirve para enfocar el mapa en lo que te queda cerca. '
+      + 'Si no lo tienes claro, elige todo el país.';
+    $('#pt-elegido').innerHTML = encabezadoPaso();
+    $('#pt-q').value = '';
+    $('#pt-est').textContent = '';
+    S.pt.dep = null;
+    pintarChipsLugar();
+    pintarNivel('');
+    // El foco NO se pone en el buscador a propósito: en móvil abriría el
+    // teclado encima de los atajos, que es el camino más rápido.
+    return;
+  }
+
+  const opciones = paso === 'sub' ? I.sub : DISPO;
+  const pregunta = paso === 'sub' ? (I.pregunta || '¿Cuál es tu caso?') : '¿Cuándo puedes ayudar?';
+  $('#pt-titulo').textContent = pregunta;
+  $('#pt-sub').textContent = paso === 'sub'
+    ? 'Elige la que describe tu situación.'
+    : 'Con eso te mostramos los sitios que necesitan manos cuando puedes ir, '
+      + 'en vez de mandarte a buscar en el mapa.';
+  $('#pt-elegido3').innerHTML = encabezadoPaso();
+  $('#pt-dispo').innerHTML = opciones.map((o) =>
+    `<button type="button" data-d="${esc(o.k)}"><b>${esc(o.n)}</b>
+      <span>${esc(o.d)}</span></button>`).join('');
 }
 
 function pintarChipsLugar(){
@@ -1572,31 +1630,14 @@ function ubicarme(){
 /* Disponibilidad del voluntario. `dias` dice contra qué se compara la columna
    TODOS LOS DIAS O LV de la hoja; `ahora` marca a quien puede salir ya. */
 const DISPO = [
-  {k:'ya',      n:'Ya mismo',      d:'Puedo salir en la próxima hora', ahora:1},
-  {k:'manana',  n:'Mañana',        d:'Durante el día de mañana'},
-  {k:'semana',  n:'Entre semana',  d:'De lunes a viernes', dias:'lv'},
-  {k:'finde',   n:'El fin de semana', d:'Sábado o domingo', dias:'finde'},
+  {k:'hoy',    n:'Hoy',              d:'Puedo salir en las próximas horas', ahora:1},
+  {k:'finde',  n:'Este fin de semana', d:'Sábado o domingo', dias:'finde'},
+  {k:'semana', n:'Entre semana',     d:'De lunes a viernes', dias:'lv'},
 ];
 
 function elegirLugar(L){
   S.pt.l = L;
-  // El voluntariado pregunta una cosa más antes de mostrar nada.
-  if (S.pt.i && S.pt.i.accion === 'voluntario') return pedirDisponibilidad();
-  ejecutar();
-}
-
-function pedirDisponibilidad(){
-  const I = S.pt.i;
-  $('#pt-paso2').hidden = true;
-  $('#pt-paso3').hidden = false;
-  $('#pt-titulo').textContent = '¿Cuándo puedes ir?';
-  $('#pt-sub').textContent = 'Con eso te mostramos los sitios que necesitan '
-    + 'manos y te quedan más cerca, en vez de mandarte a buscar en el mapa.';
-  $('#pt-elegido3').innerHTML = `<span class="ico" aria-hidden="true">${I.ico}</span>
-    <b>${esc(I.n)}</b> <span style="color:var(--tenue)">· ${esc(nombreLugar(S.pt.l))}</span>
-    <button type="button" class="btn btn-sm" id="pt-atras3">Cambiar</button>`;
-  $('#pt-dispo').innerHTML = DISPO.map((d) =>
-    `<button type="button" data-d="${d.k}"><b>${esc(d.n)}</b><span>${esc(d.d)}</span></button>`).join('');
+  siguientePaso();
 }
 
 /** Enfoca el mapa en el lugar elegido y filtra la lista a su departamento.
@@ -1686,7 +1727,8 @@ function ejecutar(){
   pintarContexto();
 
   if (I.accion === 'form') {
-    abrirForm({sit:I.sit, grupo:I.grupo, sits:I.sits, ph:I.ph, lugar:L});
+    abrirForm({sit:S.pt.sit || I.sit, grupo:S.pt.sit ? '' : I.grupo,
+               sits:I.sits, ph:I.ph, lugar:L});
   } else if (I.accion === 'acopio') { abrirAcopio(L); }
   else if (I.accion === 'acopios') { modoAcopios(); }
   else if (I.accion === 'voluntario') { modoVoluntario(); }
@@ -2802,11 +2844,9 @@ async function iniciar(){
   });
   $('#pt-dispo').addEventListener('click', (e) => {
     const b = e.target.closest('[data-d]'); if (!b) return;
-    S.dispo = b.dataset.d;
-    ejecutar();
-  });
-  $('#pt-elegido3').addEventListener('click', (e) => {
-    if (e.target.closest('#pt-atras3')) abrirPuerta();
+    if ((S.pt.pasos || [])[S.pt.idx] === 'sub') S.pt.sit = b.dataset.d;
+    else S.dispo = b.dataset.d;
+    siguientePaso();
   });
   $('#pt-muns').addEventListener('click', (e) => {
     const b = e.target.closest('[data-l]'); if (!b) return;
