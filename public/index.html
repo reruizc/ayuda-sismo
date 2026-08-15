@@ -208,9 +208,22 @@ a{color:var(--azul)}
   font-size:1rem; box-shadow:0 -4px 18px rgba(20,16,12,.16);
 }
 
-.velo{position:fixed; inset:0; background:rgba(20,16,12,.55); z-index:1000; display:flex; align-items:center; justify-content:center; padding:1rem}
+/* ⚠️ Fondo OPACO, el mismo papel de la puerta, y no un velo translúcido
+   sobre el mapa. Las cinco ventanas que usan esto —formulario, donar, acopio,
+   contacto, mis reportes— son fases de PREGUNTAS: quien está contestando no
+   necesita el país entero detrás, y verlo ahí solo compite con la decisión
+   que vino a tomar. Con el velo se leía el mapa moviéndose bajo el texto.
+   Ninguna de las cinco depende del mapa para entenderse. */
+.velo{position:fixed; inset:0; z-index:1000; display:flex; align-items:center;
+  justify-content:center; padding:1rem; overflow-y:auto;
+  background:var(--trama), radial-gradient(120% 60% at 12% -10%, #fff 0%, var(--papel) 60%);
+  background-color:var(--papel)}
 .velo[hidden]{display:none}
-.modal{background:var(--tarjeta); border-radius:14px; width:100%; max-width:580px; max-height:92dvh; overflow-y:auto; box-shadow:var(--sombra)}
+/* Sobre papel, la tarjeta necesita un borde: blanco sobre crema casi no se
+   distingue y el modal se veía como parte del fondo. */
+.modal{background:var(--tarjeta); border:1px solid var(--linea);
+  border-radius:14px; width:100%; max-width:580px; max-height:92dvh;
+  overflow-y:auto; box-shadow:var(--sombra)}
 @supports not (max-height:92dvh){.modal{max-height:92vh}}
 .modal-cab{position:sticky; top:0; background:var(--tarjeta); padding:1rem 1.25rem .75rem; border-bottom:1px solid var(--linea); display:flex; align-items:flex-start; gap:1rem; z-index:2}
 .modal-cab h2{font-size:1.1rem}
