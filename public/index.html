@@ -318,12 +318,12 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid v
   border-width:1.5px; flex:1 1 auto; text-align:center}
 .pt-nivel{font-size:1.05rem; margin:1.3rem 0 .5rem; font-weight:700}
 .dispo{display:grid; grid-template-columns:1fr 1fr; gap:.6rem}
-.dispo button{border:1.5px solid var(--linea); background:var(--tarjeta);
+.dispo button:not(.op){border:1.5px solid var(--linea); background:var(--tarjeta);
   border-radius:12px; padding:1rem .9rem; text-align:left; color:var(--tinta);
   box-shadow:var(--sombra)}
 .dispo button:hover{border-color:var(--tenue)}
-.dispo b{display:block; font-size:1.1rem}
-.dispo span{display:block; font-size:.9rem; color:var(--tenue); margin-top:.15rem}
+.dispo button:not(.op) b{display:block; font-size:1.1rem}
+.dispo button:not(.op) span{display:block; font-size:.9rem; color:var(--tenue); margin-top:.15rem}
 .sitio-cerca{font-size:.8rem; font-weight:700; color:var(--morado)}
 .sitio-lejos{font-size:.8rem; color:var(--tenue)}
 /* Sombreado morado: los sitios a los que esta persona sí puede ir —cerca, o
@@ -377,6 +377,7 @@ body.con-ctx .cuerpo{height:calc(100dvh - 196px)}
   .cuerpo{grid-template-columns:1fr; grid-template-rows:50dvh auto; height:auto}
   body.con-ctx .cuerpo{height:auto}
   .ops{grid-template-columns:1fr}
+  .dispo{grid-template-columns:1fr}
   .pt-caja h1{font-size:1.6rem}
   /* Sin esto el rótulo parte en dos líneas al lado del botón y se ve torcido. */
   .pt-ojo{font-size:.66rem; letter-spacing:.09em}
