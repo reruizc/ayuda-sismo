@@ -2476,8 +2476,12 @@ function mostrarPaso(){
   if (esSub && bloque.nota) $('#pt-sub').innerHTML = bloque.nota;
   else $('#pt-sub').textContent = esSub
     ? 'Elige la que describe tu situación.'
-    : 'Con eso te mostramos los sitios que necesitan manos cuando puedes ir, '
-      + 'en vez de mandarte a buscar en el mapa.';
+    /* ⚠️ Antes decía que mostraba "los sitios que necesitan manos cuando
+       puedes ir". No es cierto: dos de las tres respuestas no cambian el orden
+       y 190 de 205 acopios no tienen horario en la hoja. Ahora dice lo que sí
+       pasa —queda escrito en tu oferta— y no promete un filtro que no existe. */
+    : 'Queda anotado en tu oferta, para que quien necesita manos sepa '
+      + 'cuándo contar contigo.';
   $('#pt-elegido3').innerHTML = encabezadoPaso();
   $('#pt-dispo').innerHTML = opciones.map((o, i) =>
     `<button type="button" data-d="${esc(o.k)}" data-i="${i}"><b>${esc(o.n)}</b>
@@ -2567,10 +2571,20 @@ function ubicarme(){
 /* Disponibilidad del voluntario. `dias` dice contra qué se compara la columna
    TODOS LOS DIAS O LV de la hoja; `ahora` marca a quien puede salir ya. */
 const DISPO = [
-  {k:'hoy',    n:'Hoy',              d:'Puedo salir en las próximas horas', ahora:1},
-  {k:'finde',  n:'Este fin de semana', d:'Sábado o domingo', dias:'finde'},
-  {k:'semana', n:'Entre semana',     d:'De lunes a viernes', dias:'lv'},
+  {k:'hoy',    n:'Hoy',              d:'Puedo salir en las próximas horas', ahora:1,
+   det:'Puedo ayudar hoy, en las próximas horas.'},
+  {k:'finde',  n:'Este fin de semana', d:'Sábado o domingo', dias:'finde',
+   det:'Puedo ayudar este fin de semana, sábado o domingo.'},
+  {k:'semana', n:'Entre semana',     d:'De lunes a viernes', dias:'lv',
+   det:'Puedo ayudar entre semana, de lunes a viernes.'},
 ];
+
+/* ⚠️ La disponibilidad tiene que VIAJAR con la oferta, no morir en la pantalla.
+   Se preguntaba "¿cuándo puedes ayudar?" y la respuesta solo servía para
+   ordenar la lista que veía la propia persona: quien recibe la oferta —el
+   acopio que necesita manos— nunca se enteraba de que solo podía los sábados,
+   que es justo lo que necesita saber para llamarla o no. */
+const detDispo = () => (DISPO.find((d) => d.k === S.dispo) || {}).det || '';
 
 function elegirLugar(L){
   S.pt.l = L;
@@ -2740,8 +2754,9 @@ function accionContexto(){
   if (!I) return;
   if (I.accUrl) { location.href = I.accUrl; return; }
   if (I.accion === 'acopio') { abrirAcopio(S.lugar); return; }
+  const dsp = I.accion === 'voluntario' ? [detDispo()].filter(Boolean) : [];
   abrirForm({sit:I.accSit || I.sit, grupo:I.grupo, sits:I.sits,
-             ph:I.accSit ? '' : I.ph, lugar:S.lugar});
+             ph:I.accSit ? '' : I.ph, det:dsp, lugar:S.lugar});
 }
 
 /** Entrada directa por URL: ?ir=donar&dep=16&mun=001
@@ -4033,7 +4048,8 @@ async function iniciar(){
   // Sin envolver, el listener le pasaría el MouseEvent como preselección.
   [$('#btn-reportar'), $('#fab')].forEach((b) => b.addEventListener('click', () => {
     const I = S.intencion;
-    abrirForm(I && I.accSit ? {sit:I.accSit, lugar:S.lugar} : {lugar:S.lugar});
+    const dsp2 = I && I.accion === 'voluntario' ? [detDispo()].filter(Boolean) : [];
+    abrirForm(I && I.accSit ? {sit:I.accSit, det:dsp2, lugar:S.lugar} : {lugar:S.lugar});
   }));
   $('#btn-mis').addEventListener('click', verMisReportes);
   $('#btn-puerta').addEventListener('click', () => abrirPuerta());
