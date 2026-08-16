@@ -463,7 +463,10 @@ async function snapshot(req, env, ctx) {
     // El formulario consulta esto para saber si puede ofrecer subir una foto.
     // Sin almacenamiento, ofrecerla igual haría que la persona la adjunte y se
     // descarte en silencio — peor que no ofrecerla.
-    caps: { fotos: !!env.FOTOS },
+    // `correo` dice si hay Resend configurado. Sin la llave, el aviso con el
+    // enlace privado NO sale, y el formulario no puede seguir ofreciéndolo:
+    // quien deja el correo esperando que le avisen se queda esperando.
+    caps: { fotos: !!env.FOTOS, correo: !!env.RESEND_API_KEY },
     total: items.length,
     items,
   }), {
@@ -494,8 +497,12 @@ async function verReportePrivado(id, url, env, origin) {
   return json({
     ok: true,
     reporte: {
-      id: r.id, ts: r.ts, tipo: r.tipo, cat: r.cat, urgencia: r.urgencia,
-      titulo: r.titulo, detalle: r.detalle, ciudad: r.ciudad, barrio: r.barrio,
+      // Mismo desliz que en la moderación: acá `r.ciudad` no reventaba, solo
+      // llegaba `undefined` y "Mis reportes" mostraba la línea de ubicación en
+      // blanco. El frontend lee `municipio` y `depto`.
+      id: r.id, ts: r.ts, sit: r.sit, tipo: r.tipo, cat: r.cat, urgencia: r.urgencia,
+      titulo: r.titulo, detalle: r.detalle,
+      depto: r.depto, municipio: r.municipio, barrio: r.barrio,
       lat: r.lat, lon: r.lon, estado: r.estado, contacto: r.contacto,
       contacto_pub: r.contacto_pub,
     },
@@ -597,9 +604,14 @@ async function adminReportes(url, env, origin) {
   if (soloAlerta) cond.push('(abusos >= 1 OR sin_captcha = 1)');
   const where = cond.length ? `WHERE ${cond.join(' AND ')}` : '';
 
+  // ⚠️ Son `depto` y `municipio`, NO `ciudad`: esa columna no existe en el
+  // esquema, así que la consulta entera fallaba y la moderación llevaba caída
+  // con un 500 sin que nada lo dijera. `sit` entra porque es la situación
+  // concreta que eligió la persona; sin ella no se distingue un acopio
+  // registrado desde la página de una oferta de víveres cualquiera.
   const { results } = await env.DB.prepare(`
-    SELECT id, ts, tipo, cat, urgencia, titulo, detalle, ciudad, barrio, personas,
-           lat, lon, contacto, contacto_pub, estado, abusos, sin_captcha, verificado
+    SELECT id, ts, sit, tipo, cat, urgencia, titulo, detalle, depto, municipio, barrio,
+           personas, lat, lon, contacto, contacto_pub, estado, abusos, sin_captcha, verificado
       FROM reportes ${where} ORDER BY ts DESC LIMIT 1000
   `).all();
   return json({ ok: true, total: (results || []).length, items: results || [] }, 200, origin);

@@ -330,6 +330,63 @@ así que aunque el formulario mandara una, se descarta.
 "ocultar" solo la quitaría del mapa y la URL seguiría sirviendo el archivo a
 quien ya la conociera.
 
+⚠️⚠️ **Hoy NADIE puede subir foto, y no es un bug del formulario: R2 no está
+habilitado en la cuenta.** `caps.fotos` llega en `false`, así que el campo se
+esconde solo —ofrecerlo y descartar la imagen en silencio sería peor—. Se nota
+sobre todo en "busco a mi mascota", que es donde la foto vale más que toda la
+descripción. Se arregla en el panel de Cloudflare (R2 → habilitar; el CLI
+responde `code: 10042` porque el servicio no está activo en la cuenta) y luego
+descomentando el binding de `wrangler.toml`.
+
+## Terminar de llenar el formulario sin perderlo
+
+**Un clic afuera del recuadro no puede borrar el formulario.** Pasaba: alguien
+registrando personas atrapadas rozaba el fondo, la ventana se cerraba sin decir
+nada y quedaba viendo el mapa general —con todo lo escrito perdido y sin saber
+si había quedado registrado—. En una emergencia eso no es una molestia de
+usabilidad: es un reporte que no existe.
+
+`cerrarConAviso()` cubre los cuatro caminos de salida (fondo, equis, Escape y
+el atrás del navegador). Con los campos vacíos cierra sin preguntar —no hay qué
+perder—; con algo escrito, pregunta. Solo mira los campos de TEXTO: los `select`
+de departamento y municipio llegan preseleccionados desde la puerta de entrada,
+así que preguntarían siempre por algo que la persona no escribió.
+
+⚠️ En el `popstate` (atrás del navegador) se devuelve `true` aunque la persona
+cancele: la entrada del historial ya se consumió y hay que volver a armarla, o
+el siguiente atrás se lleva la página entera con el formulario abierto.
+
+**El contacto es obligatorio.** Se registraban reportes sin celular ni correo, y
+un reporte así casi no sirve: quien quiere ayudar no tiene cómo avisar que va en
+camino ni preguntar la seña que falta, y la persona solo se entera de las
+respuestas si conserva el enlace privado —que es justo lo que se pierde al
+cerrar la pestaña—. Obligatorio es **dejarlo**, no mostrarlo: sigue sin
+publicarse salvo que lo autorice, y en las situaciones sensibles no se publica
+nunca (regla 1). El formulario de acopios se deja aparte: ahí lo que hace llegar
+a la gente es la dirección, no el teléfono.
+
+## Al terminar: confirmar, no mandar al mapa
+
+La pantalla final es para quien acaba de pedir ayuda. Antes decía "Quedó
+publicado" y su botón grande era "Volver al mapa": contaba lo que hizo el sitio
+y mandaba a un mapa de puntos a alguien que lo que quiere saber es si va a
+llegarle ayuda.
+
+Ahora confirma **qué** quedó registrado (título y lugar), dice **qué sigue** en
+tres pasos y —esto es lo que no se puede omitir— dice también **qué no va a
+pasar**: acá no se despacha ayuda, y prometerlo sería lo más grave que podría
+hacer esta página. El botón principal lleva a *su* reporte, donde verá si
+alguien le escribió; el mapa queda como salida discreta.
+
+El paso "cómo te van a contactar" se arma según el caso, porque no es igual para
+todos: en las situaciones sensibles el contacto no se publica nunca, y quien lo
+publicó sí puede recibir llamadas directas. Un texto único diría algo falso en
+la mayoría de los casos.
+
+⚠️ El aviso "te mandamos el enlace al correo" solo se muestra si el servidor
+puede cumplirlo (`caps.correo`, que refleja si hay `RESEND_API_KEY`). **Hoy no
+la hay**, así que ese correo no sale y el formulario no lo ofrece.
+
 ## Los puntos de acopio en el mapa
 
 **El marcador es una caja con el símbolo del tipo de lugar.** Un punto redondo
@@ -505,6 +562,14 @@ curl -s -X POST "$API/admin/estado" -H "X-Admin-Token: $TOKEN" \
 
 La vista de admin sí devuelve la **coordenada exacta y el contacto**: es lo que
 necesita una organización para llegar al sitio.
+
+⚠️ **`/admin/reportes` estuvo devolviendo 500** (`error code: 1101`) porque su
+`SELECT` pedía una columna `ciudad` que nunca existió en el esquema —son `depto`
+y `municipio`—. O sea que la moderación llevaba caída sin que nada lo dijera: la
+única señal era un 500 genérico. El mismo desliz estaba en `/reporte/{id}` de
+"Mis reportes", donde no reventaba nada y solo dejaba la línea de ubicación en
+blanco. Al renombrar una columna, buscarla en TODO el Worker, no solo donde el
+error se ve.
 
 ⚠️ **Marcar abuso no oculta nada solo.** Cuenta y manda a la cola de revisión,
 con una marca por IP y por reporte (lo impone la llave primaria de

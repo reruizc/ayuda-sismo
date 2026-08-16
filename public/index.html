@@ -278,6 +278,17 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid v
 .foto-prev{width:74px; height:74px; border-radius:8px; object-fit:cover; border:1px solid var(--linea)}
 .exito{text-align:center; padding:1rem 0}
 .exito .tick{font-size:2.4rem}
+/* Resumen de lo que quedó registrado y los pasos de "qué sigue". Van
+   alineados a la izquierda dentro de una pantalla centrada: son para LEER, y
+   una lista numerada centrada no se lee. */
+.exito-que{background:#f4f1ec; border-radius:var(--r); padding:.7rem .8rem; margin:.7rem 0;
+  text-align:left; font-size:.9rem}
+.exito-que b{display:block; margin-bottom:.15rem}
+.exito-que span{color:var(--tenue); font-size:.82rem}
+.exito-pasos{text-align:left; margin:.9rem 0 0}
+.exito-pasos h3{font-size:.9rem; margin-bottom:.4rem}
+.exito-pasos ol{margin:0; padding-left:1.15rem; font-size:.88rem; line-height:1.5}
+.exito-pasos li{margin-bottom:.35rem}
 .enlace{background:#f4f1ec; border-radius:var(--r); padding:.7rem; font-size:.78rem; word-break:break-all; margin:.7rem 0; font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 .pie{padding:1.1rem 1rem calc(1.4rem + env(safe-area-inset-bottom)); font-size:.8rem; color:var(--tenue); text-align:center; border-top:1px solid var(--linea); background:var(--tarjeta)}
 .leaflet-popup-content{margin:.7rem .9rem; font-size:.88rem}
@@ -775,8 +786,13 @@ body.con-ctx .cuerpo{height:calc(100dvh - 196px)}
           <div class="fase" data-fase="4" hidden>
           <div class="campo">
             <label for="f-contacto">Tu contacto</label>
-            <input type="text" id="f-contacto" maxlength="120" placeholder="Celular o correo">
-            <p class="ayuda">Con correo te avisamos cuando alguien responda. Con celular, revisa tu enlace privado.</p>
+            <input type="text" id="f-contacto" maxlength="120" placeholder="Celular o correo"
+                   aria-required="true">
+            <!-- El texto lo ajusta `pintarAyudaContacto()` según `caps.correo`:
+                 sin Resend configurado no sale ningún aviso, y prometerlo deja
+                 a la persona esperando un correo que nunca llega. -->
+            <p class="ayuda" id="ayuda-contacto">Hace falta para que puedan avisarte que van
+              en camino. Al terminar te damos un enlace privado para ver los mensajes.</p>
             <label class="check" style="margin-top:.55rem" id="wrap-pub">
               <input type="checkbox" id="f-pub">
               <span>Mostrar mi contacto en el mapa para que me escriban directo.
@@ -813,9 +829,29 @@ body.con-ctx .cuerpo{height:calc(100dvh - 196px)}
         </div>
       </form>
 
+      <!-- ⚠️ Esta pantalla es para quien acaba de pedir ayuda, no para el mapa.
+           Antes decía "Quedó publicado" y el botón grande era "Volver al mapa":
+           contaba lo que hizo el sitio y mandaba a un mapa de puntos a alguien
+           que lo que quiere saber es si va a llegarle ayuda. Ahora confirma QUÉ
+           quedó registrado, dice qué sigue y —esto es lo que no se puede
+           omitir— dice también qué NO va a pasar, porque acá no se despacha
+           ayuda y prometerlo sería lo más grave que podría hacer esta página. -->
       <div id="exito" hidden class="exito">
         <div class="tick">✓</div>
-        <h2 style="margin:.4rem 0">Quedó publicado</h2>
+        <h2 style="margin:.4rem 0">Listo, quedó registrado</h2>
+        <div id="exito-que" class="exito-que"></div>
+
+        <div class="exito-pasos">
+          <h3>Qué pasa ahora</h3>
+          <ol id="exito-pasos"></ol>
+        </div>
+
+        <div class="nota nota-priv" style="margin:.7rem 0">
+          <b>Esto no despacha ayuda ni es un canal oficial.</b> Es un mapa
+          ciudadano: sirve para que quien esté ayudando en tu zona sepa dónde ir.
+          Si hay vidas en riesgo, llama al <a href="tel:123">123</a>.
+        </div>
+
         <p style="color:var(--tenue); font-size:.9rem; margin:.3rem 0 0">
           Guarda este enlace privado. Con él ves los mensajes que te dejen y marcas la
           necesidad como resuelta. Nadie más lo tiene.
@@ -830,7 +866,12 @@ body.con-ctx .cuerpo{height:calc(100dvh - 196px)}
         <a class="btn" id="btn-wa" style="width:100%; display:block; text-align:center;
            text-decoration:none; margin-top:.4rem" target="_blank" rel="noopener noreferrer">
           Enviármelo por WhatsApp</a>
-        <button class="btn btn-pri" data-cerrar style="width:100%; margin-top:.5rem">Volver al mapa</button>
+        <!-- El botón grande lleva a SU reporte —donde va a ver si alguien le
+             escribió—, no al mapa. El mapa queda de salida discreta, para quien
+             de verdad quiera mirarlo. -->
+        <button class="btn btn-pri" id="btn-ver-mio" style="width:100%; margin-top:.5rem">
+          Ver mi reporte</button>
+        <button class="btn" data-cerrar style="width:100%; margin-top:.4rem">Ver el mapa</button>
       </div>
     </div>
   </div>
@@ -1670,7 +1711,7 @@ const S = {
   capas: new Map(),
   // Arranca en false a propósito: si el snapshot no responde, se prefiere no
   // ofrecer la foto antes que ofrecerla y perderla.
-  caps: {fotos:false},
+  caps: {fotos:false, correo:false},
   prensa: null, verPrensa: false,
   acopios: null, verAcopios: false,
   dano: null, verDano: false,
@@ -3212,6 +3253,7 @@ async function cargar(){
     const d = await r.json();
     S.items = d.items || [];
     if (d.caps) S.caps = d.caps;
+    pintarAyudaContacto();
     // El formulario puede estar abierto cuando entra el refresco de 60 s.
     if (sitSel) aplicarSituacion();
     pintar();
@@ -3251,6 +3293,16 @@ const DON_VIGENCIA = new Date('2026-08-30T23:59:59-05:00');
  */
 let faseAct = 1;
 const FASES = 4;
+
+/* Un celular colombiano (10 dígitos que empiezan por 3, tolerando el +57 y los
+   espacios con que la gente lo escribe) o un correo. No se valida más fino: el
+   objetivo es atajar el campo vacío y el dedo torcido, no rechazar contactos
+   raros pero reales. */
+function contactoValido(c){
+  const s = (c || '').trim();
+  if (s.includes('@')) return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(s);
+  return /^3\d{9}$/.test(s.replace(/[\s()+-]/g, '').replace(/^57(?=3\d{9}$)/, ''));
+}
 
 function faseVacia(n){
   const cont = document.querySelector(`.fase[data-fase="${n}"]`);
@@ -3341,8 +3393,12 @@ function enPasoDePreguntas(){
 }
 
 function retrocederUno(){
+  // El atrás del navegador (o el gesto de deslizar) también llega acá. Si la
+  // persona cancela, se devuelve `true` igual: el `popstate` ya consumió la
+  // entrada del historial y hay que volver a armarla, o el siguiente atrás se
+  // llevaría la página entera con el formulario abierto.
   const velo = [...document.querySelectorAll('.velo')].find((v) => !v.hidden);
-  if (velo) { cerrarTodo(); return true; }
+  if (velo) { cerrarConAviso(); return true; }
   if (!$('#puerta').hidden && S.pt) {
     if (enPasoDePreguntas()) { atrasPaso(); return true; }
     if (S.pt.fam) { abrirFamilia(''); return true; }   // del submenú a las tres
@@ -3369,6 +3425,50 @@ function abrir(id){ $(id).hidden = false; document.body.style.overflow = 'hidden
 function cerrarTodo(){
   document.querySelectorAll('.velo').forEach((v) => v.hidden = true);
   document.body.style.overflow = '';
+}
+
+/**
+ * ⚠️⚠️ Un clic afuera del recuadro NO puede tirar a la basura un formulario a
+ * medio llenar. Pasaba: alguien registrando personas atrapadas rozaba el fondo,
+ * la ventana se cerraba sin decir nada y quedaba viendo el mapa general, con
+ * todo lo escrito perdido y sin saber si había quedado registrado o no. En una
+ * emergencia eso no es una molestia de usabilidad: es un reporte que no existe.
+ *
+ * La regla es la mínima que resuelve sin estorbar: si no hay nada escrito se
+ * cierra sin preguntar —no hay qué perder—; si ya hay texto, se pregunta.
+ *
+ * Se miran solo los campos de TEXTO. Los `select` de departamento y municipio
+ * llegan preseleccionados desde la puerta de entrada, así que preguntarían
+ * siempre por algo que la persona no escribió.
+ */
+/** Ajusta la ayuda del campo de contacto a lo que el servidor puede cumplir. */
+function pintarAyudaContacto(){
+  const el = $('#ayuda-contacto');
+  if (!el) return;
+  el.textContent = S.caps.correo
+    ? 'Hace falta para que puedan avisarte que van en camino. Con correo te mandamos '
+      + 'el enlace privado y te avisamos si alguien responde.'
+    : 'Hace falta para que puedan avisarte que van en camino. Al terminar te damos '
+      + 'un enlace privado para ver los mensajes que te dejen.';
+}
+
+function hayBorrador(){
+  const velo = [...document.querySelectorAll('.velo')].find((v) => !v.hidden);
+  if (!velo) return false;
+  return [...velo.querySelectorAll('input[type=text], input[type=tel], input[type=email], textarea')]
+    .some((el) => !el.closest('[hidden]')          // la pantalla de éxito no cuenta
+                && el.id !== 'f-web' && el.id !== 'a-web'   // trampas anti-robot
+                && (el.value || '').trim() !== '');
+}
+
+/** Cierre pedido por la persona (equis, fondo, Escape, atrás). */
+function cerrarConAviso(){
+  if (hayBorrador()
+      && !confirm('¿Salir sin enviar?\n\nSe pierde lo que llevas escrito y no queda registrado.')) {
+    return false;
+  }
+  cerrarTodo();
+  return true;
 }
 
 function armarForm(){
@@ -3669,6 +3769,25 @@ async function enviarReporte(e){
   const titulo = $('#f-titulo').value.trim();
   if (titulo.length < 5) return fallo(err, 'Escribe en una línea qué está pasando.');
   if (!miniPin) return fallo(err, 'Falta marcar el punto en el mapa.');
+
+  /* ⚠️ El contacto es OBLIGATORIO. Se registraban reportes sin celular ni
+     correo, y un reporte así casi no sirve: quien quiere ayudar no tiene cómo
+     avisar que va en camino ni preguntar la seña que falta, y la persona solo
+     puede enterarse de las respuestas si conserva el enlace privado —que es
+     justo lo que se pierde cuando se cierra la pestaña—.
+     No se publica salvo que la persona lo autorice; obligatorio es DEJARLO,
+     no mostrarlo. */
+  const contacto = $('#f-contacto').value.trim();
+  if (!contacto) {
+    irAFase(4);
+    return fallo(err, 'Falta tu celular o tu correo. Sin eso nadie tiene cómo avisarte '
+      + 'que va en camino. No se publica si no lo autorizas.');
+  }
+  if (!contactoValido(contacto)) {
+    irAFase(4);
+    return fallo(err, 'Revisa el contacto: un celular de 10 dígitos (3XXXXXXXXX) o un correo.');
+  }
+
   if (!$('#f-consent').checked) return fallo(err, 'Necesitamos tu autorización para publicarlo.');
 
   const p = miniPin.getLatLng();
@@ -3692,7 +3811,7 @@ async function enviarReporte(e){
       ? S.barrios[barSel.dataset.clave].b[Number(barSel.value)][0] : '',
     personas: Number.isInteger(personas) ? personas : null,
     lat: p.lat, lon: p.lng,
-    contacto: $('#f-contacto').value.trim(),
+    contacto,
     contacto_pub: $('#f-pub').checked,
     foto: (SIT[sitSel] && SIT[sitSel].foto && S.caps.fotos) ? fotoData : null,
     web: $('#f-web').value,
@@ -3725,6 +3844,45 @@ async function enviarReporte(e){
     if (!r.ok || !dd.ok) throw new Error(dd.error || 'no_ok');
 
     guardarMio(dd.id, dd.token, titulo);
+
+    /* Confirmación: qué quedó registrado y qué sigue.
+       Los pasos se arman según el caso porque "cómo te van a contactar" NO es
+       igual para todos: en las situaciones privadas el contacto jamás se
+       publica, y quien no dejó ninguno solo tiene el enlace. Un texto único
+       diría una cosa falsa en tres de los cuatro casos. */
+    const donde = [cuerpo.barrio, cuerpo.municipio, cuerpo.depto].filter(Boolean).join(', ');
+    $('#exito-que').innerHTML = `<b>${esc(titulo)}</b>`
+      + (donde ? `<span>${esc(donde)}</span>` : '');
+
+    const esPriv = !!(SIT[sitSel] && SIT[sitSel].priv);
+    const hayContacto = !!cuerpo.contacto;
+    const pasos = [
+      'Ya aparece en el mapa para las organizaciones, brigadas y voluntarios que '
+      + 'estén mirando tu zona. No hay un tiempo garantizado: depende de quién esté cerca.',
+    ];
+    if (esPriv) {
+      pasos.push('Tu contacto <b>no se publica</b>, es un caso sensible. Quien tenga '
+        + 'información escribe por el mapa y el mensaje te llega a ti.');
+    } else if (hayContacto && cuerpo.contacto_pub) {
+      pasos.push('Publicaste tu contacto, así que pueden escribirte o llamarte directo. '
+        + 'También pueden dejarte mensajes por el mapa.');
+    } else if (hayContacto) {
+      pasos.push('Tu contacto <b>no se publica</b>. Quien pueda ayudarte escribe por el '
+        + 'mapa y el mensaje te llega a ti.');
+    } else {
+      pasos.push('No dejaste contacto, así que la única forma de ver si alguien te '
+        + 'escribió es este enlace. Guárdalo.');
+    }
+    // Solo se promete el correo si el servidor puede mandarlo de verdad.
+    if (hayContacto && cuerpo.contacto.includes('@') && S.caps.correo) {
+      pasos.push('Te mandamos este mismo enlace a tu correo, por si pierdes el teléfono.');
+    }
+    pasos.push('Cuando ya te hayan ayudado, márcalo como resuelto desde el enlace: '
+      + 'así quien está ayudando se concentra en lo que sigue abierto.');
+    $('#exito-pasos').innerHTML = pasos.map((p) => `<li>${p}</li>`).join('');
+
+    $('#btn-ver-mio').onclick = () => { cerrarTodo(); abrirMio(dd.id, dd.token); };
+
     const url = `${location.origin}${location.pathname}#/mi/${dd.id}/${dd.token}`;
     $('#mi-enlace').textContent = url;
     $('#btn-copiar').onclick = () => {
@@ -4268,8 +4426,9 @@ async function iniciar(){
   document.addEventListener('click', (e) => {
     if (e.target.closest('[data-prensa-todo]')) { S.prensaSel = null; return pintar(); }
     if (e.target.closest('[data-cerrar-detalle]')) return cerrarDetalle();
-    if (e.target.closest('[data-cerrar]')) return cerrarTodo();
-    if (e.target.classList.contains('velo')) return cerrarTodo();
+    if (e.target.closest('[data-cerrar]')) return cerrarConAviso();
+    // El fondo: es el clic accidental que borraba formularios enteros.
+    if (e.target.classList.contains('velo')) return cerrarConAviso();
 
     const c = e.target.closest('[data-contactar]');
     if (c) return abrirContacto(c.dataset.contactar);
@@ -4301,7 +4460,7 @@ async function iniciar(){
     // Con la puerta abierta, Escape equivale a "ver el mapa": cerrarTodo la
     // dejaría en pantalla y además desbloquearía el scroll del fondo.
     if (!$('#puerta').hidden) { S.pt = {i:EXPLORAR, l:null}; ejecutar(); return; }
-    cerrarTodo();
+    cerrarConAviso();
   });
   window.addEventListener('hashchange', rutaHash);
   rutaHash();
