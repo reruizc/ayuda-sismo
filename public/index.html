@@ -811,7 +811,10 @@ if (/^#\/mi\//.test(location.hash) || /[?&]ir=/.test(location.search))
           </div>
 
           <div class="campo" id="campo-foto" hidden>
-            <label for="f-foto">Foto <span class="ayuda" style="display:inline">(opcional, ayuda mucho)</span></label>
+            <!-- El rótulo lo ajusta `aplicarSituacion`: en mascotas la foto es
+                 LO que permite reconocer al animal, y decirlo así es lo que
+                 hace que la suban. -->
+            <label for="f-foto" id="foto-lbl">Foto <span class="ayuda" style="display:inline">(opcional, ayuda mucho)</span></label>
             <div class="foto-caja">
               <input type="file" id="f-foto" accept="image/*" style="border:none;padding:0;font-size:.85rem">
               <img id="foto-prev" class="foto-prev" hidden alt="Vista previa">
@@ -4048,6 +4051,32 @@ function aplicarSituacion(){
   const puedeFoto = !!(s.foto && S.caps.fotos);
   $('#campo-foto').hidden = !puedeFoto;
   if (!puedeFoto) limpiarFoto();
+
+  const lbl = $('#foto-lbl');
+  if (lbl) {
+    lbl.innerHTML = s.f === 'mascota'
+      ? 'Foto del animal <span class="ayuda" style="display:inline">'
+        + '(es lo que permite reconocerlo)</span>'
+      : 'Foto <span class="ayuda" style="display:inline">(opcional, ayuda mucho)</span>';
+  }
+
+  /* ⚠️ `caps` se lee del snapshot al arrancar, así que una pestaña abierta
+     desde antes de habilitar R2 —o una que abrió el formulario antes de que
+     llegara la primera respuesta— sigue creyendo que no hay dónde guardar
+     fotos y esconde el campo sin decir nada. En mascotas eso es grave: la foto
+     identifica al animal mejor que cualquier descripción. Si la situación
+     admite foto y creemos que no se puede, se vuelve a preguntar. */
+  if (s.foto && !S.caps.fotos && !window._capsRevisados) {
+    window._capsRevisados = true;
+    fetch(`${CONFIG.API}/snapshot.json?caps=${Date.now()}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d || !d.caps || !d.caps.fotos) return;
+        S.caps = d.caps;
+        if (sitSel && (SIT[sitSel] || {}).foto) $('#campo-foto').hidden = false;
+      })
+      .catch(() => { /* sin red no hay nada que corregir */ });
+  }
   $('#campo-personas').style.display = s.sinPersonas ? 'none' : '';
   if (s.sinPersonas) $('#f-personas').value = '';
   // La urgencia se esconde y se fija donde graduarla no significa nada.
