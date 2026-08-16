@@ -214,7 +214,14 @@ a{color:var(--azul)}
    necesita el país entero detrás, y verlo ahí solo compite con la decisión
    que vino a tomar. Con el velo se leía el mapa moviéndose bajo el texto.
    Ninguna de las cinco depende del mapa para entenderse. */
-.velo{position:fixed; inset:0; z-index:1000; display:flex; align-items:center;
+/* ⚠️⚠️ POR ENCIMA de la puerta (1200), no por debajo.
+   Con 1000 el modal se abría —`hidden=false`, sin un solo error— y quedaba
+   TAPADO por el menú: se veía como si el botón no hiciera nada. Antes no se
+   notaba porque toda acción cerraba la puerta primero; desde que donar y
+   colaborar la dejan abierta detrás (para que su "Volver" no bote al mapa),
+   el modal tiene que ir arriba. Un fallo así no aparece en consola: hay que
+   mirar la pantalla. */
+.velo{position:fixed; inset:0; z-index:1300; display:flex; align-items:center;
   justify-content:center; padding:1rem; overflow-y:auto;
   background:var(--trama), radial-gradient(120% 60% at 12% -10%, #fff 0%, var(--papel) 60%);
   background-color:var(--papel)}
