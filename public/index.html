@@ -90,11 +90,14 @@ a{color:var(--azul)}
   overflow-x:auto; -webkit-overflow-scrolling:touch; white-space:nowrap;
 }
 .zonas .rot{font-size:.78rem; color:var(--tenue); font-weight:600; flex:none}
+/* Cuando quedan pocos botones (vista de acopios) la fila se ve descolgada a la
+   izquierda; centrada comparte eje con el resto de la página. */
+.zonas.centrada{justify-content:center}
 .zona{
-  /* Cuadrados, no píldoras: con radio 999 los rótulos cortos —"Salud", "Otro",
-     "Tolima"— quedaban casi circulares y la fila se leía como un rosario de
-     burbujas de distinto tamaño. Con un radio fijo todos comparten silueta. */
-  border:1px solid var(--linea); background:var(--tarjeta); border-radius:8px;
+  /* Cuadrados de verdad, sin esquina suavizada: con radio de píldora los
+     rótulos cortos —"Salud", "Otro", "Tolima"— quedaban casi circulares y la
+     fila se leía como un rosario de burbujas de distinto tamaño. */
+  border:1px solid var(--linea); background:var(--tarjeta); border-radius:0;
   padding:.3rem .7rem; font-size:.82rem; font-weight:600; color:var(--tinta); flex:none;
 }
 .zona[aria-pressed="true"]{background:var(--tinta); border-color:var(--tinta); color:#fff}
@@ -177,7 +180,7 @@ a{color:var(--azul)}
    por el atributo hidden: sin esta regla, ocultar los filtros no hace nada. */
 .chips[hidden]{display:none}
 .chip{
-  border:1px solid var(--linea); background:var(--tarjeta); border-radius:8px;
+  border:1px solid var(--linea); background:var(--tarjeta); border-radius:0;
   padding:.28rem .62rem; font-size:.8rem; font-weight:600; color:var(--tenue);
   display:inline-flex; align-items:center; gap:.32rem;
 }
@@ -702,14 +705,20 @@ if (/^#\/mi\//.test(location.hash) || /[?&]ir=/.test(location.search))
   </div>
 </div>
 
+<!-- El título dice a QUÉ entró la persona, no siempre "Mapa de ayuda": quien
+     viene de "quiero donar cosas" está viendo acopios, y el rótulo genérico le
+     borraba el rastro de por dónde entró. Lo pone `pintarContexto`. -->
 <header class="top">
   <div class="marca">
-    <strong>Mapa de ayuda</strong>
+    <strong id="top-titulo">Mapa de ayuda</strong>
     <span>Sismo del 10 de agosto de 2026</span>
   </div>
   <div class="top-acc">
-    <button class="btn btn-sm" id="btn-puerta">Inicio</button>
-    <a class="btn btn-sm" href="inteligencia.html">De qué habla la prensa</a>
+    <!-- Volver al menú es la salida principal desde el mapa: va en rojo y de
+         primero, porque es lo que busca quien entró por una sola cosa y quiere
+         hacer otra. -->
+    <button class="btn btn-pri" id="btn-puerta">← Volver al inicio</button>
+    <button class="btn btn-sm" id="btn-todo-mapa">Ver todas las temáticas del mapa</button>
     <button class="btn btn-sm" id="btn-mis">Mis reportes</button>
     <button class="btn btn-pri btn-reportar" id="btn-reportar">Registrar</button>
   </div>
@@ -2594,8 +2603,24 @@ function pintarZonas(){
      mandarlo a filtrar por sitios donde puede no haber nada y, de paso,
      esconderle el suyo. Queda "Todo el país" y el buscador del panel, que es
      el que sirve para acercarse. */
-  const soloPais = S.verAcopios
-    || ['acopios', 'voluntario'].includes((S.intencion || {}).accion);
+  /* ⚠️ Depende de POR DÓNDE ENTRÓ la persona, no de si la capa de acopios está
+     encendida. Con `S.verAcopios` en la condición, encender esa capa desde el
+     mapa general escondía los departamentos y las demás capas —y no volvían al
+     apagarla—, así que "ver todas las temáticas" dejaba de mostrarlas todas. */
+  const soloPais = ['acopios', 'voluntario'].includes((S.intencion || {}).accion);
+  /* Las capas de contexto —noticias y daño de satélite— son para leer la
+     emergencia, no para entregar un mercado. En la vista de acopios estorban
+     por lo mismo que los departamentos: quien está ahí ya sabe a qué vino.
+     Siguen completas en el mapa general, a un toque desde "ver todas las
+     temáticas". */
+  const capas = soloPais ? '' :
+    `<span class="zona-sep"></span>
+     <button class="zona prensa" id="tgl-prensa" aria-pressed="${S.verPrensa}">
+       Noticias${nP ? ` (${nP})` : ''}</button>
+     <button class="zona dano" id="tgl-dano" aria-pressed="${S.verDano}"
+       title="Edificios y vías con daño evaluado por Copernicus EMS. Cubre solo unas zonas urbanas.">
+       Daño satelital${nD ? ` (${nD})` : ''}</button>`;
+
   $('#zonas').innerHTML =
     `<span class="rot">Ir a:</span>
      <button class="zona" data-z="" aria-pressed="${!S.zona}">Todo el país</button>` +
@@ -2603,12 +2628,12 @@ function pintarZonas(){
        aria-pressed="${S.zona === d.c}">${esc(d.n)}</button>`).join('')) +
     `<span class="zona-sep"></span>
      <button class="zona acopio" id="tgl-acopios" aria-pressed="${S.verAcopios}">
-       Acopios${S.acopios ? ` (${S.acopios.length})` : ''}</button>
-     <button class="zona prensa" id="tgl-prensa" aria-pressed="${S.verPrensa}">
-       Noticias${nP ? ` (${nP})` : ''}</button>
-     <button class="zona dano" id="tgl-dano" aria-pressed="${S.verDano}"
-       title="Edificios y vías con daño evaluado por Copernicus EMS. Cubre solo unas zonas urbanas.">
-       Daño satelital${nD ? ` (${nD})` : ''}</button>`;
+       Acopios${S.acopios ? ` (${S.acopios.length})` : ''}</button>` + capas;
+
+  // Con pocos botones la fila se veía descolgada a la izquierda; centrada
+  // queda con el mismo eje que el resto de la página. Con la lista completa
+  // manda el scroll horizontal y el centrado no estorba.
+  $('#zonas').classList.toggle('centrada', soloPais);
 }
 
 /** Enfoca un departamento y filtra la lista a él. '' vuelve a nacional. */
@@ -3257,6 +3282,14 @@ function pintarContexto(){
   // En móvil el botón fijo es LA acción de la página: si alguien entró a donar,
   // ofrecerle "registrar una necesidad" es mandarlo al formulario contrario.
   $('#fab').textContent = (I && I.accSit) ? I.acc : 'Registrar una necesidad';
+
+  /* El título de arriba nombra la vista en la que se está. Con "Mapa de ayuda"
+     fijo, quien entró por "quiero donar cosas" y bajó a mirar acopios perdía la
+     única señal de por dónde había entrado. En el mapa general vuelve al
+     nombre de la página. */
+  const t = $('#top-titulo');
+  if (t) t.textContent = (I && I.accion !== 'mapa' && I.ctx) ? `${I.ico} ${I.ctx}` : 'Mapa de ayuda';
+
   if (!I || I.accion === 'mapa') {
     ctx.hidden = true;
     document.body.classList.remove('con-ctx');
@@ -4981,6 +5014,14 @@ async function iniciar(){
   }));
   $('#btn-mis').addEventListener('click', verMisReportes);
   $('#btn-puerta').addEventListener('click', () => abrirPuerta());
+  /* Lleva al mapa SIN intención: todas las capas y todos los filtros a la
+     vista. Reemplaza al enlace del informe de prensa, que se llevaba a la
+     persona a otra página justo cuando estaba mirando el mapa. */
+  $('#btn-todo-mapa').addEventListener('click', () => {
+    cerrarTodo();
+    S.pt = {i:EXPLORAR, l:null, pasos:[], idx:0};
+    ejecutar();
+  });
 
   /* ── puerta de entrada ── */
   // Un toque en cualquier parte de la intro la salta: quien ya sabe a qué
