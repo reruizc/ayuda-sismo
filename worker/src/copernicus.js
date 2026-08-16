@@ -29,7 +29,7 @@
 
 const ACTIVACION = 'EMSR916';
 const API = 'https://rapidmapping.emergency.copernicus.eu/backend/dashboard-api/public-activations/';
-const UA = { 'User-Agent': 'MapaDeAyuda/1.0 (+https://sismo.ricardoruiz.co)' };
+const UA = { 'User-Agent': 'MapaDeAyuda/1.0 (+https://reconstruyocolombia.com)' };
 
 /** Los nombres del producto vienen en inglés y la página está en español. */
 const NOMBRE_ES = {

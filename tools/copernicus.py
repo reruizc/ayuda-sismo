@@ -28,7 +28,7 @@ import urllib.error
 import urllib.request
 
 API = 'https://rapidmapping.emergency.copernicus.eu/backend/dashboard-api/public-activations/'
-UA = {'User-Agent': 'MapaDeAyuda/1.0 (+https://sismo.ricardoruiz.co)'}
+UA = {'User-Agent': 'MapaDeAyuda/1.0 (+https://reconstruyocolombia.com)'}
 
 # Solo estos grados se publican. "No visible damage" son decenas de miles de
 # rasgos intactos y "Not Analysed" es justamente lo que nadie miró.

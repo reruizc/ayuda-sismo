@@ -18,7 +18,7 @@ import { MUNICIPIOS, MUNICIPIOS_EXCLUIDOS } from './municipios.js';
 export const SISMO_TS = Date.UTC(2026, 7, 10, 12, 34, 0);
 
 const GNEWS = 'https://news.google.com/rss/search';
-const UA = 'Mozilla/5.0 (compatible; MapaDeAyuda/1.0; +https://sismo.ricardoruiz.co)';
+const UA = 'Mozilla/5.0 (compatible; MapaDeAyuda/1.0; +https://reconstruyocolombia.com)';
 
 /**
  * UA para los feeds de los medios.
@@ -33,7 +33,7 @@ const UA = 'Mozilla/5.0 (compatible; MapaDeAyuda/1.0; +https://sismo.ricardoruiz
  */
 const UA_FEED = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 '
   + '(KHTML, like Gecko) Chrome/128.0 Safari/537.36 '
-  + 'MapaDeAyuda/1.0 (+https://sismo.ricardoruiz.co)';
+  + 'MapaDeAyuda/1.0 (+https://reconstruyocolombia.com)';
 
 /**
  * MEDIOS · el RSS propio de cada periódico. Esta es la fuente.

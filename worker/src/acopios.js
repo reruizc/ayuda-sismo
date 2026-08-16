@@ -341,7 +341,7 @@ export async function refrescar(env, opciones = {}) {
   if (!url) return null;
 
   const r = await fetch(url, {
-    headers: { 'User-Agent': 'MapaDeAyuda/1.0 (+https://sismo.ricardoruiz.co)' },
+    headers: { 'User-Agent': 'MapaDeAyuda/1.0 (+https://reconstruyocolombia.com)' },
     redirect: 'follow',
   });
   if (!r.ok) throw new Error(`hoja http ${r.status}`);

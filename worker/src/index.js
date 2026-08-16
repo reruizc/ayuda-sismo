@@ -47,7 +47,6 @@ const CRON_DIARIO = '40 11 * * *';   // 06:40 en Colombia
 const ORIGENES = [
   'https://reconstruyocolombia.com',        // el dominio propio, desde ago-2026
   'https://www.reconstruyocolombia.com',
-  'https://sismo.ricardoruiz.co',
   'https://ayuda-sismo.pages.dev',
   'https://ricardoruiz.co',
   'http://localhost:8765',
@@ -412,7 +411,7 @@ async function crearReporte(req, env, origin, ip) {
      Nunca hace fallar el envío: si Resend no responde, el reporte ya quedó
      guardado y la persona tiene el enlace en pantalla. */
   if (contactoTipo === 'email') {
-    const base = env.SITIO || 'https://sismo.ricardoruiz.co';
+    const base = env.SITIO || 'https://reconstruyocolombia.com';
     await avisarPorCorreo(env, contacto,
       'Tu enlace para seguir el reporte',
       `<p>Quedó publicado: <strong>${escHtml(titulo)}</strong>.</p>
@@ -559,7 +558,7 @@ async function contactar(req, env, origin, ip) {
   // se avisa y se manda al enlace privado, para que un buzón comprometido no
   // exponga la conversación completa.
   if (r.contacto_tipo === 'email') {
-    const base = env.SITIO || 'https://sismo.ricardoruiz.co';
+    const base = env.SITIO || 'https://reconstruyocolombia.com';
     await avisarPorCorreo(env, r.contacto,
       'Tienes un mensaje nuevo sobre tu reporte',
       `<p>Alguien respondió a tu reporte <strong>${escHtml(r.titulo)}</strong>.</p>
