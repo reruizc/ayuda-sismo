@@ -312,10 +312,15 @@ body.pt-raiz .pt-cab{margin-bottom:.8rem; padding-bottom:.7rem}
 body.pt-raiz .pt-caja h1{font-size:clamp(1.5rem, 3.6vw, 2.1rem)}
 body.pt-raiz .pt-sub{font-size:.95rem; margin-top:.35rem}
 body.pt-raiz .op-img{width:56px; height:56px; font-size:1.5rem}
-body.pt-raiz .op{padding:.55rem .7rem .55rem .55rem}
+/* ⚠️ Estos milímetros sostienen el "cabe sin desplazar" de la raíz. El pie
+   creció un 40% y el menú se pasó 23 px en móvil: se recuperan acá, donde no
+   se nota, y no quitándole tamaño al texto del pie, que es lo que se pidió
+   agrandar. Si se vuelve a tocar el pie o se agrega una tarjeta, hay que
+   volver a medir: `#puerta`.scrollHeight contra .clientHeight. */
+body.pt-raiz .op{padding:.42rem .7rem .42rem .5rem}
 body.pt-raiz .op-fam b{font-size:1rem}
-body.pt-raiz .ops-lista{gap:.5rem}
-body.pt-raiz .pt-pie{margin-top:.9rem; padding-top:.7rem}
+body.pt-raiz .ops-lista{gap:.42rem}
+body.pt-raiz .pt-pie{margin-top:.6rem; padding-top:.55rem}
 @media (max-height:700px){
   body.pt-raiz .pt-caja h1{font-size:1.35rem}
   body.pt-raiz .op-img{width:46px; height:46px; font-size:1.25rem}
@@ -406,18 +411,18 @@ body.pt-raiz .pt-pie{margin-top:.9rem; padding-top:.7rem}
 
 /* Ventana de donaciones */
 .don{border:1px solid var(--linea); border-radius:var(--r); padding:.85rem .9rem; margin-bottom:.7rem}
-.don h3{margin:0 0 .2rem; font-family:var(--titulo); font-size:1rem}
-.don p{margin:0 0 .6rem; font-size:.9rem; color:var(--tenue); line-height:1.45}
+.don h3{margin:0 0 .25rem; font-family:var(--titulo); font-size:1.15rem}
+.don p{margin:0 0 .6rem; font-size:1.02rem; color:var(--tenue); line-height:1.5}
 .don-btn{display:inline-block; text-decoration:none}
 .don-cta{display:flex; align-items:center; gap:.6rem; flex-wrap:wrap;
   background:var(--papel); border-radius:8px; padding:.55rem .7rem}
-.don-lbl{font-size:.78rem; color:var(--tenue); flex:none}
+.don-lbl{font-size:.92rem; color:var(--tenue); flex:none}
 /* Tabular para que no se confundan 0/O ni 1/l al copiarla a mano. */
-.don-num{font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:1.15rem;
+.don-num{font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:1.35rem;
   letter-spacing:.04em; font-variant-numeric:tabular-nums; user-select:all}
-.don-vig{margin:.5rem 0 0 !important; font-size:.82rem}
+.don-vig{margin:.5rem 0 0 !important; font-size:.95rem}
 .don-vig.vencida{color:var(--rojo); font-weight:600}
-.don-nota{font-size:.84rem; color:var(--tenue); line-height:1.45; margin:.2rem 0 0}
+.don-nota{font-size:.95rem; color:var(--tenue); line-height:1.5; margin:.2rem 0 0}
 .pt-volver:focus-visible{outline:3px solid #16130f; outline-offset:2px}
 @media (max-width:600px){ .ops-lista{grid-template-columns:1fr} }
 .op{display:flex; gap:.8rem; align-items:center; text-align:left;
@@ -446,9 +451,15 @@ body.pt-raiz .pt-pie{margin-top:.9rem; padding-top:.7rem}
 .op-sec{grid-column:1/-1; box-shadow:none; background:transparent; border-style:dashed;
   border-left-style:dashed; border-left-width:1px; margin-top:.2rem}
 .credito{display:block; margin-top:.35rem; opacity:.85}
-.pt-pie{margin-top:1.3rem; padding-top:.9rem; border-top:1px solid var(--linea); font-size:.82rem; color:var(--tenue)}
+.pt-pie{margin-top:1.3rem; padding-top:.9rem; border-top:1px solid var(--linea);
+  font-size:1.15rem; color:var(--tenue); text-align:center; line-height:1.45}
+.pt-pie a{color:inherit}
+/* Centrado: es el rótulo de lo que estás haciendo, no un encabezado de lista.
+   Alineado a la izquierda quedaba desalineado del título y del subtítulo, que
+   sí van centrados, y la tira se leía como si fuera otra sección. */
 .pt-elegido{background:var(--tarjeta); border:1px solid var(--linea); border-radius:12px;
-  padding:.7rem .85rem; display:flex; gap:.6rem; align-items:center; margin-bottom:1rem; font-size:.92rem}
+  padding:.7rem .85rem; display:flex; gap:.6rem; align-items:center;
+  justify-content:center; text-align:center; margin-bottom:1rem; font-size:.92rem}
 .pt-elegido .ico{font-size:1.2rem}
 .pt-elegido button{margin-left:auto}
 .lugares{display:flex; flex-wrap:wrap; gap:.5rem; margin:.2rem 0}
@@ -596,7 +607,9 @@ body.con-ctx .cuerpo{height:calc(100dvh - 196px)}
     <div class="pt-pie">
       <b>Esto no es un canal oficial.</b> Si hay vidas en riesgo llama al
       <a href="tel:123">123</a>. Personas desaparecidas: Cruz Roja y Medicina Legal.
-      <span class="credito">Esta página se realizó gracias a Alfil Data y Ricardo Ruiz.</span>
+      <span class="credito">Esta página se realizó gracias a
+        <a href="https://www.alfil.co" target="_blank" rel="noopener noreferrer">Alfil Data</a> y
+        <a href="https://ricardoruiz.co" target="_blank" rel="noopener noreferrer">Ricardo Ruiz</a>.</span>
     </div>
   </div>
 </div>
@@ -897,6 +910,20 @@ body.con-ctx .cuerpo{height:calc(100dvh - 196px)}
           <button type="button" class="btn btn-sm" id="don-copiar">Copiar</button>
         </div>
         <p class="don-vig" id="don-vigencia"></p>
+      </div>
+
+      <!-- ⚠️ Es un CORREO, no un formulario que publique solo. Un canal de
+           donaciones que aparezca acá sin verificar es la forma más directa de
+           que alguien pierda su plata: cualquiera podría "reportar" una cuenta
+           suya y quedar listada al lado de la Cruz Roja. Llega, se valida, y
+           solo entonces se agrega a mano. El texto lo dice para no prometer
+           publicación inmediata. -->
+      <div class="don">
+        <h3>¿Conoces otro canal?</h3>
+        <p>Si una organización está recogiendo y no aparece acá, cuéntanos.
+           Lo validamos con la entidad antes de publicarlo.</p>
+        <a class="btn don-btn" href="mailto:hola@ricardoruiz.co?subject=Canal%20oficial%20de%20donaciones&body=Organizaci%C3%B3n%3A%0ACanal%20o%20cuenta%3A%0AD%C3%B3nde%20lo%20publicaron%20(enlace)%3A%0AA%20qui%C3%A9n%20se%20le%20puede%20confirmar%3A%0A">
+          Reportar un canal oficial →</a>
       </div>
 
       <p class="don-nota">
