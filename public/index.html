@@ -236,6 +236,14 @@ a{color:var(--azul)}
 .modal-cab h2{font-size:1.1rem}
 .modal-cab p{margin:.2rem 0 0; font-size:.85rem; color:var(--tenue)}
 .cerrar{margin-left:auto; border:none; background:none; font-size:1.5rem; line-height:1; color:var(--tenue); padding:0 .25rem}
+/* Se enciende cuando alguien toca el fondo esperando cerrar: el fondo ya no
+   cierra, así que hay que decirle por dónde es la salida. */
+@keyframes pulso-salida{
+  0%,100%{transform:scale(1); color:var(--tenue)}
+  30%{transform:scale(1.35); color:var(--rojo)}
+  60%{transform:scale(1); color:var(--rojo)}
+}
+.cerrar.pulso{animation:pulso-salida .9s ease-in-out}
 .modal-cuerpo{padding:1.1rem 1.25rem 1.4rem}
 .campo{margin-bottom:1rem}
 .campo>label{display:block; font-weight:600; font-size:.88rem; margin-bottom:.32rem}
@@ -380,7 +388,7 @@ body.pt-raiz .pt-pie{margin-top:.6rem; padding-top:.55rem}
 
 /* Quien pidió menos movimiento no ve ninguno: el contenido aparece y ya. */
 @media (prefers-reduced-motion:reduce){
-  .pt-intro > *, .op.entra, .pt-telon.corre{animation:none !important}
+  .pt-intro > *, .op.entra, .pt-telon.corre, .cerrar.pulso{animation:none !important}
 }
 
 .ops{display:grid; grid-template-columns:1fr 1fr; gap:.6rem}
@@ -3461,7 +3469,22 @@ function hayBorrador(){
                 && (el.value || '').trim() !== '');
 }
 
-/** Cierre pedido por la persona (equis, fondo, Escape, atrás). */
+/**
+ * El fondo ya no cierra. Para que el clic no se sienta muerto —"¿se congeló
+ * esto?"— se resalta un instante la equis, que es la salida real.
+ */
+function señalarSalida(velo){
+  // La equis de la cabecera, no el "Volver" del final: es la que queda a la
+  // vista sin bajar, que es donde está mirando quien acaba de tocar el fondo.
+  const x = velo.querySelector('.cerrar[data-cerrar]') || velo.querySelector('[data-cerrar]');
+  if (!x) return;
+  x.classList.remove('pulso');
+  void x.offsetWidth;          // reinicia la animación si se hace clic seguido
+  x.classList.add('pulso');
+  setTimeout(() => x.classList.remove('pulso'), 900);
+}
+
+/** Cierre pedido por la persona (equis, botón volver, Escape, atrás). */
 function cerrarConAviso(){
   if (hayBorrador()
       && !confirm('¿Salir sin enviar?\n\nSe pierde lo que llevas escrito y no queda registrado.')) {
@@ -4427,8 +4450,14 @@ async function iniciar(){
     if (e.target.closest('[data-prensa-todo]')) { S.prensaSel = null; return pintar(); }
     if (e.target.closest('[data-cerrar-detalle]')) return cerrarDetalle();
     if (e.target.closest('[data-cerrar]')) return cerrarConAviso();
-    // El fondo: es el clic accidental que borraba formularios enteros.
-    if (e.target.classList.contains('velo')) return cerrarConAviso();
+    /* ⚠️⚠️ El clic en el FONDO no cierra nada, a propósito, y esto no se
+       deshace: es la fuente de una clase entera de accidentes. Rozar el fondo
+       tiraba a la basura un formulario a medio llenar, y en la ventana de
+       donaciones devolvía al menú anterior a alguien que estaba copiando un
+       número de cuenta. Salir siempre es deliberado: la equis, el botón de
+       volver, Escape o el atrás del navegador. Como el fondo ya no responde,
+       se resalta un momento la equis para que se vea por dónde es la salida. */
+    if (e.target.classList.contains('velo')) return señalarSalida(e.target);
 
     const c = e.target.closest('[data-contactar]');
     if (c) return abrirContacto(c.dataset.contactar);
@@ -4457,8 +4486,15 @@ async function iniciar(){
 
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
-    // Con la puerta abierta, Escape equivale a "ver el mapa": cerrarTodo la
-    // dejaría en pantalla y además desbloquearía el scroll del fondo.
+    /* ⚠️ El orden importa: una ventana abierta SIEMPRE gana, aunque la puerta
+       siga visible detrás. Al revés —que era como estaba— Escape se saltaba la
+       ventana de encima y mandaba al mapa, así que en el panel de donaciones no
+       cerraba nada y de paso tumbaba la puerta. Mismo criterio que usa el atrás
+       del navegador en `retrocederUno()`. */
+    const abierta = [...document.querySelectorAll('.velo')].some((v) => !v.hidden);
+    if (abierta) { cerrarConAviso(); return; }
+    // Sin ventanas: con la puerta abierta, Escape equivale a "ver el mapa".
+    // `cerrarTodo` la dejaría en pantalla y además bloqueado el scroll.
     if (!$('#puerta').hidden) { S.pt = {i:EXPLORAR, l:null}; ejecutar(); return; }
     cerrarConAviso();
   });

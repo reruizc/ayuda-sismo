@@ -340,17 +340,30 @@ descomentando el binding de `wrangler.toml`.
 
 ## Terminar de llenar el formulario sin perderlo
 
-**Un clic afuera del recuadro no puede borrar el formulario.** Pasaba: alguien
-registrando personas atrapadas rozaba el fondo, la ventana se cerraba sin decir
-nada y quedaba viendo el mapa general —con todo lo escrito perdido y sin saber
-si había quedado registrado—. En una emergencia eso no es una molestia de
-usabilidad: es un reporte que no existe.
+**⚠️⚠️ El clic en el FONDO no cierra ninguna ventana. Esto no se deshace.** Era
+la fuente de una clase entera de accidentes, reportada dos veces con síntomas
+distintos: alguien registrando personas atrapadas rozaba el fondo y la ventana
+se cerraba sin decir nada, dejándolo en el mapa general con todo lo escrito
+perdido y sin saber si había quedado registrado; y en la ventana de donaciones,
+un roce devolvía al menú anterior a quien estaba copiando un número de cuenta.
+En una emergencia lo primero no es una molestia de usabilidad: es un reporte que
+no existe.
 
-`cerrarConAviso()` cubre los cuatro caminos de salida (fondo, equis, Escape y
-el atrás del navegador). Con los campos vacíos cierra sin preguntar —no hay qué
-perder—; con algo escrito, pregunta. Solo mira los campos de TEXTO: los `select`
-de departamento y municipio llegan preseleccionados desde la puerta de entrada,
-así que preguntarían siempre por algo que la persona no escribió.
+Salir es **siempre deliberado**: la equis, el botón de volver, Escape o el atrás
+del navegador. Como el fondo dejó de responder, `señalarSalida()` resalta un
+instante la equis para que no se sienta que la página se congeló.
+
+`cerrarConAviso()` cubre esas salidas deliberadas: si el formulario está vacío
+cierra sin preguntar —no hay qué perder—; si hay algo escrito, pregunta. Solo
+mira los campos de TEXTO: los `select` de departamento y municipio llegan
+preseleccionados desde la puerta de entrada, así que preguntarían siempre por
+algo que la persona no escribió.
+
+⚠️ **Una ventana abierta gana sobre la puerta.** Escape miraba primero si la
+puerta estaba visible, y como sigue detrás de la ventana, se saltaba la ventana
+de encima: en el panel de donaciones no cerraba nada y de paso tumbaba la
+puerta. Ahora se evalúa igual que el atrás del navegador en `retrocederUno()`,
+primero las ventanas.
 
 ⚠️ En el `popstate` (atrás del navegador) se devuelve `true` aunque la persona
 cancele: la entrada del historial ya se consumió y hay que volver a armarla, o

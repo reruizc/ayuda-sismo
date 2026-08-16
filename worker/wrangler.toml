@@ -37,6 +37,18 @@ database_id = "e7a0d228-d793-4728-94b4-da2c79d45f35"
 #   npx wrangler r2 bucket create ayuda-sismo-fotos
 # y descomentar estas tres líneas + volver a desplegar. El Worker publica la
 # capacidad en /snapshot.json y el formulario vuelve a mostrar el campo solo.
+#
+# Cuánto costaría, con el peso REAL de una foto de este formulario (medido
+# corriendo el mismo pipeline del sitio —1280 px de lado, JPEG 0,82—): escena
+# simple 20 KB · escena con mucho detalle 408 KB · ruido puro, que es el peor
+# caso que existe, 666 KB.
+#   1.000 fotos ≈ 0,4 GB → 4% del free tier de R2 (10 GB-mes) → 0 USD
+#   Se empieza a pagar pasando de 10 GB, o sea ~25.000 fotos, y ahí son
+#   0,015 USD por GB-mes: centavos.
+# La salida de datos en R2 no se cobra, que es justo lo que en otros
+# proveedores vuelve impredecible la cuenta cuando una foto circula mucho.
+# ⚠️ Lo que sí exige Cloudflare es dejar una TARJETA registrada para habilitar
+# R2, aunque el consumo quede entero dentro del free tier.
 # [[r2_buckets]]
 # binding = "FOTOS"
 # bucket_name = "ayuda-sismo-fotos"
