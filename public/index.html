@@ -293,6 +293,27 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid v
    va debajo para no empujar el título fuera del eje. */
 .pt-cab{margin-bottom:1.25rem; border-bottom:2px solid var(--tinta);
   padding-bottom:1rem; text-align:center; position:relative}
+
+/* ⚠️ El menú inicial tiene que caber SIN desplazar, en teléfono y escritorio.
+   Con cuatro tarjetas grandes y el encabezado a tamaño completo, la última
+   quedaba por debajo del borde: quien no baja no sabe que existe, y una
+   opción que no se ve es una opción que no está. Solo aplica a la RAÍZ
+   (`body.pt-raiz`), no a los submenús —"Necesito ayuda" tiene nueve opciones
+   y ahí desplazar es inevitable y esperable—. */
+body.pt-raiz .pt-caja{padding-top:calc(.7rem + env(safe-area-inset-top)); padding-bottom:.8rem}
+body.pt-raiz .pt-cab{margin-bottom:.8rem; padding-bottom:.7rem}
+body.pt-raiz .pt-caja h1{font-size:clamp(1.5rem, 3.6vw, 2.1rem)}
+body.pt-raiz .pt-sub{font-size:.95rem; margin-top:.35rem}
+body.pt-raiz .op-img{width:56px; height:56px; font-size:1.5rem}
+body.pt-raiz .op{padding:.55rem .7rem .55rem .55rem}
+body.pt-raiz .op-fam b{font-size:1rem}
+body.pt-raiz .ops-lista{gap:.5rem}
+body.pt-raiz .pt-pie{margin-top:.9rem; padding-top:.7rem}
+@media (max-height:700px){
+  body.pt-raiz .pt-caja h1{font-size:1.35rem}
+  body.pt-raiz .op-img{width:46px; height:46px; font-size:1.25rem}
+  body.pt-raiz .op-txt span{display:none}   /* la bajada, no el nombre */
+}
 .pt-cab .btn{position:absolute; top:0; right:0}
 .pt-ojo{margin:0 0 .4rem; font-size:.72rem; font-weight:700; text-transform:uppercase;
   letter-spacing:.14em; color:var(--rojo)}
@@ -417,6 +438,7 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid v
 .op-urg b{color:var(--rojo)}
 .op-sec{grid-column:1/-1; box-shadow:none; background:transparent; border-style:dashed;
   border-left-style:dashed; border-left-width:1px; margin-top:.2rem}
+.credito{display:block; margin-top:.35rem; opacity:.85}
 .pt-pie{margin-top:1.3rem; padding-top:.9rem; border-top:1px solid var(--linea); font-size:.82rem; color:var(--tenue)}
 .pt-elegido{background:var(--tarjeta); border:1px solid var(--linea); border-radius:12px;
   padding:.7rem .85rem; display:flex; gap:.6rem; align-items:center; margin-bottom:1rem; font-size:.92rem}
@@ -567,6 +589,7 @@ body.con-ctx .cuerpo{height:calc(100dvh - 196px)}
     <div class="pt-pie">
       <b>Esto no es un canal oficial.</b> Si hay vidas en riesgo llama al
       <a href="tel:123">123</a>. Personas desaparecidas: Cruz Roja y Medicina Legal.
+      <span class="credito">Esta página se realizó gracias a Alfil Data y Ricardo Ruiz.</span>
     </div>
   </div>
 </div>
@@ -789,6 +812,38 @@ body.con-ctx .cuerpo{height:calc(100dvh - 196px)}
           Enviármelo por WhatsApp</a>
         <button class="btn btn-pri" data-cerrar style="width:100%; margin-top:.5rem">Volver al mapa</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ modal: colaborar con la página ══════════ -->
+<div class="velo" id="velo-colaborar" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="t-colab" style="max-width:540px">
+    <div class="modal-cab">
+      <div>
+        <h2 id="t-colab">Colaborar con esta página</h2>
+        <p>La hace un equipo pequeño y es abierta. Hace falta de todo, no solo
+           programar.</p>
+      </div>
+      <button class="cerrar" data-cerrar aria-label="Cerrar">&times;</button>
+    </div>
+    <div class="modal-cuerpo">
+      <div class="don">
+        <h3>En qué hace falta</h3>
+        <p><b>Verificar en terreno.</b> Los acopios salen de prensa y de lo que
+           reporta la gente; casi ninguno está confirmado. Llamar y confirmar si
+           siguen abiertos es lo más útil que se puede hacer hoy.<br>
+           <b>Datos.</b> Capas de barrios, censos, listados de albergues.<br>
+           <b>Difusión.</b> Que llegue a quien la necesita.<br>
+           <b>Código y diseño.</b> Es abierta y se puede revisar.</p>
+        <a class="btn btn-pri don-btn" href="mailto:hola@ricardoruiz.co?subject=Quiero%20colaborar%20con%20Reconstruyo%20Colombia">
+          Escribir a hola@ricardoruiz.co →</a>
+      </div>
+      <p class="don-nota">
+        Cuéntanos qué sabes hacer y cuánto tiempo tienes. No hace falta
+        experiencia previa: buena parte del trabajo es llamar y confirmar.
+      </p>
+      <button class="btn btn-pri" data-cerrar style="width:100%; margin-top:.6rem">Volver</button>
     </div>
   </div>
 </div>
@@ -1428,6 +1483,11 @@ const INTENCIONES = [
 
   // Verde oliva y no el mismo verde azulado del voluntariado: dos tarjetas del
   // mismo color en la misma cuadrícula se leen como si fueran la misma cosa.
+  {k:'colaborar-web', ico:'🤝', n:'Quiero colaborar con esta página', img:'op-colaborar.jpg',
+   col:'#7a2ea8', tint:'#f3e8fa',
+   d:'Escríbenos y te contamos en qué hace falta',
+   accion:'colaborar', ctx:'Colaborar con la página', acc:'Escribir'},
+
   {k:'explorar', ico:'🗺️', n:'Ver el mapa completo', img:'op-mapa.jpg',
    col:'#3f6212', tint:'#eef3e2',
    d:'Todo lo publicado, para filtrar a mano',
@@ -1463,6 +1523,15 @@ const FAMILIAS = [
    d:'Víveres, salud, techo, transporte o buscar a alguien',
    ops:['necesito', 'salud', 'alojamiento', 'transporte', 'pido-voluntarios',
         'reconstruir', 'persona', 'mascota', 'rescate']},
+
+  /* No pide ubicación ni abre formulario: es una invitación a sumarse al
+     proyecto, no un reporte. Va de última porque quien llega en emergencia
+     viene por las tres de arriba; ponerla antes sería cobrarle atención a
+     alguien que está buscando a un familiar. */
+  {k:'colaborar', ico:'🤝', n:'Quiero colaborar con esta página', img:'fam-colaborar.jpg',
+   col:'#7a2ea8', tint:'#f3e8fa',
+   d:'Sumar tu tiempo, datos o conocimiento al proyecto',
+   ops:['colaborar-web']},
 
   {k:'ver', ico:'🗺️', n:'Ver el mapa e informes', img:'fam-ver.jpg',
    col:'#1b3f66', tint:'#e6ecf3',
@@ -2240,6 +2309,9 @@ function tarjetaFam(F, n){
 function pintarOpciones(){
   const F = FAMILIAS.find((x) => x.k === S.pt.fam);
   $('#ops').className = 'ops ops-nivel';
+  // Solo la RAÍZ se comprime para caber sin desplazar; los submenús pueden ser
+  // largos y ahí desplazar es lo esperable.
+  document.body.classList.toggle('pt-raiz', !F);
 
   if (!F) {
     $('#pt-titulo').textContent = '¿Qué necesitas hacer?';
@@ -2301,7 +2373,7 @@ function verificarFamilias(){
 function pasosDe(I){
   // Un enlace no necesita saber dónde: se abre y ya. Donar tampoco: la
   // transferencia no ocurre en un municipio.
-  if (I.accion === 'url' || I.accion === 'donar') return [];
+  if (I.accion === 'url' || I.accion === 'donar' || I.accion === 'colaborar') return [];
   const p = (I.subs || []).map((_, i) => `sub:${i}`);
   if (I.accion === 'voluntario') p.push('dispo');   // cuándo, y después dónde
   p.push('lugar');
@@ -2609,6 +2681,7 @@ function ejecutar(){
      a las tarjetas de "Quiero ayudar". Con la puerta abierta detrás, cerrar la
      ventana deja a la persona exactamente donde estaba. */
   if (I.accion === 'donar') { abrirDonar(); return; }
+  if (I.accion === 'colaborar') { abrir('#velo-colaborar'); return; }
 
   S.intencion = I; S.lugar = L;
   cerrarPuerta();
