@@ -930,20 +930,37 @@ if (/^#\/mi\//.test(location.hash) || /[?&]ir=/.test(location.search))
       <button class="cerrar" data-cerrar aria-label="Cerrar">&times;</button>
     </div>
     <div class="modal-cuerpo">
+      <!-- Tres tareas concretas y nombradas, no "ayuda en lo que sea": quien
+           lee esto quiere saber si puede servir, y para eso necesita ver una
+           tarea que reconozca como suya. Cada una dice qué es y qué cuesta. -->
       <div class="don">
-        <h3>En qué hace falta</h3>
-        <p><b>Verificar en terreno.</b> Los acopios salen de prensa y de lo que
-           reporta la gente; casi ninguno está confirmado. Llamar y confirmar si
-           siguen abiertos es lo más útil que se puede hacer hoy.<br>
-           <b>Datos.</b> Capas de barrios, censos, listados de albergues.<br>
-           <b>Difusión.</b> Que llegue a quien la necesita.<br>
-           <b>Código y diseño.</b> Es abierta y se puede revisar.</p>
-        <a class="btn btn-pri don-btn" href="mailto:hola@ricardoruiz.co?subject=Quiero%20colaborar%20con%20Reconstruyo%20Colombia">
-          Escribir a hola@ricardoruiz.co →</a>
+        <h3>Lo que más falta ahora</h3>
+        <p><b>Georreferenciar.</b> Poner en el mapa los sitios que llegan con
+           dirección pero sin coordenada. Es más fácil de lo que suena: se busca
+           la dirección, se confirma que el punto caiga donde debe y se guarda.
+           No hay que saber de mapas ni programar.<br>
+           <b>Actualizar los centros de acopio.</b> Salen de prensa y de lo que
+           reporta la gente, así que casi ninguno está confirmado. Llamar,
+           preguntar si siguen abiertos y qué están recibiendo es lo más útil
+           que se puede hacer hoy.<br>
+           <b>Armar el dataset de necesidades que circulan en redes.</b> Cada
+           día se publican pedidos de ayuda en X, Instagram y grupos de
+           WhatsApp que no llegan al mapa. Recogerlos, ordenarlos y mantenerlos
+           al día es lo que hace que aparezcan acá.</p>
+        <!-- ⚠️ El número es personal y queda público. Va a propósito: en una
+             emergencia, un correo que se responde en dos días no sirve. -->
+        <a class="btn btn-pri don-btn" target="_blank" rel="noopener noreferrer"
+           href="https://wa.me/573243036767?text=Hola%2C%20quiero%20ayudar%20con%20el%20mapa%20de%20Reconstruyo%20Colombia.">
+          Escribir por WhatsApp →</a>
+        <a class="btn don-btn" style="display:block; text-align:center; text-decoration:none; margin-top:.45rem"
+           href="mailto:hola@ricardoruiz.co?subject=Quiero%20colaborar%20con%20Reconstruyo%20Colombia">
+          O por correo: hola@ricardoruiz.co</a>
       </div>
       <p class="don-nota">
         Cuéntanos qué sabes hacer y cuánto tiempo tienes. No hace falta
         experiencia previa: buena parte del trabajo es llamar y confirmar.
+        También sirven capas de barrios, censos, listados de albergues, difundir
+        la página y revisar el código, que es abierto.
       </p>
       <button class="btn btn-pri" data-cerrar style="width:100%; margin-top:.6rem">Volver</button>
     </div>
