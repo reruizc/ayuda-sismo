@@ -27,6 +27,11 @@ import sys
 import urllib.error
 import urllib.request
 
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+
 API = 'https://rapidmapping.emergency.copernicus.eu/backend/dashboard-api/public-activations/'
 UA = {'User-Agent': 'MapaDeAyuda/1.0 (+https://reconstruyocolombia.com)'}
 

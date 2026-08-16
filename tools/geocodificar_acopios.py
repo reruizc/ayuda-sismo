@@ -41,6 +41,11 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+
 LIBRO = '1dj1fNYuwGMW0zLit4I6w_5abJGxuGVZttwA1QMbvQts'
 GID_PUBLICA = '0'
 

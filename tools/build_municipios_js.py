@@ -20,7 +20,13 @@ Correr:  python3 tools/ayuda-sismo/build_municipios_js.py
 """
 import json
 import os
+import sys
 import unicodedata
+
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 GEO = os.path.join(REPO, "ayuda-sismo", "public", "geo.json")

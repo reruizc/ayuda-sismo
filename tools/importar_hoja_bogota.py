@@ -32,6 +32,11 @@ import unicodedata
 import urllib.request
 from pathlib import Path
 
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+
 HOJA = '1-hMGwC0XaSu5ddZ896gYyVRpmbPkVYg3NJ_6rSxK4Y8'
 PESTANAS = {'voluntariado': '0', 'donaciones': '1994734491'}
 

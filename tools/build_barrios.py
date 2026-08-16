@@ -14,7 +14,13 @@ Correr:  python3 tools/ayuda-sismo/build_barrios.py
 """
 import json
 import os
+import sys
 import unicodedata
+
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 GEO = os.path.join(REPO, "Bases de datos", "output_pacto_1v_2026", "geo")
