@@ -542,18 +542,22 @@ npx wrangler pages deploy public --project-name=ayuda-sismo
 **5. Dominio propio**
 
 En el panel de Cloudflare → Workers & Pages → ayuda-sismo → Custom domains →
-agregar `sismo.ricardoruiz.co`. Cloudflare pide un CNAME; como el DNS de
-ricardoruiz.co está en **GoDaddy**, se crea allá:
+agregar `reconstruyocolombia.com` y `www.reconstruyocolombia.com`. El dominio
+está registrado en Hostinger pero sus nameservers ya apuntan a Cloudflare, así
+que el registro lo crea Cloudflare solo, sin tocar nada en Hostinger.
 
-```
-Tipo: CNAME    Nombre: sismo    Valor: ayuda-sismo.pages.dev
-```
+Al tomar la zona, Cloudflare copió los registros A del parking de Hostinger.
+Hay que borrar los de `@` y `www` antes de agregar el dominio propio, o seguirá
+sirviéndose la página de parking.
 
 **6. Turnstile**
 
-dash.cloudflare.com → Turnstile → añadir widget para `sismo.ricardoruiz.co`.
-La *site key* va en `CONFIG.TURNSTILE` de `index.html`; la *secret key* es el
-`TURNSTILE_SECRET` del paso 2.
+dash.cloudflare.com → Turnstile → el widget tiene que listar
+`reconstruyocolombia.com`, `www.reconstruyocolombia.com` y
+`ayuda-sismo.pages.dev` como hostnames permitidos. Si falta el dominio desde el
+que se sirve la página, el captcha no monta y los reportes entran marcados
+`sin_captcha`. La *site key* va en `CONFIG.TURNSTILE` de `index.html`; la
+*secret key* es el `TURNSTILE_SECRET` del paso 2.
 
 ## ⚠️ Por qué la página NO va en ricardoruiz.co directo
 
