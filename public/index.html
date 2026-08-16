@@ -1346,6 +1346,11 @@ const FAM = {
   rescate:    {n:'Rescate',      c:'#b4321e'},
   estructural:{n:'Estructural',  c:'#c2410c'},
   salud:      {n:'Salud',        c:'#be185d'},
+  /* Categoría propia y no un rincón de "Salud": quien ofrece acompañamiento
+     emocional no es intercambiable con quien lleva insulina, y quien lo
+     necesita tampoco se reconoce en "atención médica". Separarlas es lo que
+     permite que el filtro sirva para cruzar a unos con otros. */
+  psicologico:{n:'Apoyo psicológico', c:'#8b5cf6'},
   viveres:    {n:'Víveres',      c:'#b3730c'},
   refugio:    {n:'Alojamiento',  c:'#1b5fa8'},
   servicios:  {n:'Servicios',    c:'#0f766e'},
@@ -1377,6 +1382,8 @@ const SIT = {
     foto:1, sinPersonas:1, ej:'Ej.: Muro medianero agrietado, amenaza la casa de al lado'},
   'nec-servicios':  {g:'necesito', f:'servicios', n:'Sin agua, luz o señal',
     ej:'Ej.: La cuadra entera sin agua ni señal de celular'},
+  'nec-psicologico':{g:'necesito', f:'psicologico', n:'Apoyo psicológico',
+    ej:'Ej.: Mi hija de 8 años no duerme desde el temblor'},
   'nec-otro':       {g:'necesito', f:'otro', n:'Otra necesidad',
     ej:'Ej.: Describe en una línea qué está pasando'},
 
@@ -1390,6 +1397,8 @@ const SIT = {
     ej:'Ej.: Tenemos 40 mercados listos para entregar'},
   'ofr-salud':      {g:'ofrezco', f:'salud', n:'Ofrezco atención médica',
     ej:'Ej.: Soy enfermera, disponible en las tardes'},
+  'ofr-psicologico':{g:'ofrezco', f:'psicologico', n:'Ofrezco apoyo psicológico',
+    ej:'Ej.: Psicóloga, puedo acompañar a familias en las tardes'},
   'ofr-transporte': {g:'ofrezco', f:'transporte', n:'Ofrezco transporte o maquinaria',
     ej:'Ej.: Camioneta de estacas para mover donaciones'},
   'ofr-voluntario': {g:'ofrezco', f:'rescate', n:'Voluntario para remoción de escombros',
@@ -1455,7 +1464,7 @@ const INTENCIONES = [
   {k:'psicologico', ico:'🧠', n:'Quiero ayudar psicológicamente', img:'op-psicologico.jpg',
    col:'#7a2ea8', tint:'#f3e8fa',
    d:'Acompañamiento emocional a quien lo necesite',
-   accion:'form', sit:'ofr-salud', ctx:'Ofreciendo apoyo psicológico', acc:'Abrir el formulario',
+   accion:'form', sit:'ofr-psicologico', ctx:'Ofreciendo apoyo psicológico', acc:'Abrir el formulario',
    ph:'Ej.: Psicóloga con tarjeta profesional, puedo atender por llamada o en Pereira'},
 
   {k:'dar-transporte', ico:'🛻', n:'Puedo poner transporte', img:'op-dar-transporte.jpg',
@@ -1584,6 +1593,45 @@ const INTENCIONES = [
         det:'Solo puede desplazarse con ayuda.'},
        {n:'No puede moverse',    d:'Está postrada o incomunicada',
         det:'No puede desplazarse: hay que ir hasta donde está.', urg:'alta'},
+     ]},
+   ]},
+
+  /* El espejo de "quiero ayudar psicológicamente". Faltaba el lado de pedirlo,
+     que es el que más cuesta: nadie escribe "necesito un psicólogo" en un
+     formulario de emergencia si la página no le dice que eso también se pide
+     acá. Las opciones nombran lo que de verdad pasa —no dormir, un niño que no
+     habla, un duelo— porque quien está así no se reconoce en la palabra
+     "psicológico". */
+  {k:'apoyo-emocional', ico:'🧠', n:'Necesito apoyo psicológico', img:'op-apoyo-emocional.jpg',
+   col:'#8b5cf6', tint:'#f1ebfd',
+   d:'Para ti, para un niño o para toda la familia',
+   accion:'form', sit:'nec-psicologico', ctx:'Buscando apoyo psicológico',
+   acc:'Abrir el formulario',
+   ph:'Ej.: Mi hija de 8 años no duerme desde el temblor',
+   subs:[
+     { pregunta:'¿Para quién es?', opciones:[
+       {n:'Para mí', d:'Lo necesito yo', det:'Es para mí.'},
+       {n:'Para un niño o niña', d:'Alguien menor de edad',
+        det:'Es para un niño o niña.',
+        ph:'Ej.: Mi hija de 8 años no duerme y llora desde el temblor'},
+       {n:'Para un adulto mayor', d:'Alguien de la casa',
+        det:'Es para un adulto mayor.'},
+       {n:'Para toda la familia', d:'Varias personas', det:'Es para toda la familia.'},
+       {n:'Para una comunidad', d:'Un albergue, una vereda, un barrio',
+        det:'Es para una comunidad.',
+        ph:'Ej.: En el albergue somos 40 y nadie ha hablado con un psicólogo'},
+     ]},
+     { pregunta:'¿Qué está pasando?', opciones:[
+       {n:'Miedo o crisis de nervios', d:'Angustia, ataques de pánico',
+        det:'Hay miedo o crisis de nervios.'},
+       {n:'No puede dormir', d:'Desde el temblor o los incendios',
+        det:'No logra dormir.'},
+       {n:'Perdimos a alguien', d:'Un duelo reciente',
+        det:'Hay un duelo por la muerte de alguien cercano.', urg:'alta'},
+       {n:'Un niño cambió de comportamiento', d:'No habla, se orina, no se despega',
+        det:'Un menor cambió de comportamiento tras la emergencia.'},
+       {n:'Otra cosa', d:'Cuéntanos en una línea',
+        ph:'Ej.: Describe en una línea qué está pasando'},
      ]},
    ]},
 
@@ -1828,8 +1876,8 @@ const FAMILIAS = [
   {k:'necesito', ico:'🆘', n:'Necesito ayuda', img:'fam-necesito.jpg',
    col:'#b4321e', tint:'#fdeceb',
    d:'Víveres, salud, techo, transporte o buscar a alguien',
-   ops:['necesito', 'salud', 'alojamiento', 'transporte', 'pido-voluntarios',
-        'reconstruir', 'persona', 'mascota', 'rescate']},
+   ops:['necesito', 'salud', 'apoyo-emocional', 'alojamiento', 'transporte',
+        'pido-voluntarios', 'reconstruir', 'persona', 'mascota', 'rescate']},
 
   /* No pide ubicación ni abre formulario: es una invitación a sumarse al
      proyecto, no un reporte. Va de última porque quien llega en emergencia
@@ -4150,7 +4198,12 @@ async function enviarReporte(e){
     personas: Number.isInteger(personas) ? personas : null,
     lat: p.lat, lon: p.lng,
     contacto,
-    contacto_pub: $('#f-pub').checked,
+    /* ⚠️ Se vuelve a forzar acá, aunque la casilla esté escondida: esconder un
+       control no limpia su valor, y bastaría un cambio de situación mal
+       encadenado para mandar `true` en un caso sensible. El Worker lo fuerza a
+       0 igual (esa es la garantía de verdad), pero una sola línea de defensa
+       para el contacto de una familia que busca a alguien es muy poca. */
+    contacto_pub: !(SIT[sitSel] || {}).priv && $('#f-pub').checked,
     foto: (SIT[sitSel] && SIT[sitSel].foto && S.caps.fotos) ? fotoData : null,
     web: $('#f-web').value,
     dt: formAbiertoEn ? Date.now() - formAbiertoEn : null,
@@ -4767,8 +4820,18 @@ function tituloForm(){
   const t = $('#t-form');
   if (!t) return;
   const n = (SIT[sitSel] || {}).n;
-  t.textContent = n ? `Registrar ${n.charAt(0).toLowerCase()}${n.slice(1)}, en el mapa`
-                    : 'Registrar en el mapa';
+  if (!n) { t.textContent = 'Registrar en el mapa'; return; }
+  /* ⚠️ Varias situaciones ya empiezan por un verbo en primera persona
+     ("Ofrezco transporte…", "Busco a mi mascota", "Encontré una mascota").
+     Anteponerles "Registrar" producía "Registrar ofrezco transporte o
+     maquinaria, en el mapa". Con esas se usa la frase tal cual. */
+  // ⚠️ Se cierra con \s y no con \b: `\b` se apoya en \w, que es ASCII, así que
+  // "encontré\b" no casa —la tilde no cuenta como letra— y ese caso se colaba
+  // como "Registrar encontré una mascota".
+  const empiezaEnVerbo = /^(ofrezco|busco|encontré|encontre|necesito|puedo)\s/i.test(n);
+  t.textContent = empiezaEnVerbo
+    ? `${n}, en el mapa`
+    : `Registrar ${n.charAt(0).toLowerCase()}${n.slice(1)}, en el mapa`;
 }
 
 function fijarSituacion(fija){

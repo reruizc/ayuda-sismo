@@ -77,6 +77,10 @@ const SITUACIONES = {
   'nec-refugio':     { tipo:'necesito', cat:'refugio' },
   'nec-estructural': { tipo:'necesito', cat:'estructural',            foto:true },
   'nec-servicios':   { tipo:'necesito', cat:'servicios' },
+  // Categoría propia, no un rincón de 'salud': quien necesita acompañamiento
+  // emocional no se reconoce en "atención médica", y separarlas es lo que deja
+  // cruzar por el filtro a quien lo pide con quien lo ofrece.
+  'nec-psicologico': { tipo:'necesito', cat:'psicologico' },
   'nec-otro':        { tipo:'necesito', cat:'otro' },
 
   // Haber encontrado a una persona desorientada o herida NO admite foto:
@@ -87,6 +91,7 @@ const SITUACIONES = {
   'ofr-alojamiento': { tipo:'ofrezco',  cat:'refugio' },
   'ofr-viveres':     { tipo:'ofrezco',  cat:'viveres' },
   'ofr-salud':       { tipo:'ofrezco',  cat:'salud' },
+  'ofr-psicologico': { tipo:'ofrezco',  cat:'psicologico' },
   'ofr-transporte':  { tipo:'ofrezco',  cat:'transporte' },
   'ofr-voluntario':  { tipo:'ofrezco',  cat:'rescate' },
   'ofr-otro':        { tipo:'ofrezco',  cat:'otro' },
