@@ -735,7 +735,7 @@ if (/^#\/mi\//.test(location.hash) || /[?&]ir=/.test(location.search))
 </footer>
 
 <!-- ══════════ modal: reportar ══════════ -->
-<div class="velo" id="velo-form" hidden>
+<div class="velo" id="velo-form" data-vuelve="puerta" hidden>
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="t-form">
     <div class="modal-cab">
       <div>
@@ -954,7 +954,7 @@ if (/^#\/mi\//.test(location.hash) || /[?&]ir=/.test(location.search))
              de verdad quiera mirarlo. -->
         <button class="btn btn-pri" id="btn-ver-mio" style="width:100%; margin-top:.5rem">
           Ver mi reporte</button>
-        <button class="btn" data-cerrar style="width:100%; margin-top:.4rem">Ver el mapa</button>
+        <button class="btn" data-cerrar="mapa" style="width:100%; margin-top:.4rem">Ver el mapa</button>
         </div><!-- /exito-b -->
       </div>
     </div>
@@ -1079,7 +1079,7 @@ if (/^#\/mi\//.test(location.hash) || /[?&]ir=/.test(location.search))
 </div>
 
 <!-- ══════════ modal: registrar o corregir un acopio ══════════ -->
-<div class="velo" id="velo-acopio" hidden>
+<div class="velo" id="velo-acopio" data-vuelve="puerta" hidden>
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="t-acopio" style="max-width:540px">
     <div class="modal-cab">
       <div>
@@ -1158,7 +1158,19 @@ if (/^#\/mi\//.test(location.hash) || /[?&]ir=/.test(location.search))
           Queda publicado en el mapa como oferta y pasa a revisión antes de entrar
           a la lista oficial de acopios. Gracias.
         </p>
-        <button class="btn btn-pri" data-cerrar style="width:100%; margin-top:.6rem">Volver al mapa</button>
+        <!-- Se avisa acá y no con una alerta encima del mapa: la persona tiene
+             que poder leerlo con calma, y todavía está a tiempo de corregir. -->
+        <p class="nota" id="acopio-aprox" hidden style="text-align:left; margin:.6rem 0 0">
+          El punto quedó en el centro del municipio, no en la puerta del sitio,
+          porque no usaste la ubicación exacta. Quien vaya se guía por la
+          dirección que escribiste.
+        </p>
+        <!-- El primero lleva al punto recién registrado —ver dónde quedó es la
+             forma de comprobar que la dirección estaba bien—; el segundo vuelve
+             al menú, no al mapa suelto. -->
+        <button class="btn btn-pri" id="btn-ver-acopio" style="width:100%; margin-top:.6rem">
+          Ver el centro en el mapa</button>
+        <button class="btn" data-cerrar style="width:100%; margin-top:.4rem">Volver al inicio</button>
       </div>
     </div>
   </div>
@@ -3759,12 +3771,31 @@ function señalarSalida(velo){
 }
 
 /** Cierre pedido por la persona (equis, botón volver, Escape, atrás). */
-function cerrarConAviso(){
+/**
+ * Cierre pedido por la persona (equis, botón volver, Escape, atrás).
+ *
+ * ⚠️ Salir de un formulario devuelve al MENÚ, no al mapa. Cerrar dejaba a la
+ * vista un mapa de puntos que nadie pidió: quien abandona a medio llenar no
+ * quiere explorar el país, quiere volver a donde estaba y decidir otra cosa. El
+ * mapa sigue estando a un toque, y los botones que sí llevan a él lo dicen con
+ * todas las letras ("Ver el mapa", "Ver el centro en el mapa").
+ *
+ * @param destino 'puerta' | 'mapa'. Por defecto lo decide el velo que se cierra:
+ *                los de formulario vuelven al menú y el resto deja lo que haya
+ *                detrás, que es de donde se abrieron.
+ */
+function cerrarConAviso(destino){
   if (hayBorrador()
       && !confirm('¿Salir sin enviar?\n\nSe pierde lo que llevas escrito y no queda registrado.')) {
     return false;
   }
+  const velo = [...document.querySelectorAll('.velo')].find((v) => !v.hidden);
+  const esFormulario = !!(velo && velo.dataset.vuelve === 'puerta');
   cerrarTodo();
+  if (destino !== 'mapa' && esFormulario && $('#puerta').hidden) {
+    // A la familia por la que entró: el atrás deshace un paso, no dos.
+    abrirPuerta(false, (famDe((S.pt.i || {}).k) || {}).k);
+  }
   return true;
 }
 
@@ -4234,7 +4265,7 @@ async function enviarReporte(e){
  * La hoja la edita gente con práctica; este formulario existe para quien no
  * tiene por qué saber llenar trece columnas.
  */
-let acopioAbiertoEn = 0, acopioPunto = null;
+let acopioAbiertoEn = 0, acopioPunto = null, ultimoAcopio = null;
 
 function abrirAcopio(L){
   acopioAbiertoEn = Date.now();
@@ -4478,6 +4509,11 @@ async function enviarAcopio(e){
     if (!r.ok || !dd.ok) throw new Error(dd.error || 'no_ok');
     $('#form-acopio').hidden = true;
     $('#acopio-ok').hidden = false;
+    /* Se guarda dónde quedó para poder llevar a la persona hasta el punto. Si
+       no dio ubicación exacta, `punto` es el centro del municipio: por eso el
+       aviso, para que no crea que el pin está en la puerta del sitio. */
+    ultimoAcopio = {lat: punto[0], lon: punto[1], exacto: !!acopioPunto};
+    $('#acopio-aprox').hidden = !!acopioPunto;
     cargar();
   } catch (ex) {
     fallo(err, ex.message === 'demasiados_reportes'
@@ -4905,6 +4941,21 @@ async function iniciar(){
   $('#a-depto').addEventListener('change', alCambiarDeptoAcopio);
   $('#a-gps').addEventListener('click', ubicarAcopio);
   $('#form-acopio').addEventListener('submit', enviarAcopio);
+  /* Lleva al punto que se acaba de registrar. Ver dónde quedó es la forma de
+     comprobar que la dirección estaba bien —y de darse cuenta a tiempo si no—,
+     así que se avisa cuando el punto es el centro del municipio y no el sitio. */
+  $('#btn-ver-acopio').addEventListener('click', () => {
+    const a = ultimoAcopio;
+    cerrarConAviso('mapa');
+    if (!a) return;
+    // Sin animación y tras un respiro: el mapa estaba tapado y Leaflet necesita
+    // que le confirmen su tamaño antes de encuadrar.
+    setTimeout(() => {
+      mapa.invalidateSize();
+      mapa.setView([a.lat, a.lon], a.exacto ? 16 : 13, {animate:false});
+    }, 80);
+  });
+
   $('#btn-exito-sigue').addEventListener('click', () => {
     $('#exito-a').hidden = true;
     $('#exito-b').hidden = false;
@@ -4923,7 +4974,11 @@ async function iniciar(){
   document.addEventListener('click', (e) => {
     if (e.target.closest('[data-prensa-todo]')) { S.prensaSel = null; return pintar(); }
     if (e.target.closest('[data-cerrar-detalle]')) return cerrarDetalle();
-    if (e.target.closest('[data-cerrar]')) return cerrarConAviso();
+    // `data-cerrar="mapa"` es para los botones que de verdad llevan al mapa y
+    // lo dicen con todas las letras; el resto, si venía de un formulario, sale
+    // al menú.
+    const cerrar = e.target.closest('[data-cerrar]');
+    if (cerrar) return cerrarConAviso(cerrar.dataset.cerrar === 'mapa' ? 'mapa' : undefined);
     /* ⚠️⚠️ El clic en el FONDO no cierra nada, a propósito, y esto no se
        deshace: es la fuente de una clase entera de accidentes. Rozar el fondo
        tiraba a la basura un formulario a medio llenar, y en la ventana de
