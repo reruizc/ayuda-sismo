@@ -309,6 +309,7 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid v
    dónde antes de mostrarle todo evita que tenga que entender la interfaz
    completa —capas, filtros, 17 situaciones— para dar el primer paso. */
 .puerta{position:fixed; inset:0; z-index:1200; overflow-y:auto; -webkit-overflow-scrolling:touch;
+  display:flex;
   background:var(--trama), radial-gradient(120% 60% at 12% -10%, #fff 0%, var(--papel) 60%);
   background-color:var(--papel)}
 .puerta[hidden]{display:none}
@@ -319,7 +320,12 @@ html.sin-puerta .puerta{display:none}
    reservado para que destaparlo no dé un salto. La quita el propio JS al
    revelar la caja; `noscript` la anula por si el JS nunca corre. */
 html.entrando .pt-caja{visibility:hidden}
-.pt-caja{max-width:820px; margin:0 auto;
+/* ⚠️ `margin:auto` —no `align-items:center`— es lo que centra el menú en una
+   pantalla alta. Con `align-items:center`, cuando el contenido pasa del alto
+   de la ventana el navegador recorta por ARRIBA y esa parte queda inalcanzable
+   con el scroll; el margen automático empuja igual pero cede cuando ya no
+   sobra espacio, así que la lista larga de municipios sigue completa. */
+.pt-caja{max-width:820px; width:100%; margin:auto;
   padding:1.2rem 1rem calc(2rem + env(safe-area-inset-bottom));
   padding-top:calc(1.2rem + env(safe-area-inset-top))}
 /* Centrada: es una pregunta, no un encabezado de sección. El botón de salida
