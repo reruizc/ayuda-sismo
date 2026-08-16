@@ -2549,6 +2549,34 @@ function encabezadoPaso(){
     <b>${esc(I.n)}</b>${donde ? `<span style="color:var(--tenue)">${esc(donde)}</span>` : ''}`;
 }
 
+/**
+ * Qué se pregunta en el paso del lugar.
+ *
+ * ⚠️ "¿En qué lugar?" se lee distinto según a qué se entró. A quien va a DAR
+ * algo —donar, ser voluntario, poner transporte, ofrecer apoyo psicológico— se
+ * le entiende como "¿a dónde quieres que vaya tu ayuda?", que es la pregunta
+ * contraria: acá se pide desde dónde puede ayudar, para cruzarlo con lo que
+ * hay cerca. Por eso a toda la familia "quiero ayudar" se le pregunta por su
+ * ubicación, y el subtítulo lo dice sin rodeos.
+ *
+ * El acopio es el caso aparte de esa familia: lo que importa no es dónde está
+ * la persona que lo registra sino dónde queda el punto.
+ */
+function preguntaDeLugar(I){
+  if ((I || {}).accion === 'mapa') {
+    return {titulo:'¿En qué lugar?', sub:'Puedes ver el país entero o acercarte a una zona.'};
+  }
+  if ((I || {}).k === 'registrar' || (I || {}).accion === 'acopio') {
+    return {titulo:'¿En dónde queda el acopio?', sub:'El punto al que puede llegar la gente a dejar cosas.'};
+  }
+  const fam = famDe((I || {}).k);
+  if (fam && fam.k === 'ayudar') {
+    return {titulo:'¿En dónde estás ubicado?',
+            sub:'Tu ubicación, no la de quien recibe la ayuda. Sirve para cruzarla con lo que hay cerca.'};
+  }
+  return {titulo:'¿En qué lugar?', sub:'Sirve para enfocar el mapa en lo que te queda cerca.'};
+}
+
 function mostrarPaso(){
   armarHistorial();
   const I = S.pt.i, paso = (S.pt.pasos || [])[S.pt.idx || 0];
@@ -2557,10 +2585,9 @@ function mostrarPaso(){
   $('#pt-paso3').hidden = paso === 'lugar';
 
   if (paso === 'lugar') {
-    $('#pt-titulo').textContent = '¿En qué lugar?';
-    $('#pt-sub').textContent = (S.pt.i || {}).accion === 'mapa'
-      ? 'Puedes ver el país entero o acercarte a una zona.'
-      : 'Sirve para enfocar el mapa en lo que te queda cerca.';
+    const preg = preguntaDeLugar(I);
+    $('#pt-titulo').textContent = preg.titulo;
+    $('#pt-sub').textContent = preg.sub;
     // Dos caminos y nada más. La lista de 33 departamentos y el buscador
     // aparecen SOLO si elige el segundo: enseñarlo todo de una era volver a
     // poner un muro de nombres en la primera pantalla.

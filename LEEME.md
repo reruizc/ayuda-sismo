@@ -354,6 +354,25 @@ de R2 (10 GB-mes) — cero pesos. Se empezaría a pagar pasando de 10 GB, unas
 Lo que Cloudflare sí exige es una tarjeta registrada para habilitar R2, aunque
 todo el consumo quepa en lo gratis.
 
+## La pregunta del lugar cambia según a qué entraste
+
+⚠️ "¿En qué lugar?" se lee al revés cuando alguien va a DAR algo. Quien entra por
+donar, ser voluntario, poner transporte u ofrecer apoyo psicológico entiende
+"¿a dónde quieres que vaya tu ayuda?", que es la pregunta contraria: lo que se
+pide es desde dónde puede ayudar, para cruzarlo con lo que hay cerca.
+
+`preguntaDeLugar(I)` la resuelve por familia, no caso por caso, así que una
+opción nueva en "quiero ayudar" hereda el texto correcto sola:
+
+| Entrada | Pregunta |
+|---|---|
+| Familia **quiero ayudar** (donar, voluntario, psicológico, transporte, mascota hallada) | ¿En dónde estás ubicado? |
+| Registrar un acopio | ¿En dónde queda el acopio? |
+| Necesito ayuda · ver el mapa | ¿En qué lugar? |
+
+El acopio es la excepción dentro de su familia: ahí no importa dónde está quien
+lo registra sino dónde queda el punto al que va a llegar la gente.
+
 ## Terminar de llenar el formulario sin perderlo
 
 **⚠️⚠️ El clic en el FONDO no cierra ninguna ventana. Esto no se deshace.** Era
