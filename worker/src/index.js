@@ -546,7 +546,7 @@ async function verReportePrivado(id, url, env, origin) {
   }, 200, origin);
 }
 
-async function cambiarEstado(id, req, env, origin) {
+async function cambiarEstado(id, req, env, origin, ctx) {
   let b; try { b = await req.json(); } catch { return json({ error: 'json_invalido' }, 400, origin); }
   const estado = ESTADOS.has(b.estado) ? b.estado : null;
   if (!estado || estado === 'oculto') return json({ error: 'estado_invalido' }, 400, origin);
@@ -557,6 +557,19 @@ async function cambiarEstado(id, req, env, origin) {
 
   await env.DB.prepare('UPDATE reportes SET estado = ?, actualizado = ? WHERE id = ?')
     .bind(estado, Date.now(), id).run();
+
+  /* ⚠️ Se purga el snapshot igual que cuando modera un administrador. Sin esto,
+     una necesidad marcada como resuelta seguía en el mapa hasta un minuto, y en
+     una emergencia ese minuto manda a alguien a un sitio ya atendido —o deja
+     buscando a una persona que ya apareció—. Es la misma prioridad que moderar
+     algo grave: el dato viejo estorba. */
+  if (env.API_BASE && ctx) {
+    try {
+      ctx.waitUntil(caches.default.delete(new Request(`${env.API_BASE}/snapshot.json`)));
+    } catch (e) {
+      console.error('purga de cache fallida', e && e.message);
+    }
+  }
   return json({ ok: true, estado }, 200, origin);
 }
 
@@ -1021,7 +1034,7 @@ export default {
       if (mPriv && req.method === 'GET') return verReportePrivado(mPriv[1], url, env, origin);
 
       const mEstado = ruta.match(/^\/reporte\/([\w-]{4,40})\/estado$/);
-      if (mEstado && req.method === 'POST') return cambiarEstado(mEstado[1], req, env, origin);
+      if (mEstado && req.method === 'POST') return cambiarEstado(mEstado[1], req, env, origin, ctx);
 
       if (ruta.startsWith('/admin/')) {
         if (!guardAdmin(req, env)) return json({ error: 'no_autorizado' }, 401, origin);
