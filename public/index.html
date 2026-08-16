@@ -3,12 +3,24 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Mapa de ayuda · Sismo del 10 de agosto</title>
-<meta name="description" content="Mapa abierto para registrar y encontrar necesidades tras el sismo del 10 de agosto de 2026: personas desaparecidas, rescate, víveres, mascotas, refugio y salud en Cali, Pereira, Manizales, Armenia, Quibdó y sus municipios vecinos.">
+<!-- ⚠️ El título y la descripción son lo que se ve al pegar el enlace en
+     WhatsApp, que es como va a circular esto. Nombran los DOS hechos: decir
+     solo "sismo" dejaba por fuera a media Nariño, que está con los incendios y
+     no se reconocía en la tarjeta del enlace. -->
+<title>Reconstruyo Colombia · Mapa de ayuda por el sismo y los incendios</title>
+<meta name="description" content="Mapa abierto para pedir y ofrecer ayuda tras el sismo del 10 de agosto de 2026 en el Chocó y los incendios forestales de Nariño: personas desaparecidas, rescate, víveres, mascotas, refugio y salud, en cualquier municipio del país.">
 <meta name="theme-color" content="#b4321e">
-<meta property="og:title" content="Mapa de ayuda · Sismo del 10 de agosto">
-<meta property="og:description" content="Registra lo que necesitas o lo que puedes ofrecer, y mira el mapa de necesidades cerca de ti.">
+<meta property="og:site_name" content="Reconstruyo Colombia">
+<meta property="og:title" content="Reconstruyo Colombia · Mapa de ayuda">
+<meta property="og:description" content="Sismo del 10 de agosto en el Chocó e incendios forestales en Nariño. Registra lo que necesitas o lo que puedes ofrecer, y mira el mapa de necesidades cerca de ti.">
 <meta property="og:type" content="website">
+<meta property="og:locale" content="es_CO">
+<meta property="og:url" content="https://reconstruyocolombia.com/">
+<meta property="og:image" content="https://reconstruyocolombia.com/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Reconstruyo Colombia · mapa de ayuda">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://unpkg.com">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
@@ -289,14 +301,18 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid v
 /* Resumen de lo que quedó registrado y los pasos de "qué sigue". Van
    alineados a la izquierda dentro de una pantalla centrada: son para LEER, y
    una lista numerada centrada no se lee. */
-.exito-que{background:#f4f1ec; border-radius:var(--r); padding:.7rem .8rem; margin:.7rem 0;
-  text-align:left; font-size:.9rem}
-.exito-que b{display:block; margin-bottom:.15rem}
-.exito-que span{color:var(--tenue); font-size:.82rem}
-.exito-pasos{text-align:left; margin:.9rem 0 0}
-.exito-pasos h3{font-size:.9rem; margin-bottom:.4rem}
-.exito-pasos ol{margin:0; padding-left:1.15rem; font-size:.88rem; line-height:1.5}
-.exito-pasos li{margin-bottom:.35rem}
+/* Al partir la pantalla en dos cabe sin scroll, y eso permite subir el cuerpo
+   de .88 a 1rem: lo lee alguien nervioso, con una mano, en la calle. */
+.exito-que{background:#f4f1ec; border-radius:var(--r); padding:.8rem .9rem; margin:.8rem 0;
+  text-align:left; font-size:1rem}
+.exito-que b{display:block; margin-bottom:.2rem}
+.exito-que span{color:var(--tenue); font-size:.9rem}
+.exito-pasos{text-align:left; margin:1rem 0 0}
+.exito-pasos h3{font-size:1rem; margin-bottom:.5rem}
+.exito-pasos ol{margin:0; padding-left:1.2rem; font-size:1rem; line-height:1.55}
+.exito-pasos li{margin-bottom:.5rem}
+.exito .nota-priv{font-size:.95rem; line-height:1.5}
+.exito-guarda{color:var(--tenue); font-size:.95rem; margin:.3rem 0 0}
 .enlace{background:#f4f1ec; border-radius:var(--r); padding:.7rem; font-size:.78rem; word-break:break-all; margin:.7rem 0; font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 .pie{padding:1.1rem 1rem calc(1.4rem + env(safe-area-inset-bottom)); font-size:.8rem; color:var(--tenue); text-align:center; border-top:1px solid var(--linea); background:var(--tarjeta)}
 .leaflet-popup-content{margin:.7rem .9rem; font-size:.88rem}
@@ -884,22 +900,34 @@ if (/^#\/mi\//.test(location.hash) || /[?&]ir=/.test(location.search))
            omitir— dice también qué NO va a pasar, porque acá no se despacha
            ayuda y prometerlo sería lo más grave que podría hacer esta página. -->
       <div id="exito" hidden class="exito">
-        <div class="tick">✓</div>
-        <h2 style="margin:.4rem 0">Listo, quedó registrado</h2>
-        <div id="exito-que" class="exito-que"></div>
+        <!-- Va en dos tiempos: primero SOLO lo que la persona necesita saber
+             —quedó registrado, qué sigue y qué no va a pasar— y después el
+             enlace y los botones. Todo junto era una pantalla larga que había
+             que recorrer entera, y el aviso de que esto no despacha ayuda
+             quedaba enterrado a media bajada. Al partirla cabe sin scroll y la
+             letra puede ser más grande. -->
+        <div id="exito-a">
+          <div class="tick">✓</div>
+          <h2 style="margin:.4rem 0">Listo, quedó registrado</h2>
+          <div id="exito-que" class="exito-que"></div>
 
-        <div class="exito-pasos">
-          <h3>Qué pasa ahora</h3>
-          <ol id="exito-pasos"></ol>
+          <div class="exito-pasos">
+            <h3>Qué pasa ahora</h3>
+            <ol id="exito-pasos"></ol>
+          </div>
+
+          <div class="nota nota-priv" style="margin:.8rem 0">
+            <b>Esto no despacha ayuda ni es un canal oficial.</b> Es un mapa
+            ciudadano: sirve para que quien esté ayudando en tu zona sepa dónde ir.
+            Si hay vidas en riesgo, llama al <a href="tel:123">123</a>.
+          </div>
+
+          <button class="btn btn-pri" id="btn-exito-sigue"
+                  style="width:100%; padding:.75rem; font-size:1rem">Continuar →</button>
         </div>
 
-        <div class="nota nota-priv" style="margin:.7rem 0">
-          <b>Esto no despacha ayuda ni es un canal oficial.</b> Es un mapa
-          ciudadano: sirve para que quien esté ayudando en tu zona sepa dónde ir.
-          Si hay vidas en riesgo, llama al <a href="tel:123">123</a>.
-        </div>
-
-        <p style="color:var(--tenue); font-size:.9rem; margin:.3rem 0 0">
+        <div id="exito-b" hidden>
+        <p class="exito-guarda">
           Guarda este enlace privado. Con él ves los mensajes que te dejen y marcas la
           necesidad como resuelta. Nadie más lo tiene.
         </p>
@@ -919,6 +947,7 @@ if (/^#\/mi\//.test(location.hash) || /[?&]ir=/.test(location.search))
         <button class="btn btn-pri" id="btn-ver-mio" style="width:100%; margin-top:.5rem">
           Ver mi reporte</button>
         <button class="btn" data-cerrar style="width:100%; margin-top:.4rem">Ver el mapa</button>
+        </div><!-- /exito-b -->
       </div>
     </div>
   </div>
@@ -3546,6 +3575,22 @@ function irAFase(n, dir){
   $('#fase-cuenta').textContent = `Paso ${n} de ${FASES}`;
   const cuerpo = document.querySelector('#velo-form .modal-cuerpo');
   if (cuerpo) cuerpo.scrollTop = 0;
+
+  /* ⚠️ El minimapa nace en una fase OCULTA, así que Leaflet cachea un tamaño de
+     cero y al llegar a su paso pinta un rectángulo gris: los tiles solo
+     aparecían cuando la persona lo arrastraba y el gesto forzaba el recálculo.
+     Hay que avisarle cada vez que su fase se muestra, DESPUÉS de que el
+     navegador aplique la visibilidad — de ahí el setTimeout, que además va con
+     0 y no con requestAnimationFrame, que se congela con la pestaña oculta. */
+  const mini = document.querySelector('#mini');
+  if (miniMapa && mini && !mini.closest('.fase').hidden) {
+    setTimeout(() => {
+      miniMapa.invalidateSize();
+      // Tras redimensionar, el centro queda corrido: si ya hay punto marcado
+      // se vuelve a él para que no quede fuera de cuadro.
+      if (miniPin) miniMapa.setView(miniPin.getLatLng(), miniMapa.getZoom(), {animate:false});
+    }, 0);
+  }
 }
 
 /* Valida solo lo de la fase visible. El envío revalida todo: esto es para no
@@ -3915,11 +3960,20 @@ function ponerPin(lat, lon, zoom){
     miniPin = L.marker([lat, lon], {draggable:true}).addTo(miniMapa);
     miniPin.on('dragend', () => {
       const p = miniPin.getLatLng();
-      $('#ubi-est').textContent = `Punto marcado: ${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}`;
+      $('#ubi-est').textContent = textoPunto(p.lat, p.lng);
     });
   }
   miniMapa.setView([lat, lon], zoom || Math.max(miniMapa.getZoom(), 15));
-  $('#ubi-est').textContent = `Punto marcado: ${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+  $('#ubi-est').textContent = textoPunto(lat, lon);
+}
+
+/* Decía "Punto marcado: 5.26355, -75.50629" y no quedaba claro si eso ya había
+   quedado guardado o si faltaba confirmar algo. Dos coordenadas sueltas no le
+   dicen nada a nadie: lo que la persona necesita saber es que el punto ya está
+   tomado y que puede corregirlo arrastrando. */
+function textoPunto(lat, lon){
+  return `Listo, el punto quedó aquí (${lat.toFixed(5)}, ${lon.toFixed(5)}). `
+       + 'Puedes arrastrarlo si no cayó bien.';
 }
 
 async function armarDeptos(){
@@ -4141,6 +4195,9 @@ async function enviarReporte(e){
       `Mi reporte en el mapa de ayuda: ${titulo}\n\nEnlace privado para verlo y cerrarlo:\n${url}`);
     $('#form').hidden = true;
     $('#exito').hidden = false;
+    // Siempre arranca en la primera mitad, aunque se registre otra cosa después.
+    $('#exito-a').hidden = false;
+    $('#exito-b').hidden = true;
     cargar();
   } catch (ex) {
     fallo(err, ex.message === 'demasiados_reportes'
@@ -4836,6 +4893,12 @@ async function iniciar(){
   $('#a-depto').addEventListener('change', alCambiarDeptoAcopio);
   $('#a-gps').addEventListener('click', ubicarAcopio);
   $('#form-acopio').addEventListener('submit', enviarAcopio);
+  $('#btn-exito-sigue').addEventListener('click', () => {
+    $('#exito-a').hidden = true;
+    $('#exito-b').hidden = false;
+    const c = document.querySelector('#velo-form .modal-cuerpo');
+    if (c) c.scrollTop = 0;
+  });
   $('#form-corregir').addEventListener('submit', enviarCorreccion);
   $('#cr-tipo').addEventListener('click', (e) => {
     const b = e.target.closest('.grupo'); if (!b) return;
