@@ -208,8 +208,15 @@ a{color:var(--azul)}
 .etq-ofrezco{background:#e7f4ed; color:var(--verde)}
 .etq-busco{background:#f3e8fa; color:var(--morado)}
 .etq-ver{background:#e8f0fa; color:var(--azul)}
-.item h3{font-size:.95rem; margin-bottom:.15rem}
-.item p{margin:.2rem 0 0; font-size:.855rem; color:var(--tenue)}
+/* El título admite 140 caracteres y hay quien los usa. Se deja a tres líneas y
+   se corta con puntos suspensivos: sin esto, un título largo empujaba la
+   ubicación y la hora fuera de la tarjeta. `overflow-wrap:anywhere` es para el
+   caso de una palabra sin espacios —una URL pegada— que si no se sale del
+   recuadro. */
+.item h3{font-size:.95rem; margin-bottom:.15rem; overflow-wrap:anywhere;
+  display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden}
+.item p{margin:.2rem 0 0; font-size:.855rem; color:var(--tenue); overflow-wrap:anywhere;
+  display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden}
 .item .meta{font-size:.78rem; color:var(--tenue); margin-top:.35rem}
 .vacio{padding:2.5rem 1.5rem; text-align:center; color:var(--tenue); font-size:.9rem}
 
@@ -315,8 +322,12 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid v
 .exito-guarda{color:var(--tenue); font-size:.95rem; margin:.3rem 0 0}
 .enlace{background:#f4f1ec; border-radius:var(--r); padding:.7rem; font-size:.78rem; word-break:break-all; margin:.7rem 0; font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 .pie{padding:1.1rem 1rem calc(1.4rem + env(safe-area-inset-bottom)); font-size:.8rem; color:var(--tenue); text-align:center; border-top:1px solid var(--linea); background:var(--tarjeta)}
-.leaflet-popup-content{margin:.7rem .9rem; font-size:.88rem}
-.leaflet-popup-content h3{font-size:.95rem; margin-bottom:.3rem}
+/* Tope de alto con scroll propio: el globo crecía hasta tapar el mapa entero y
+   dejaba los botones de abajo fuera de la pantalla, que es justo donde está
+   "Ver detalle". */
+.leaflet-popup-content{margin:.7rem .9rem; font-size:.88rem;
+  max-height:min(58vh, 420px); overflow-y:auto; overflow-wrap:anywhere}
+.leaflet-popup-content h3{font-size:.95rem; margin-bottom:.3rem; overflow-wrap:anywhere}
 .pop-foto{width:100%; max-height:170px; object-fit:cover; border-radius:8px; margin:.4rem 0}
 .pop-acc{display:flex; gap:.4rem; margin-top:.6rem; flex-wrap:wrap}
 
@@ -2002,6 +2013,24 @@ function hace(ts){
 }
 const urlFoto = (k) => `${CONFIG.API}/${k}`;
 
+/**
+ * Recorta en frontera de palabra, sin partir la última por la mitad.
+ *
+ * El detalle admite 1.000 caracteres y hay quien los usa: en el globo del mapa
+ * salía completo y lo volvía una columna altísima que tapaba media pantalla, y
+ * en la tarjeta se cortaba en seco a mitad de palabra. Acá se recorta para
+ * ojear; el texto íntegro está a un toque, en la ficha.
+ */
+function recorte(txt, max){
+  const s = String(txt || '').replace(/\s+/g, ' ').trim();
+  if (s.length <= max) return s;
+  const corte = s.slice(0, max);
+  const esp = corte.lastIndexOf(' ');
+  // Si la última palabra es larguísima (una URL pegada) no hay espacio útil:
+  // ahí se corta seco, que es mejor que devolver una línea casi vacía.
+  return (esp > max * 0.6 ? corte.slice(0, esp) : corte).replace(/[.,;:\s]+$/, '') + '…';
+}
+
 /* ══════════════════════════════ mapa ══════════════════════════════ */
 const mapa = L.map('mapa', {preferCanvas:true}).setView([4.6, -75.9], 7);
 // Base clara (Positron) en vez de Voyager: sigue siendo OpenStreetMap, pero
@@ -2515,7 +2544,7 @@ function popupHTMLCompleto(r){
       · ${esc(URG[r.u] || '')}
     </div>
     ${r.fo ? `<img class="pop-foto" src="${esc(urlFoto(r.fo))}" alt="" loading="lazy">` : ''}
-    ${r.d ? `<p style="margin:.3rem 0">${esc(r.d)}</p>` : ''}
+    ${r.d ? `<p style="margin:.3rem 0">${esc(recorte(r.d, 180))}</p>` : ''}
     <div style="font-size:.78rem;color:#5d574e">
       ${esc([r.b, r.mu, r.dp].filter(Boolean).join(', '))} · ${hace(r.t)}
       ${r.n ? ` · ${r.n} persona${r.n === 1 ? '' : 's'}` : ''}
@@ -3292,7 +3321,7 @@ function pintar(){
           ${r.v ? '<span class="etq etq-ver">Verificado</span>' : ''}
         </div>
         <h3>${esc(r.ti)}</h3>
-        ${r.d ? `<p>${esc(r.d.slice(0, 140))}${r.d.length > 140 ? '…' : ''}</p>` : ''}
+        ${r.d ? `<p>${esc(recorte(r.d, 140))}</p>` : ''}
         <div class="meta">${esc([r.b, r.mu].filter(Boolean).join(', ') || r.dp || 'Sin ubicación')} · ${hace(r.t)}</div>
       </div>
     </article>`;
