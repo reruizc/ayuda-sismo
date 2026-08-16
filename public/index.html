@@ -368,6 +368,14 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid v
 }
 .pt-volver:hover{background:#9c2b1a}
 
+.fase-pie{margin-top:1rem; text-align:center}
+.fase-cuenta{margin:0 0 .5rem; font-size:.8rem; color:var(--tenue)}
+.fase-btn{width:100%; padding:.75rem; font-size:1rem}
+.fase-pie .pt-volver{margin:.6rem auto 0; background:none; color:var(--tenue);
+  font-family:inherit; font-weight:600; font-size:.85rem; box-shadow:none;
+  min-height:0; padding:.4rem .8rem}
+.fase-pie .pt-volver:hover{background:none; color:var(--tinta)}
+
 /* Ventana de donaciones */
 .don{border:1px solid var(--linea); border-radius:var(--r); padding:.85rem .9rem; margin-bottom:.7rem}
 .don h3{margin:0 0 .2rem; font-family:var(--titulo); font-size:1rem}
@@ -640,6 +648,14 @@ body.con-ctx .cuerpo{height:calc(100dvh - 196px)}
         <div id="resto" hidden>
           <div class="nota nota-priv" id="nota-priv" hidden></div>
 
+          <!-- ⚠️⚠️ El formulario va POR FASES, no de corrido.
+               Todo el flujo pregunta una cosa por pantalla y al final abría un
+               formulario con doce campos de golpe: la persona que ya contestó
+               cinco preguntas de a una se encontraba con el muro que el resto
+               del diseño evita. Cada fase pide como mucho dos cosas.
+               `#f-enviar` sigue validando TODO al final: las fases guían, no
+               reemplazan la validación. -->
+          <div class="fase" data-fase="1">
           <div class="campo">
             <label for="f-titulo">En una línea, ¿qué pasa?</label>
             <input type="text" id="f-titulo" maxlength="140">
@@ -662,13 +678,25 @@ body.con-ctx .cuerpo{height:calc(100dvh - 196px)}
             <p class="ayuda" id="foto-est">Se reduce en tu teléfono antes de subirla y se le quitan los datos de ubicación.</p>
           </div>
 
+          </div><!-- /fase 1 -->
+
+          <div class="fase" data-fase="2" hidden>
           <div class="rejilla">
             <div class="campo" id="campo-urgencia">
               <label for="f-urgencia">Urgencia</label>
+              <!-- ⚠️ Cuatro niveles y no tres. "Ahora mismo" se queda arriba
+                   porque es lo que separa a alguien atrapado bajo una placa de
+                   alguien que necesita tejas esta semana; sin ese escalón, el
+                   nivel más alto pasaría a significar "en días" y un rescate
+                   quedaría marcado igual que una reparación.
+                   Los valores internos NO cambian de orden: inmediata > alta >
+                   media > baja, y `alta` sigue siendo lo que proponen las
+                   respuestas del flujo (hay niños, hay un adulto mayor). -->
               <select id="f-urgencia">
-                <option value="alta">Alta · hay riesgo ahora</option>
-                <option value="media" selected>Media · en el día</option>
-                <option value="baja">Baja · puede esperar</option>
+                <option value="inmediata">Ahora mismo · hay riesgo de vida</option>
+                <option value="alta">En días</option>
+                <option value="media" selected>Esta semana</option>
+                <option value="baja">Este mes</option>
               </select>
             </div>
             <div class="campo" id="campo-personas">
@@ -677,6 +705,9 @@ body.con-ctx .cuerpo{height:calc(100dvh - 196px)}
             </div>
           </div>
 
+          </div><!-- /fase 2 -->
+
+          <div class="fase" data-fase="3" hidden>
           <div class="campo">
             <label>¿Dónde?</label>
             <div class="ubi-acc">
@@ -696,6 +727,9 @@ body.con-ctx .cuerpo{height:calc(100dvh - 196px)}
             <p class="ubi-est" id="ubi-est">Elige el municipio o toca el mapa para marcar el punto exacto.</p>
           </div>
 
+          </div><!-- /fase 3 -->
+
+          <div class="fase" data-fase="4" hidden>
           <div class="campo">
             <label for="f-contacto">Tu contacto</label>
             <input type="text" id="f-contacto" maxlength="120" placeholder="Celular o correo">
@@ -726,6 +760,13 @@ body.con-ctx .cuerpo{height:calc(100dvh - 196px)}
                   style="width:100%; padding:.75rem; margin-top:.5rem; font-size:1rem">
             Publicar en el mapa
           </button>
+          </div><!-- /fase 4 -->
+
+          <div class="fase-pie">
+            <p class="fase-cuenta" id="fase-cuenta"></p>
+            <button type="button" class="btn btn-pri fase-btn" id="fase-sig">Siguiente →</button>
+            <button type="button" class="pt-volver" id="fase-atras">← Atrás</button>
+          </div>
         </div>
       </form>
 
@@ -738,6 +779,14 @@ body.con-ctx .cuerpo{height:calc(100dvh - 196px)}
         </p>
         <div class="enlace" id="mi-enlace"></div>
         <button class="btn" id="btn-copiar" style="width:100%">Copiar enlace</button>
+        <!-- ⚠️ NO manda nada por WhatsApp desde el servidor: abre la app con el
+             texto listo para que la persona se lo mande a quien quiera —a sí
+             misma, normalmente—. Enviar de verdad exigiría un proveedor con
+             plantillas aprobadas y costo por conversación; esto es gratis y
+             resuelve el mismo problema, que es no perder el enlace. -->
+        <a class="btn" id="btn-wa" style="width:100%; display:block; text-align:center;
+           text-decoration:none; margin-top:.4rem" target="_blank" rel="noopener noreferrer">
+          Enviármelo por WhatsApp</a>
         <button class="btn btn-pri" data-cerrar style="width:100%; margin-top:.5rem">Volver al mapa</button>
       </div>
     </div>
@@ -969,12 +1018,12 @@ const SIT = {
      invitaba además a una respuesta imposible: nadie va a marcar "baja" para
      su papá desaparecido, así que la pregunta solo servía para hacer dudar. */
   'busco-persona':  {g:'busco', f:'persona', n:'Busco a una persona desaparecida',
-    priv:1, foto:1, urgFija:'alta',
+    priv:1, foto:1, urgFija:'inmediata',
     ej:'Ej.: Buscamos a Jorge Pineda, 71 años, salió el lunes y no volvió'},
   'busco-mascota':  {g:'busco', f:'mascota', n:'Busco a mi mascota',
     foto:1, sinPersonas:1, ej:'Ej.: Perro criollo café, collar rojo, se perdió al evacuar'},
 
-  'nec-rescate':    {g:'necesito', f:'rescate', urgFija:'alta', n:'Personas atrapadas o remoción de escombros',
+  'nec-rescate':    {g:'necesito', f:'rescate', urgFija:'inmediata', n:'Personas atrapadas o remoción de escombros',
     ej:'Ej.: Vecinos escuchan voces bajo la placa caída del segundo piso'},
   'nec-viveres':    {g:'necesito', f:'viveres', n:'Víveres, agua o ropa',
     ej:'Ej.: Familia de 5 sin agua ni comida desde el lunes'},
@@ -990,7 +1039,7 @@ const SIT = {
     ej:'Ej.: Describe en una línea qué está pasando'},
 
   'ofr-persona':    {g:'ofrezco', f:'persona', n:'Encontré a una persona desorientada o sin identificar',
-    priv:1, sinPersonas:1, urgFija:'alta', ej:'Ej.: Señor mayor sin documentos en el puesto de salud, no recuerda su dirección'},
+    priv:1, sinPersonas:1, urgFija:'inmediata', ej:'Ej.: Señor mayor sin documentos en el puesto de salud, no recuerda su dirección'},
   'ofr-mascota':    {g:'ofrezco', f:'mascota', n:'Encontré una mascota',
     foto:1, sinPersonas:1, ej:'Ej.: Gato gris con collar azul, lo tengo en mi casa'},
   'ofr-alojamiento':{g:'ofrezco', f:'refugio', n:'Ofrezco alojamiento',
@@ -1426,6 +1475,11 @@ const famDe = (k) => FAMILIAS.find((f) => f.ops.includes(k)) || null;
 
 /* Los dos caminos para decir dónde. Llevan imagen como las demás tarjetas:
    mientras el archivo no exista queda el emoji sobre su color. */
+/* Lo que cuenta como "urgente" en el mapa. Es un conjunto y no una
+   comparación con 'alta' porque al agregar "Ahora mismo" habría que acordarse
+   de tocar tres sitios: el radio del pin, el contador y la etiqueta. */
+const URG_ALTA = new Set(['inmediata', 'alta']);
+
 const OPCIONES_LUGAR = [
   {k:'gps', ico:'📍', img:'op-ubicacion.jpg', col:'#b4321e', tint:'#fdeceb',
    n:'Usar mi ubicación', d:'La tomamos del teléfono, no se publica'},
@@ -1880,7 +1934,7 @@ function dibujarMapa(items){
   items.forEach((r) => {
     const col = (FAM[r.c] || FAM.otro).c;
     const m = L.circleMarker([r.la, r.lo], {
-      radius: r.u === 'alta' ? 9 : 7,
+      radius: URG_ALTA.has(r.u) ? 9 : 7,
       color:'#fff', weight:2, fillColor:col,
       // Lo que se ofrece va translúcido: de un vistazo se separa la demanda
       // (sólido) de la oferta (tenue) sin necesidad de leer la leyenda.
@@ -2658,7 +2712,7 @@ function pintar(){
   if (S.listaModo === 'voluntario') return listaVoluntario();
   if (S.listaModo === 'prensa') return listaPrensa();
 
-  const urg = vis.filter((r) => r.u === 'alta' && r.p !== 'ofrezco').length;
+  const urg = vis.filter((r) => URG_ALTA.has(r.u) && r.p !== 'ofrezco').length;
   const ofr = vis.filter((r) => r.p === 'ofrezco').length;
   $('#conteo').textContent = vis.length
     ? `${vis.length} reporte${vis.length === 1 ? '' : 's'}`
@@ -2684,7 +2738,7 @@ function pintar(){
         <div class="item-top">
           <span class="punto" style="background:${fam.c}"></span>
           <span class="etq">${esc(s.n || fam.n)}</span>
-          ${r.u === 'alta' && r.p !== 'ofrezco' ? '<span class="etq etq-alta">Urgente</span>' : ''}
+          ${URG_ALTA.has(r.u) && r.p !== 'ofrezco' ? '<span class="etq etq-alta">Urgente</span>' : ''}
           ${r.p === 'ofrezco' ? '<span class="etq etq-ofrezco">Ofrece</span>' : ''}
           ${r.p === 'busco' ? '<span class="etq etq-busco">Busca</span>' : ''}
           ${r.v ? '<span class="etq etq-ver">Verificado</span>' : ''}
@@ -2975,6 +3029,50 @@ let urgAuto = '';
    nunca del de dar por vigente una cuenta que ya venció. */
 const DON_VIGENCIA = new Date('2026-08-30T23:59:59-05:00');
 
+/* ─────────────── el formulario, por fases ───────────────
+ *
+ * ⚠️ Una fase cuyos campos estén TODOS ocultos se salta sola. `aplicarSituacion`
+ * esconde urgencia (cuando la situación ya es la urgencia) y "cuántas personas"
+ * (mascotas, acopios): sin esto, un reporte de persona desaparecida mostraba una
+ * fase vacía con un "Siguiente" y nada que contestar.
+ */
+let faseAct = 1;
+const FASES = 4;
+
+function faseVacia(n){
+  const cont = document.querySelector(`.fase[data-fase="${n}"]`);
+  if (!cont) return true;
+  return ![...cont.querySelectorAll('.campo')].some((c) => c.offsetParent !== null
+    || (!c.hidden && getComputedStyle(c).display !== 'none'));
+}
+
+function irAFase(n, dir){
+  // Saltar las vacías en la dirección en que se venía moviendo.
+  let d = dir || (n > faseAct ? 1 : -1);
+  while (n >= 1 && n <= FASES && faseVacia(n)) n += d;
+  if (n < 1) n = 1;
+  if (n > FASES) n = FASES;
+  faseAct = n;
+  document.querySelectorAll('.fase').forEach((f) =>
+    (f.hidden = Number(f.dataset.fase) !== n));
+  const ultima = n === FASES;
+  $('#fase-sig').hidden = ultima;
+  $('#fase-atras').hidden = n === 1;
+  $('#fase-cuenta').textContent = `Paso ${n} de ${FASES}`;
+  const cuerpo = document.querySelector('#velo-form .modal-cuerpo');
+  if (cuerpo) cuerpo.scrollTop = 0;
+}
+
+/* Valida solo lo de la fase visible. El envío revalida todo: esto es para no
+   dejar avanzar sin lo mínimo, no para reemplazar la comprobación final. */
+function faseValida(n){
+  const err = $('#form-error');
+  if (n === 1 && !$('#f-titulo').value.trim())
+    return fallo(err, 'Escribe en una línea qué pasa.'), false;
+  err.hidden = true;
+  return true;
+}
+
 function abrirDonar(){
   const el = $('#don-vigencia');
   const vencida = Date.now() > DON_VIGENCIA.getTime();
@@ -3162,6 +3260,10 @@ function aplicarSituacion(){
   $('#campo-urgencia').style.display = s.urgFija ? 'none' : '';
   if (s.urgFija) { $('#f-urgencia').value = s.urgFija; urgAuto = s.urgFija; }
   $('#aviso-mask').hidden = $('#f-pub').checked;
+
+  // Se recalcula al final: `faseVacia` depende de lo que esta función acaba de
+  // esconder, así que arrancar antes mostraría una fase que ya no tiene campos.
+  irAFase(1, 1);
 
   iniciarMini();
 }
@@ -3416,6 +3518,11 @@ async function enviarReporte(e){
       navigator.clipboard?.writeText(url);
       $('#btn-copiar').textContent = 'Copiado ✓';
     };
+    /* `wa.me` sin número abre WhatsApp y deja elegir el chat: casi todo el
+       mundo se lo manda a "Mensajes contigo mismo". El enlace va aparte del
+       texto para que no se pegue a la puntuación y quede inservible. */
+    $('#btn-wa').href = 'https://wa.me/?text=' + encodeURIComponent(
+      `Mi reporte en el mapa de ayuda: ${titulo}\n\nEnlace privado para verlo y cerrarlo:\n${url}`);
     $('#form').hidden = true;
     $('#exito').hidden = false;
     cargar();
@@ -3889,6 +3996,11 @@ async function iniciar(){
     $(s).addEventListener('click', (e) => {
       if (e.target.closest('[data-pt-atras]')) atrasPaso();
     }));
+  $('#fase-sig').addEventListener('click', () => {
+    if (faseValida(faseAct)) irAFase(faseAct + 1, 1);
+  });
+  $('#fase-atras').addEventListener('click', () => irAFase(faseAct - 1, -1));
+
   $('#pt-q').addEventListener('input', (e) => pintarNivel(e.target.value));
   $('#pt-dispo').addEventListener('click', (e) => {
     const lu = e.target.closest('[data-lugar]');

@@ -84,7 +84,12 @@ const SITUACIONES = {
   'ofr-otro':        { tipo:'ofrezco',  cat:'otro' },
 };
 
-const URGENCIAS = new Set(['alta', 'media', 'baja']);
+/* ⚠️ 'inmediata' es el nivel nuevo, por encima de 'alta'. El orden importa:
+   inmediata > alta > media > baja. Los reportes viejos siguen en su nivel y
+   no hay que migrar nada; lo que NO puede pasar es que el Worker rechace el
+   valor nuevo y lo degrade a 'media' en silencio —un rescate quedaría
+   archivado como algo que puede esperar una semana—. */
+const URGENCIAS = new Set(['inmediata', 'alta', 'media', 'baja']);
 const ESTADOS = new Set(['activo', 'resuelto', 'oculto']);
 
 const LIMITES = { reportesPorHora: 5, mensajesPorHora: 20, abusosPorHora: 30 };
