@@ -4128,6 +4128,10 @@ async function enviarReporte(e){
      reto no alcanzó a resolverse. */
   cuerpo.tsdiag = [
     'cfg=' + (CONFIG.TURNSTILE ? 'si' : 'no'),
+    // Sin esto no se distingue "un bloqueador tumbó el script" de "el script
+    // llegó y la API no arrancó", que se arreglan de formas distintas.
+    'script=' + (window._tsScript || '?'),
+    'sondeos=' + (window._tsIntentos || 0),
     'api=' + (window.turnstile ? (typeof window.turnstile.render === 'function' ? 'lista' : 'vacia') : 'ausente'),
     'montado=' + tsMontado,
     'id=' + (tsId === null ? 'null' : String(tsId)),
@@ -4979,12 +4983,30 @@ async function iniciar(){
      inicializa aparte. Hay que usar el callback explícito documentado. */
   if (CONFIG.TURNSTILE && !window._tsCargando) {
     window._tsCargando = true;
-    window.onloadTurnstileCallback = montarTurnstile;
+    window._tsScript = 'pendiente';
+    window.onloadTurnstileCallback = () => { window._tsScript = 'callback'; montarTurnstile(); };
     const s = document.createElement('script');
     s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js'
           + '?onload=onloadTurnstileCallback&render=explicit';
     s.async = true; s.defer = true;
+    /* ⚠️ El callback `onload=` de la URL NO siempre dispara: se vio en
+       producción que el script se descarga y aun así `window.turnstile` queda
+       como objeto vacío, sin `render`, así que el widget nunca montaba y TODOS
+       los reportes entraban marcados `sin_captcha`. Por eso, además del
+       callback, se sondea: en cuanto la API aparezca se monta igual. Es la
+       diferencia entre depender de que Cloudflare llame de vuelta y comprobarlo
+       nosotros. */
+    s.onload = () => { if (window._tsScript === 'pendiente') window._tsScript = 'descargado'; };
+    s.onerror = () => { window._tsScript = 'error-de-red'; };
     document.head.appendChild(s);
+
+    let intentos = 0;
+    const reloj = setInterval(() => {
+      intentos++;
+      window._tsIntentos = intentos;
+      montarTurnstile();
+      if (tsMontado || intentos >= 40) clearInterval(reloj);   // 40 × 250 ms = 10 s
+    }, 250);
   }
 }
 
