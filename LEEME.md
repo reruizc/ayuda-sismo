@@ -654,6 +654,23 @@ que se sirve la página, el captcha no monta y los reportes entran marcados
 `sin_captcha`. La *site key* va en `CONFIG.TURNSTILE` de `index.html`; la
 *secret key* es el `TURNSTILE_SECRET` del paso 2.
 
+⚠️⚠️ **El contenedor del widget NO puede llamarse `id="turnstile"`.** Un
+elemento con `id` se expone como propiedad global del `window`, así que ese div
+hacía que `"turnstile" in window` fuera cierto ANTES de que corriera `api.js`;
+el script lo leía como una carga repetida —el aviso *"Turnstile already has
+been loaded"* en consola—, abortaba y nunca dejaba su API. Resultado: el widget
+no montaba jamás y TODOS los reportes entraban `sin_captcha`, **sin un solo
+error visible**, porque el captcha es fail-soft a propósito. Los contenedores se
+llaman `ts-widget` y `ts-widget-c`; no volver a nombrarlos como el producto.
+
+Cómo se encontró, por si reaparece algo parecido: una página HTML mínima con
+solo el script montaba en 23 ms, y el fallo se repetía igual en localhost, en
+`pages.dev` y en el dominio propio — o sea que no era el hostname, ni el
+navegador, ni el proxy de Cloudflare, sino el propio HTML. El diagnóstico que
+viaja en cada envío (`tsdiag`, se guarda en `externos` bajo `diag-turnstile`)
+distingue las cuatro causas: script bloqueado, script sin callback, API que no
+inicializa y reto que no resuelve.
+
 ## ⚠️ Por qué la página NO va en ricardoruiz.co directo
 
 `ricardoruiz.co` está servido por **GitHub Pages**, que tiene un límite blando
