@@ -1156,9 +1156,29 @@ const SIT = {
  * quien viene a donar casi siempre termina queriendo publicar lo que tiene.
  */
 const INTENCIONES = [
+  /* ⚠️ Preguntar QUÉ antes de DÓNDE. Un acopio que pide colchonetas no le
+     sirve a quien lleva comida para perros: mandarlo allá le hace perder el
+     viaje a la persona y le llega al acopio algo que no puede usar. Las
+     categorías salen del vocabulario REAL de la hoja —colchonetas 73, agua 64,
+     comida 50, pañales 49, comida para animales 41— no de lo que uno imagina
+     que se dona. "Varias cosas" va de primera porque es el caso más común y
+     no filtra nada. */
   {k:'donar', ico:'📦', n:'Quiero donar cosas', img:'op-donar.jpg',
    col:'#b3730c', tint:'#faf0dd',
    d:'Dónde entregar mercados, ropa o agua',
+   subs:[{ pregunta:'¿Qué puedes donar?', opciones:[
+     {n:'Varias cosas',        d:'Un poco de todo, o todavía no lo decido'},
+     {n:'Alimentos y agua',    d:'Mercado, enlatados, agua embotellada', nec:'alimentos',
+      det:'Puedo donar alimentos y agua.'},
+     {n:'Aseo y salud',        d:'Pañales, jabón, toallas, botiquín', nec:'aseo',
+      det:'Puedo donar elementos de aseo y salud.'},
+     {n:'Cobijas y colchonetas', d:'Ropa de cama, carpas, abrigo', nec:'abrigo',
+      det:'Puedo donar cobijas, colchonetas o carpas.'},
+     {n:'Comida para animales', d:'Concentrado para perros o gatos', nec:'animales',
+      det:'Puedo donar comida para animales.'},
+     {n:'Herramienta',         d:'Palas, picas, guantes, linternas', nec:'herramienta',
+      det:'Puedo donar herramienta.'},
+   ]}],
    accion:'acopios', ctx:'Dónde entregar donaciones', acc:'Publicar lo que ofrezco', accSit:'ofr-viveres'},
 
   /* Donar PLATA, aparte de donar cosas: son dos decisiones distintas y quien
@@ -1582,6 +1602,30 @@ const famDe = (k) => FAMILIAS.find((f) => f.ops.includes(k)) || null;
    comparación con 'alta' porque al agregar "Ahora mismo" habría que acordarse
    de tocar tres sitios: el radio del pin, el contador y la etiqueta. */
 const URG_ALTA = new Set(['inmediata', 'alta']);
+
+/* Cada categoría lista los términos tal como aparecen en la columna NECESIDAD
+   de la hoja. Se acepta coincidencia parcial porque la hoja escribe libre
+   ("alimentos no perecederos", "agua", "AGUA EMBOTELLADA"). */
+const NECESIDADES = {
+  alimentos:   ['aliment', 'comida', 'mercado', 'agua', 'enlatad', 'arroz', 'panela',
+                'electrolito', 'no perecedero', 'bebida'],
+  aseo:        ['aseo', 'pañal', 'panal', 'jabon', 'toalla', 'papel', 'botiqu',
+                'medicament', 'higiene', 'tapabocas', 'crema dental', 'cepillo'],
+  abrigo:      ['colchonet', 'cobija', 'carpa', 'sabana', 'almohada', 'ropa',
+                'abrigo', 'frazada', 'toldillo'],
+  animales:    ['animal', 'mascota', 'concentrado', 'perro', 'gato'],
+  herramienta: ['pala', 'pica', 'guante', 'linterna', 'balde', 'costal', 'cinta',
+                'herramient', 'gafas', 'porra', 'barra', 'segueta', 'casco', 'bota'],
+};
+/* ⚠️ Un acopio SIN necesidad declarada no se descarta: 50 de 205 no la tienen y
+   esconderlos mandaría a la gente lejos por un dato que falta, no por un "no".
+   Se marcan aparte y van después de los que sí coinciden. */
+const pideEsto = (a, cat) => {
+  if (!cat || !NECESIDADES[cat]) return true;
+  const t = norm(a.ne || '');
+  if (!t || t === 'sin dato') return null;          // no se sabe
+  return NECESIDADES[cat].some((k) => t.includes(k));
+};
 
 const OPCIONES_LUGAR = [
   {k:'gps', ico:'📍', img:'op-ubicacion.jpg', col:'#b4321e', tint:'#fdeceb',
@@ -2882,6 +2926,8 @@ function pintar(){
 function listaAcopios(){
   const dep = S.lugar && S.lugar.dep;
   const q = norm(S.f.q.trim());
+  // Qué dijo que puede donar, si lo dijo. Vive en la respuesta del paso.
+  const cat = ((S.pt && S.pt.resp) || []).reduce((v, r) => (r && r.nec) || v, '');
   let l = (S.acopios || []).slice();
   const enZona = dep ? l.filter((a) => casaDep(a.dp, dep.n)) : l;
   // Si no hay ninguno en su departamento se muestran los del país entero en vez
@@ -2890,18 +2936,26 @@ function listaAcopios(){
   l = ampliado ? l : enZona;
   if (q) l = l.filter((a) => norm(`${a.n} ${a.mu} ${a.dp} ${a.ne || ''} ${a.d || ''}`).includes(q));
 
-  // Orden por cercanía al punto elegido; sin punto, los revisados primero.
-  const ref = S.lugar && S.lugar.mun && S.lugar.mun[2] != null
-    ? [S.lugar.mun[2], S.lugar.mun[3]] : null;
-  if (ref) {
-    l.sort((a, b) => dist2(a, ref) - dist2(b, ref));
-  } else {
-    l.sort((a, b) => (b.rev ? 1 : 0) - (a.rev ? 1 : 0));
-  }
+  /* Primero los que piden lo que la persona lleva, después los que no
+     declararon necesidad, y de último los que piden otra cosa. Dentro de cada
+     grupo, por cercanía. No se ESCONDE ninguno: si alguien ya se movió hasta
+     allá, que pueda ver los demás. */
+  const rango = (a) => { const m = pideEsto(a, cat); return m === true ? 0 : m === null ? 1 : 2; };
+  const ref = (S.lugar && S.lugar.punto)
+    || (S.lugar && S.lugar.mun && S.lugar.mun[2] != null
+        ? [S.lugar.mun[2], S.lugar.mun[3]] : null);
+  l.sort((a, b) => (cat ? rango(a) - rango(b) : 0)
+    || (ref ? dist2(a, ref) - dist2(b, ref) : 0)
+    || (b.rev ? 1 : 0) - (a.rev ? 1 : 0));
+  const casan = cat ? l.filter((a) => rango(a) === 0).length : 0;
 
+  const nCat = cat && (((S.pt.i || {}).subs || [])[0] || {}).opciones
+    ? ((S.pt.i.subs[0].opciones.find((o) => o.nec === cat) || {}).n || '').toLowerCase() : '';
   $('#conteo').textContent = l.length
-    ? `${l.length} punto${l.length === 1 ? '' : 's'} de acopio`
-      + (ampliado ? ' · en todo el país' : (dep ? ` en ${dep.n}` : ''))
+    ? (cat
+        ? `${casan} de ${l.length} piden ${nCat}` + (dep ? ` en ${dep.n}` : '')
+        : `${l.length} punto${l.length === 1 ? '' : 's'} de acopio`
+          + (ampliado ? ' · en todo el país' : (dep ? ` en ${dep.n}` : '')))
     : 'Sin puntos de acopio con esta búsqueda';
 
   if (!l.length) {
@@ -2914,6 +2968,9 @@ function listaAcopios(){
   $('#lista').innerHTML =
     (ampliado ? `<div class="conteo">No hay ninguno en ${esc(dep.n)}.
       Estos son los más cercanos que tenemos.</div>` : '')
+    + (cat ? `<div class="conteo">Primero los que piden ${esc(nCat)}${
+        casan ? '' : ' — ninguno lo declaró por acá'}. Después van los que no
+        dijeron qué necesitan; llama antes de ir.</div>` : '')
     + l.map((a) => {
       const tel = (a.tel || '').replace(/[^\d+]/g, '');
       const ruta = a.d ? `https://www.google.com/maps/search/?api=1&query=${
