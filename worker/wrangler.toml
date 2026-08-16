@@ -26,17 +26,14 @@ binding = "DB"
 database_name = "ayuda-sismo"
 database_id = "e7a0d228-d793-4728-94b4-da2c79d45f35"
 
-# Fotos de mascotas y de personas buscadas · DESACTIVADO al 13-ago-2026.
+# Fotos de mascotas y de personas encontradas · ACTIVO desde el 16-ago-2026.
 #
-# R2 todavía no está habilitado en la cuenta (la API responde 10042 "Please
-# enable R2 through the Cloudflare Dashboard") y eso hay que activarlo a mano
-# en el panel. Con el binding declarado y el bucket inexistente, el deploy
-# falla entero, así que se comenta para poder publicar el mapa.
-#
-# Para activarlo: habilitar R2 en el panel de Cloudflare, luego
-#   npx wrangler r2 bucket create ayuda-sismo-fotos
-# y descomentar estas tres líneas + volver a desplegar. El Worker publica la
-# capacidad en /snapshot.json y el formulario vuelve a mostrar el campo solo.
+# Estuvo apagado hasta que se habilitó R2 en el panel de Cloudflare (la API
+# respondía 10042 "Please enable R2 through the Cloudflare Dashboard"). Con el
+# binding declarado y el bucket inexistente el deploy falla entero, así que si
+# alguna vez hay que borrar el bucket, hay que volver a comentar estas líneas.
+# El Worker publica la capacidad en /snapshot.json y el formulario muestra u
+# oculta el campo de foto solo, según lo que el servidor pueda guardar.
 #
 # Cuánto costaría, con el peso REAL de una foto de este formulario (medido
 # corriendo el mismo pipeline del sitio —1280 px de lado, JPEG 0,82—): escena
@@ -49,9 +46,9 @@ database_id = "e7a0d228-d793-4728-94b4-da2c79d45f35"
 # proveedores vuelve impredecible la cuenta cuando una foto circula mucho.
 # ⚠️ Lo que sí exige Cloudflare es dejar una TARJETA registrada para habilitar
 # R2, aunque el consumo quede entero dentro del free tier.
-# [[r2_buckets]]
-# binding = "FOTOS"
-# bucket_name = "ayuda-sismo-fotos"
+[[r2_buckets]]
+binding = "FOTOS"
+bucket_name = "ayuda-sismo-fotos"
 
 [vars]
 # A dónde apunta el enlace privado que recibe el reportante por correo.

@@ -330,13 +330,29 @@ así que aunque el formulario mandara una, se descarta.
 "ocultar" solo la quitaría del mapa y la URL seguiría sirviendo el archivo a
 quien ya la conociera.
 
-⚠️⚠️ **Hoy NADIE puede subir foto, y no es un bug del formulario: R2 no está
-habilitado en la cuenta.** `caps.fotos` llega en `false`, así que el campo se
-esconde solo —ofrecerlo y descartar la imagen en silencio sería peor—. Se nota
-sobre todo en "busco a mi mascota", que es donde la foto vale más que toda la
-descripción. Se arregla en el panel de Cloudflare (R2 → habilitar; el CLI
-responde `code: 10042` porque el servicio no está activo en la cuenta) y luego
-descomentando el binding de `wrangler.toml`.
+✅ **Las fotos están ACTIVAS desde el 16-ago-2026.** Estuvieron apagadas un
+tiempo porque R2 no estaba habilitado en la cuenta: `caps.fotos` llegaba en
+`false` y el campo se escondía solo —ofrecerlo y descartar la imagen en silencio
+sería peor—, lo que se notaba sobre todo en "busco a mi mascota", que es donde
+la foto vale más que toda la descripción. Si el CLI vuelve a responder
+`code: 10042`, es que R2 se desactivó en la cuenta.
+
+Verificado de punta a punta el día que se encendió, con un JPEG de 1.522 KB al
+que se le inyectó a propósito un bloque EXIF con coordenadas: llegó a R2 en
+**298 KB, sin el GPS y sin marca `Exif`**, se sirvió por `/fotos/{clave}` con
+`immutable`, se vio en la ficha del reporte, y al ocultar el reporte por
+moderación **la imagen desapareció del bucket** (`The specified key does not
+exist`).
+
+⚠️ La ruta pública es **`/fotos/{clave}`**, en plural, y la clave que guarda la
+base ya viene con el prefijo `fotos/` incluido (`urlFoto()` solo pega la base de
+la API). Pedir `/foto/…` devuelve 404.
+
+**Costo:** con ese peso real, 1.000 fotos son ~0,3 GB, o sea el 3% del free tier
+de R2 (10 GB-mes) — cero pesos. Se empezaría a pagar pasando de 10 GB, unas
+30.000 fotos, y ahí son 0,015 USD por GB-mes. La salida de datos no se cobra.
+Lo que Cloudflare sí exige es una tarjeta registrada para habilitar R2, aunque
+todo el consumo quepa en lo gratis.
 
 ## Terminar de llenar el formulario sin perderlo
 
