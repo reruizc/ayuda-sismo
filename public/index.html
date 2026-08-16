@@ -312,6 +312,13 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid v
   background:var(--trama), radial-gradient(120% 60% at 12% -10%, #fff 0%, var(--papel) 60%);
   background-color:var(--papel)}
 .puerta[hidden]{display:none}
+/* La marca el script del <head> cuando el enlace ya trae destino, para que la
+   puerta no alcance a parpadear antes de que el JS la cierre. */
+html.sin-puerta .puerta{display:none}
+/* Mientras corre la escena de entrada el menú va tapado, con su alto
+   reservado para que destaparlo no dé un salto. La quita el propio JS al
+   revelar la caja; `noscript` la anula por si el JS nunca corre. */
+html.entrando .pt-caja{visibility:hidden}
 .pt-caja{max-width:820px; margin:0 auto;
   padding:1.2rem 1rem calc(2rem + env(safe-area-inset-bottom));
   padding-top:calc(1.2rem + env(safe-area-inset-top))}
@@ -496,14 +503,17 @@ body.pt-raiz .pt-pie{margin-top:.6rem; padding-top:.55rem}
 .dispo button:not(.op) span{display:block; font-size:.9rem; color:var(--tenue); margin-top:.15rem}
 /* Rótulo de la situación ya elegida en la puerta. Se lee como un dato
    confirmado, no como un control: por eso no tiene aspecto de botón. */
-.sit-fija{display:flex; align-items:center; gap:.5rem; flex-wrap:wrap;
+.sit-fija{display:flex; align-items:center; gap:.75rem;
   background:var(--papel); border:1px solid var(--linea); border-radius:10px;
   padding:.6rem .75rem; margin-bottom:1rem}
 .sit-fija[hidden]{display:none}
+/* Rótulo y nombre en una columna: sin esto un nombre largo mandaba el
+   "Cambiar" a la línea de abajo y abría un hueco en la tarjeta. */
+.sit-fija .sf-txt{display:flex; flex-direction:column; gap:.1rem; min-width:0; flex:1 1 auto}
 .sit-fija .sf-rot{font-size:.7rem; font-weight:700; text-transform:uppercase;
-  letter-spacing:.05em; color:var(--tenue)}
-.sit-fija b{font-size:.95rem}
-.sit-fija .sf-cambiar{margin-left:auto; background:none; border:0; padding:.1rem .2rem;
+  letter-spacing:.05em; color:var(--tenue); line-height:1.2}
+.sit-fija b{font-size:.95rem; line-height:1.25}
+.sit-fija .sf-cambiar{margin-left:auto; flex:0 0 auto; background:none; border:0; padding:.1rem .2rem;
   font:inherit; font-size:.82rem; font-weight:600; color:var(--azul);
   text-decoration:underline; cursor:pointer}
 .sitio-cerca{font-size:.8rem; font-weight:700; color:var(--morado)}
@@ -577,16 +587,39 @@ body.con-ctx .cuerpo{height:calc(100dvh - 196px)}
   .marca{flex-direction:column; gap:0}
 }
 </style>
+<script>
+/* Antes del primer pintado, y por eso va acá y no con el resto del JS.
+   - `entrando`: el menú arranca tapado por la escena de entrada. Lo destapa el
+     JS (`saltarIntro` y el timer del telón); si el JS nunca corre, lo destapa
+     el <noscript> de más abajo.
+   - `sin-puerta`: un enlace privado (#/mi/…) o uno que ya trae la intención
+     (?ir=…) no debe ver la puerta ni un cuadro. */
+document.documentElement.classList.add('entrando');
+if (/^#\/mi\//.test(location.hash) || /[?&]ir=/.test(location.search))
+  document.documentElement.classList.add('sin-puerta');
+</script>
+<noscript><style>html.entrando .pt-caja{visibility:visible}</style></noscript>
 </head>
 <body>
 
 <!-- ══════════ puerta de entrada: qué quieres hacer y dónde ══════════ -->
-<div class="puerta" id="puerta" hidden>
+<!-- ⚠️ SIN `hidden`. La puerta la mostraba el JS al final del arranque, así que
+     por un instante se veía el mapa cargando debajo —justo lo que la puerta
+     existe para evitar: un mapa lleno de puntos antes de decir de qué se
+     trata—. Ahora nace tapando la pantalla y el JS solo la QUITA cuando el
+     enlace ya trae destino (#/mi/… o ?ir=…), decisión que toma el script del
+     <head> antes del primer pintado. -->
+<div class="puerta" id="puerta">
   <!-- Primera escena: la pregunta sola, grande y al centro. -->
-  <div class="pt-intro" id="pt-intro" hidden>
+  <!-- Primera pantalla: por qué estamos acá. La pregunta de qué hacer viene
+       después, ya con el menú. Quien llega puede no saber de los dos hechos a
+       la vez —el terremoto tapó los incendios en la conversación pública— y
+       nombrarlos es lo que hace que la página se entienda en dos segundos. -->
+  <div class="pt-intro" id="pt-intro">
     <p class="pt-ojo" id="pt-ojo-intro"></p>
-    <h1>¿Qué necesitas hacer?</h1>
-    <p class="sub">Elige una opción y te llevamos directo a lo que sirve.</p>
+    <h1>Colombia enfrentó dos desastres esta semana</h1>
+    <p class="sub">Un terremoto con epicentro en el Chocó y los incendios de
+      Nariño. Es hora de pedir ayuda, o de darla.</p>
   </div>
   <div class="pt-telon" id="pt-telon" hidden></div>
 
@@ -2446,6 +2479,10 @@ let introTimers = [];
 function saltarIntro(){
   introTimers.forEach(clearTimeout);
   introTimers = [];
+  // `entrando` la pone el <head> antes del primer pintado; quitarla es lo que
+  // destapa el menú. Va fuera del corto-circuito de abajo porque en la carga
+  // sin animación hay que quitarla igual.
+  document.documentElement.classList.remove('entrando');
   const intro = $('#pt-intro'), telon = $('#pt-telon');
   if (intro.hidden && telon.hidden) return;
   intro.hidden = true; intro.classList.remove('sale');
@@ -2475,6 +2512,10 @@ function abrirPuerta(conIntro, fam){
   $('#pt-ojo').textContent = EVENTOS;
   $('#pt-ojo-intro').textContent = EVENTOS;
   pintarOpciones();
+  // ⚠️ `sin-puerta` la puso el <head> para los enlaces que ya traen destino, y
+  // es `display:none`: si no se quita acá, quien entró por un enlace privado y
+  // luego pide el menú no vería nada.
+  document.documentElement.classList.remove('sin-puerta');
   $('#puerta').hidden = false;
   document.body.style.overflow = 'hidden';
 
@@ -2499,7 +2540,11 @@ function abrirPuerta(conIntro, fam){
       telon.classList.add('corre');
     }, 2500),
     // A mitad del telón, con la pantalla tapada, se destapa la caja.
-    setTimeout(() => { intro.hidden = true; caja.style.visibility = ''; }, 2870),
+    setTimeout(() => {
+      intro.hidden = true;
+      document.documentElement.classList.remove('entrando');
+      caja.style.visibility = '';
+    }, 2870),
     setTimeout(saltarIntro, 3400),
   ];
 }
@@ -3468,7 +3513,13 @@ function irAFase(n, dir){
     (f.hidden = Number(f.dataset.fase) !== n));
   const ultima = n === FASES;
   $('#fase-sig').hidden = ultima;
-  $('#fase-atras').hidden = n === 1;
+  /* En el paso 1 el botón se queda, pero cambia de significado: ahí "atrás" es
+     salir al menú. Esconderlo dejaba sin salida a quien entró directo al
+     formulario —"hay personas atrapadas" entra ahí de una— con la equis como
+     único camino, y la equis lleva al mapa, no a donde venía. */
+  const atras = $('#fase-atras');
+  atras.hidden = false;
+  atras.textContent = n === 1 ? '← Volver al menú' : '← Atrás';
   $('#fase-cuenta').textContent = `Paso ${n} de ${FASES}`;
   const cuerpo = document.querySelector('#velo-form .modal-cuerpo');
   if (cuerpo) cuerpo.scrollTop = 0;
@@ -3714,6 +3765,7 @@ function prefijarLugar(L){
 function aplicarSituacion(){
   const s = SIT[sitSel]; if (!s) return;
   $('#resto').hidden = false;
+  tituloForm();          // si cambia la situación, el título la sigue
   montarTurnstile();
   $('#f-titulo').placeholder = s.ej || '';
 
@@ -4512,6 +4564,11 @@ function abrirForm(pre){
   $('#form').hidden = false;
   $('#exito').hidden = true;
   abrir('#velo-form');
+  /* ⚠️ Volver al paso 1 al abrir. Sin esto el formulario conservaba la fase de
+     la vez anterior —quien salía en el paso 3 y volvía a entrar aparecía en el
+     3— y, peor, el botón "Atrás" nacía visible en el paso 1 porque su estado
+     solo lo fija `irAFase`. */
+  irAFase(1, 1);
   if (pre && (pre.sit || pre.grupo || pre.sits)) prefijarSituacion(pre);
   // Ejemplo propio de la intención: "busco transporte" entra por `nec-otro`,
   // y sin esto vería el ejemplo genérico de "otra necesidad".
@@ -4570,15 +4627,37 @@ function abrirForm(pre){
  * grupo ("Necesito ayuda", que abre el grupo pero no la situación concreta) el
  * selector se queda: ahí la persona todavía tiene que elegir.
  */
+/**
+ * El título del formulario dice QUÉ se está registrando.
+ *
+ * "Registrar en el mapa" a secas obliga a bajar la vista hasta el rótulo para
+ * saber en qué se está. Con la situación adentro, la primera línea ya confirma
+ * que se entró por donde se quería. Sin situación fija se queda el genérico:
+ * ahí todavía hay que elegirla.
+ */
+function tituloForm(){
+  const t = $('#t-form');
+  if (!t) return;
+  const n = (SIT[sitSel] || {}).n;
+  t.textContent = n ? `Registrar ${n.charAt(0).toLowerCase()}${n.slice(1)}, en el mapa`
+                    : 'Registrar en el mapa';
+}
+
 function fijarSituacion(fija){
   const campo = $('#campo-sit'), chip = $('#sit-fija');
   if (!campo || !chip) return;
   campo.hidden = !!fija;
   chip.hidden = !fija;
+  tituloForm();
   if (!fija) return;
   const s = SIT[sitSel] || {};
-  chip.innerHTML = `<span class="sf-rot">Vas a registrar</span>
-    <b>${esc(s.n || sitSel)}</b>
+  /* El rótulo y el nombre van en una columna propia. Sueltos dentro del flex,
+     un nombre largo —"Personas atrapadas o remoción de escombros"— empujaba el
+     "Cambiar" a una segunda línea y dejaba un hueco en medio de la tarjeta. */
+  chip.innerHTML = `<span class="sf-txt">
+      <span class="sf-rot">Vas a registrar</span>
+      <b>${esc(s.n || sitSel)}</b>
+    </span>
     <button type="button" class="sf-cambiar">Cambiar</button>`;
   chip.querySelector('.sf-cambiar').addEventListener('click', () => {
     // No se borra lo elegido: se destapa el selector con la situación actual
@@ -4677,7 +4756,16 @@ async function iniciar(){
   $('#fase-sig').addEventListener('click', () => {
     if (faseValida(faseAct)) irAFase(faseAct + 1, 1);
   });
-  $('#fase-atras').addEventListener('click', () => irAFase(faseAct - 1, -1));
+  /* ⚠️ En la PRIMERA fase "atrás" es salir, no quedarse quieto. Antes llamaba
+     a `irAFase(0)`, que se recorta a 1 y por tanto no hacía absolutamente nada:
+     el botón se veía, se pulsaba y la pantalla no se movía. Quien entró directo
+     al formulario —"hay personas atrapadas" entra ahí de una— quedaba sin
+     forma de devolverse. */
+  $('#fase-atras').addEventListener('click', () => {
+    if (faseAct > 1) return irAFase(faseAct - 1, -1);
+    if (!cerrarConAviso()) return;                 // respeta lo ya escrito
+    abrirPuerta(false, (famDe((S.pt.i || {}).k) || {}).k);
+  });
 
   $('#pt-q').addEventListener('input', (e) => pintarNivel(e.target.value));
   $('#pt-dispo').addEventListener('click', (e) => {
