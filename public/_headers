@@ -10,6 +10,14 @@
 /barrios.json
   Cache-Control: public, max-age=86400
 
+# ⚠️⚠️ Pages sirve la ruta SIN extensión y redirige `/x.html` → `/x` con un 308.
+# O sea que una regla escrita solo para `/x.html` se aplica al REDIRECT y no a
+# la página que la gente termina viendo. Medido: `/admin.html` devolvía los
+# headers correctos en el 308 y `/admin` llegaba sin ninguno. Hay que escribir
+# las dos rutas — y `/` para la portada, que es la que de verdad se sirve.
+/
+  Cache-Control: public, max-age=120
+
 /index.html
   Cache-Control: public, max-age=120
 
@@ -18,6 +26,10 @@
 # probar. El meta robots ya está en la página; el header cubre el caso de que
 # un rastreador no ejecute el HTML. Y NO se cachea: es una herramienta de
 # trabajo y una versión vieja daría por buena una decisión ya tomada.
+/admin
+  X-Robots-Tag: noindex, nofollow
+  Cache-Control: no-store
+
 /admin.html
   X-Robots-Tag: noindex, nofollow
   Cache-Control: no-store
