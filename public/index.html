@@ -2811,6 +2811,11 @@ function pasosDe(I){
   // Un enlace no necesita saber dónde: se abre y ya. Donar tampoco: la
   // transferencia no ocurre en un municipio.
   if (I.accion === 'url' || I.accion === 'donar' || I.accion === 'colaborar') return [];
+  /* "Ver el mapa completo" tampoco: ofrece TODO lo publicado y preguntar dónde
+     antes de abrirlo se contradice con lo que la tarjeta acaba de prometer.
+     Quien entra por ahí ya dijo que quiere el mapa entero y filtrar a mano; el
+     mapa abre en vista nacional y los filtros están a la vista. */
+  if (I.k === 'explorar') return [];
   const p = (I.subs || []).map((_, i) => `sub:${i}`);
   if (I.accion === 'voluntario') p.push('dispo');   // cuándo, y después dónde
   p.push('lugar');
