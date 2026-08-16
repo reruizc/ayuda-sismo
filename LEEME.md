@@ -434,8 +434,24 @@ publicó sí puede recibir llamadas directas. Un texto único diría algo falso 
 la mayoría de los casos.
 
 ⚠️ El aviso "te mandamos el enlace al correo" solo se muestra si el servidor
-puede cumplirlo (`caps.correo`, que refleja si hay `RESEND_API_KEY`). **Hoy no
-la hay**, así que ese correo no sale y el formulario no lo ofrece.
+puede cumplirlo (`caps.correo`, que refleja si hay `RESEND_API_KEY`). **Activo
+desde el 16-ago-2026**, probado de punta a punta: se creó un reporte con un
+correo real y el mensaje llegó a la bandeja.
+
+⚠️⚠️ Para probar el correo hay que mirar la bandeja, no basta el log: **el
+Worker se traga los errores de Resend a propósito** —para que un fallo del
+correo nunca tumbe un reporte, que es lo correcto en una emergencia—, así que
+desde fuera no se distingue "Resend lo aceptó" de "lo rechazó porque el dominio
+no está verificado". Que `caps.correo` sea `true` solo dice que la llave está
+cargada.
+
+Hoy sale desde `hola@ricardoruiz.co` (`RESEND_FROM`), que es el dominio
+verificado en esa cuenta de Resend. **Pendiente:** verificar
+`reconstruyocolombia.com` en Resend y mover el remitente allá. Un correo que
+llega desde un dominio distinto al del sitio le huele a phishing a cualquiera, y
+de paso entrarían SPF y DMARC, que hoy faltan — sin ellos cualquiera puede
+falsificar correos que digan venir de este dominio, que es justo lo que usaría
+alguien para estafar a nombre de la emergencia.
 
 ## Los puntos de acopio en el mapa
 
