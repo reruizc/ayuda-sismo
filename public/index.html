@@ -2041,9 +2041,10 @@ const urlFoto = (k) => `${CONFIG.API}/${k}`;
  * fecha en la columna ULTIMA REVISION de la hoja.
  */
 function selloRevision(a){
-  return a.rev
-    ? `<span class="revok">última revisión: ${esc(a.rev)}</span>`
-    : '<span class="sinrev">sin confirmar</span>';
+  // Sin fecha no se muestra nada. El sello ámbar salía en los 291 y convertía
+  // la lista en una pared de advertencias; la verificación se lleva por dentro
+  // y acá solo se muestra cuando ya está hecha.
+  return a.rev ? `<span class="revok">última revisión: ${esc(a.rev)}</span>` : '';
 }
 
 /**
