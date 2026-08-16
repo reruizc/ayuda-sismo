@@ -52,7 +52,9 @@ bucket_name = "ayuda-sismo-fotos"
 
 [vars]
 # A dónde apunta el enlace privado que recibe el reportante por correo.
-SITIO = "https://sismo.ricardoruiz.co"
+# ⚠️ Tiene que ser el dominio desde el que la gente entra de verdad: ese enlace
+# es la única forma de volver a un reporte desde otro teléfono.
+SITIO = "https://reconstruyocolombia.com"
 # La propia URL del Worker. Se usa solo para purgar el snapshot del edge
 # cuando moderación oculta algo; si se deja vacío, el cambio entra al minuto.
 API_BASE = "https://ayuda-sismo.reruizc.workers.dev"

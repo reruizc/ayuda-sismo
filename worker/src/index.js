@@ -40,7 +40,13 @@ import { leer as leerCopernicus, refrescar as refrescarCopernicus } from './cope
 const CRON_PRENSA = '17 */3 * * *';
 const CRON_DIARIO = '40 11 * * *';   // 06:40 en Colombia
 
+/* ⚠️ El dominio desde el que se sirve la página TIENE que estar acá. Si no, el
+   navegador bloquea toda respuesta de la API y el mapa se ve pero no carga
+   nada, sin un error que explique por qué. El primero de la lista es también el
+   que se responde a un origen desconocido. */
 const ORIGENES = [
+  'https://reconstruyocolombia.com',        // el dominio propio, desde ago-2026
+  'https://www.reconstruyocolombia.com',
   'https://sismo.ricardoruiz.co',
   'https://ayuda-sismo.pages.dev',
   'https://ricardoruiz.co',
