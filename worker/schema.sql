@@ -95,6 +95,58 @@ CREATE TABLE IF NOT EXISTS externos (
   datos TEXT NOT NULL
 );
 
+-- Correcciones que manda la gente sobre un centro de acopio.
+--
+-- ⚠️⚠️ ESTO NO EDITA EL MAPA. Una edición abierta sobre un acopio no es un
+-- problema de spam sino de daño: cerrar uno que está operando, o cambiarle la
+-- dirección, manda gente con mercados a una puerta equivocada. Acá se ACUMULA
+-- lo que la gente reporta; el mapa solo cambia cuando alguien aprueba desde el
+-- panel, y entonces el cambio aprobado queda en `acopio_overlay`.
+CREATE TABLE IF NOT EXISTS sugerencias (
+  id        TEXT PRIMARY KEY,
+  ts        INTEGER NOT NULL,
+
+  -- Identidad del acopio: nombre|municipio normalizados (`claveDe` en
+  -- acopios.js). La hoja no trae id, así que es lo único estable que hay.
+  clave     TEXT NOT NULL,
+  -- Nombre y ubicación tal como estaban al sugerir. Se copian para que el
+  -- panel siga siendo legible aunque la fila cambie o salga de la hoja.
+  acopio    TEXT NOT NULL,
+  municipio TEXT,
+  depto     TEXT,
+
+  tipo      TEXT NOT NULL,             -- correccion | cierre | confirmacion
+  -- JSON { campo: { de, a } } con SOLO lo que cambia. Guardar el "de" es lo
+  -- que deja ver en el panel qué se está reemplazando, sin abrir la hoja.
+  campos    TEXT NOT NULL,
+  nota      TEXT,
+  contacto  TEXT,                      -- de quien corrige, opcional
+
+  estado    TEXT NOT NULL DEFAULT 'pendiente',   -- pendiente | aplicada | rechazada
+  ip_hash   TEXT,
+  sin_captcha INTEGER NOT NULL DEFAULT 0,
+  revisado  INTEGER                    -- epoch ms en que se aprobó o rechazó
+);
+
+CREATE INDEX IF NOT EXISTS idx_sugerencias       ON sugerencias (estado, ts DESC);
+CREATE INDEX IF NOT EXISTS idx_sugerencias_clave ON sugerencias (clave, ts DESC);
+CREATE INDEX IF NOT EXISTS idx_sugerencias_ip    ON sugerencias (ip_hash, ts);
+
+-- Lo YA APROBADO, pintado encima de la fila de la hoja al servir el mapa.
+--
+-- Existe porque el Worker no puede escribir en Google Sheets: sin esto,
+-- aprobar no cambiaría nada hasta que alguien lo transcribiera a mano, que es
+-- justo la demora que hace que un acopio cerrado siga recibiendo gente.
+-- Se limpia solo cuando la hoja alcanza el valor aprobado (ver
+-- `aplicarOverlays`), así que es un puente hacia la hoja y no una segunda
+-- fuente de verdad que compita con ella.
+CREATE TABLE IF NOT EXISTS acopio_overlay (
+  clave  TEXT PRIMARY KEY,
+  ts     INTEGER NOT NULL,
+  campos TEXT NOT NULL,      -- JSON { d, ne, ab, ci, di, tel, c, rev, tipo, vol, cerrado }
+  origen TEXT                -- id de la sugerencia que lo produjo
+);
+
 -- Bitácora de las corridas del cron.
 --
 -- ⚠️⚠️ Existe porque una corrida en cero era INDISTINGUIBLE de una buena: el

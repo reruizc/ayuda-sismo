@@ -452,6 +452,72 @@ la capa dejaría de leerse como "acopios" y competiría con los colores de los
 reportes, que son el dato propio de la página. El símbolo lleva el tipo; el
 verde lleva la categoría.
 
+### Corregir un acopio desde el mapa
+
+Cualquiera puede abrir un acopio y decir **qué cambió**, que **ya cerró** o que
+**sigue igual**. La corrección llega pegada a ese punto y se revisa en
+`/admin.html`.
+
+⚠️⚠️ **No edita el mapa, y eso no se afloja.** Acá el abuso no sería spam sino
+daño: si "ya cerró" apagara el pin al instante, un formulario anónimo bastaría
+para borrar del mapa los acopios que sí están operando y dejar a la gente sin
+dónde entregar lo que llevaba. Se acumula, alguien decide, y solo entonces
+cambia.
+
+Encima quedan las mismas defensas del formulario de reportes —honeypot, cuatro
+segundos mínimos, tope por IP, Turnstile blando— más dos propias:
+
+- **Cerrar exige un motivo escrito.** "Fui esta mañana y ya no recibían" se
+  puede confirmar; un clic suelto, no.
+- **Una persona no apila la misma corrección** sobre el mismo acopio (24 h).
+  Sin eso el panel se llenaría de tarjetas idénticas y el conteo de *cuánta
+  gente dice que cerró* —que es la señal que sirve para decidir— dejaría de
+  significar algo.
+
+**Lo que NO se puede corregir así es el nombre ni la ubicación.** El nombre es
+la mitad de la llave que amarra la corrección con su acopio (`claveDe` en
+`acopios.js`, la misma del geocache), así que cambiarlo desde acá rompería el
+vínculo; y mover un pin desde un formulario anónimo manda gente a otra
+dirección. Los dos se piden por la nota y se arreglan en la hoja.
+
+⚠️ El botón va en **los dos sitios**: la ficha lateral de escritorio y el globo
+del mapa. En el teléfono ese globo *es* la ficha, y quien sabe que un acopio
+cerró es justamente el que está parado enfrente con el celular en la mano.
+
+⚠️ El formulario abre con la ficha actual adentro —esa es la gracia: corregir
+el horario sin volver a teclear la dirección—, así que los campos precargados
+se marcan con `data-precargado` y `hayBorrador()` los ignora. Sin eso, cerrarlo
+sin haber tocado nada preguntaría "¿salir sin enviar?" y entrenaría a la gente
+a decirle que sí a ese aviso, que es justo lo que protege el formulario de
+reportes.
+
+### El puente hacia la hoja: `acopio_overlay`
+
+El Worker **no puede escribir en Google Sheets**. Sin nada más, aprobar una
+corrección no cambiaría nada hasta que alguien la transcribiera a mano — que es
+justo la demora que hace que un acopio cerrado siga recibiendo gente. Por eso
+lo aprobado se guarda en `acopio_overlay` y se pinta encima de la fila de la
+hoja al servir `/acopios.json`.
+
+⚠️⚠️ **Se limpia solo, y esa es la parte importante.** Cuando el valor aprobado
+ya aparece igual en la hoja, ese campo se borra del overlay; si no queda
+ninguno, se borra la fila. Sin esa limpieza el overlay sería permanente y una
+corrección vieja seguiría ganándole a la hoja para siempre — o sea, **editar la
+hoja dejaría de servir sin que nada avisara**. Así el overlay es un puente
+hacia la hoja, no una segunda fuente de verdad que compita con ella.
+
+Solo se borra lo **redundante**, nunca lo huérfano: si la hoja falla o una fila
+desaparece un rato, el overlay tiene que sobrevivir.
+
+Flujo normal: aprobar en el panel (el mapa cambia ya) → cuando haya tiempo,
+pasarlo a la hoja con *Copiar para la hoja* → el puente se retira solo. Si
+prefieres hacerlo todo en la hoja, también sirve: rechaza la corrección y
+escribe el cambio allá.
+
+⚠️ *Quitar* borra el overlay **entero** de ese acopio, no solo la última
+corrección. La tarjeta lista todo lo que se va a quitar, así que lo que se ve
+es lo que pasa.
+
 ### Coordenadas: `tools/geocodificar_acopios.py`
 
 Llena LATITUD y LONGITUD de la hoja, que son las columnas que mandan sobre el
@@ -482,6 +548,17 @@ Gotchas del registro de placas, todos medidos:
 ## Desplegar
 
 Todo desde `worker` salvo el paso de Pages.
+
+> ⚠️⚠️ **Si ya está en producción y solo vas a actualizar: corre el esquema
+> ANTES del `deploy`.** `schema.sql` es todo `CREATE TABLE IF NOT EXISTS`, así
+> que pasarlo sobre una base con datos no borra nada y solo crea lo que falte.
+> Al revés —desplegar código que usa una tabla que no existe— deja las
+> correcciones respondiendo 500 hasta que alguien se dé cuenta.
+>
+> ```bash
+> npx wrangler d1 execute ayuda-sismo --remote --file=schema.sql
+> npx wrangler deploy
+> ```
 
 ```bash
 npx wrangler login
@@ -597,6 +674,24 @@ proyectos humanitarios: <https://www.cloudflare.com/galileo/>. Vale la pena
 aplicar el mismo día que salga al aire.
 
 ## Moderar
+
+**El panel está en `/admin.html`** — la misma página que el mapa, pero pidiendo
+el `ADMIN_TOKEN`. Se guarda en ese navegador y nunca queda escrito en el
+código. Tiene cuatro pestañas: correcciones **por revisar**, **historial**,
+**cambios aplicados** (los overlays vivos, con *Quitar*) y **reportes del
+mapa** (ocultar, restaurar, verificar).
+
+Lo que hace útil la tarjeta de corrección es el **antes → después** por campo.
+Y un aviso que vale la pena entender: si la hoja cambió entre que alguien
+corrigió y tú revisas, el "antes" guardado deja de ser el actual, así que se
+muestra el valor de AHORA y se avisa qué decía cuando se corrigió. Aprobar a
+ciegas ahí reemplazaría un dato ya arreglado por uno viejo.
+
+Una corrección **huérfana** —el acopio ya no está en la hoja con ese nombre y
+municipio— sale marcada y sin botón de aprobar: aprobarla no haría nada, y un
+botón que no hace nada es peor que no tenerlo.
+
+Para lo que no pasa por el panel:
 
 ```bash
 API=https://ayuda-sismo.<sub>.workers.dev

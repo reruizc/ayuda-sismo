@@ -25,6 +25,24 @@ const norm = (s) => String(s || '').toLowerCase()
   .replace(/\s+/g, ' ').trim();
 
 /**
+ * Identidad de un acopio: nombre y municipio normalizados.
+ *
+ * La hoja NO trae identificador, as\u00ed que esto es lo \u00fanico estable que hay, y
+ * ya se ven\u00eda usando como llave del geocache. Ahora tambi\u00e9n amarra las
+ * correcciones que manda la gente y las que se aprueban, as\u00ed que tiene que
+ * existir en UN solo lugar: si el geocache y las correcciones normalizaran
+ * distinto, una correcci\u00f3n aprobada se aplicar\u00eda a un acopio y el punto
+ * geocodificado a otro, sin que nada lo dijera.
+ *
+ * \u26a0\ufe0f Cambiar el NOMBRE en la hoja cambia la llave y deja hu\u00e9rfano lo que
+ * colgaba de ella. Por eso el formulario p\u00fablico no deja sugerir el nombre, y
+ * el panel muestra aparte las correcciones que se quedaron sin acopio.
+ * \u26a0\ufe0f Dos acopios con el mismo nombre en el mismo municipio comparten llave.
+ * Es la misma suposici\u00f3n que ya ven\u00eda haciendo el geocache.
+ */
+export const claveDe = (nombre, municipio) => `${norm(nombre)}|${norm(municipio)}`;
+
+/**
  * Parser de CSV con comillas.
  *
  * No se puede partir por comas: las direcciones traen comas ("Cra 5 #12-30,
@@ -177,12 +195,22 @@ export function normalizarFilas(filas) {
 
     const abre = g(f, ix.abre), cierra = g(f, ix.cierra);
     items.push({
+      // La llave viaja al navegador para que una corrección pueda decir a QUÉ
+      // acopio se refiere. Se calcula acá y no en la página: si el cliente la
+      // armara, dos normalizaciones distintas mandarían la corrección a otro
+      // sitio. El Worker igual la valida contra la lista antes de guardar.
+      k: claveDe(nombre, muni),
       n: nombre,
       mu: muni,
       dp: dep,
       d: g(f, ix.direccion),
       ne: g(f, ix.necesidad),
+      // `h` es lo que se muestra; `ab`/`ci` son las dos columnas de la hoja.
+      // Se conservan separadas porque una corrección de horario tiene que
+      // poder volver a la hoja sin adivinar dónde partir "8:00 am a 6:00 pm".
       h: [abre, cierra].filter(Boolean).join(' a ') || '',
+      ab: abre,
+      ci: cierra,
       di: g(f, ix.dias),
       vol: /^(s[ií]|x|1|true)$/i.test(g(f, ix.voluntarios)),
       c: g(f, ix.contacto),
@@ -295,7 +323,7 @@ async function geocodificarPendientes(env, items, max) {
 
   for (const a of items) {
     if (!a.ap || !a.n) continue;                 // ya tiene punto propio
-    const clave = `${norm(a.n)}|${norm(a.mu)}`;
+    const clave = a.k || claveDe(a.n, a.mu);
     const fila = cache.get(clave);
 
     if (fila) {
@@ -336,6 +364,108 @@ async function geocodificarPendientes(env, items, max) {
   return usados;
 }
 
+/* ───────────────────── correcciones aprobadas (overlay) ───────────────────── */
+
+/**
+ * Campos que una corrección aprobada puede pintar encima de la fila de la hoja.
+ *
+ * ⚠️ El NOMBRE no está y no puede estar: es la llave. Cambiarlo desde acá
+ * rompería el vínculo con la corrección que lo cambió. Un cambio de nombre se
+ * pide por la nota y se hace en la hoja.
+ * ⚠️ La UBICACIÓN tampoco: mover un pin desde una sugerencia anónima manda
+ * gente a otra dirección. El punto sale de la hoja o del geocodificador.
+ */
+const CAMPOS_OVERLAY = ['d', 'ne', 'ab', 'ci', 'di', 'tel', 'c', 'rev', 'tipo', 'vol'];
+
+/**
+ * Aplica sobre los acopios lo que ya se aprobó en el panel.
+ *
+ * Existe porque el Worker NO puede escribir en la hoja de Google: sin esto,
+ * aprobar una corrección no cambiaría nada en el mapa hasta que alguien la
+ * transcribiera a mano, que es justo la demora que hace que un acopio cerrado
+ * siga recibiendo gente.
+ *
+ * ⚠️⚠️ Se limpia solo. Cuando el valor aprobado YA aparece igual en la hoja,
+ * ese campo se borra del overlay; si no queda ninguno, se borra la fila. Sin
+ * esa limpieza el overlay sería permanente y una corrección vieja seguiría
+ * ganándole a la hoja para siempre — o sea, editar la hoja dejaría de servir
+ * sin que nada avisara. Así el overlay es un puente, no una bifurcación.
+ *
+ * ⚠️ Solo se borra lo REDUNDANTE, nunca lo huérfano: si la hoja falla o la
+ * fila desaparece un rato, el overlay tiene que sobrevivir.
+ */
+export async function aplicarOverlays(env, items) {
+  const res = { aplicados: 0, cerrados: 0, huerfanos: 0 };
+  let filas = [];
+  try {
+    const r = await env.DB.prepare('SELECT clave, campos FROM acopio_overlay').all();
+    filas = r.results || [];
+  } catch (e) {
+    // Tabla ausente (esquema sin aplicar) o D1 caído: el mapa sigue con la
+    // hoja tal cual. Perder las correcciones es malo; quedarse sin acopios es
+    // peor.
+    console.error('overlays ilegibles', e && e.message);
+    return res;
+  }
+  if (!filas.length) return res;
+
+  const porClave = new Map();
+  for (const f of filas) {
+    try { porClave.set(f.clave, JSON.parse(f.campos) || {}); } catch { /* fila rota */ }
+  }
+
+  const vistos = new Set();
+  const redundantes = [];      // [clave, campos que la hoja ya trae iguales]
+
+  for (let i = items.length - 1; i >= 0; i--) {
+    const a = items[i];
+    const ov = porClave.get(a.k);
+    if (!ov) continue;
+    vistos.add(a.k);
+
+    // Cerrado: sale del mapa entero. No basta con marcarlo — quien mira el
+    // mapa a las 6 a.m. no lee etiquetas, ve un pin y arranca para allá.
+    if (ov.cerrado) { items.splice(i, 1); res.cerrados++; continue; }
+
+    let cambio = false;
+    const iguales = [];
+    for (const c of CAMPOS_OVERLAY) {
+      if (!(c in ov)) continue;
+      if (c === 'vol') {
+        if (!!ov.vol === !!a.vol) { iguales.push(c); continue; }
+        a.vol = !!ov.vol;
+      } else {
+        const nuevo = String(ov[c] ?? '');
+        if (nuevo === String(a[c] ?? '')) { iguales.push(c); continue; }
+        a[c] = nuevo;
+      }
+      cambio = true;
+    }
+    if (cambio) {
+      a.h = [a.ab, a.ci].filter(Boolean).join(' a ');
+      a.ed = 1;                       // corregido por moderación, no por la hoja
+      res.aplicados++;
+    }
+    if (iguales.length) redundantes.push([a.k, iguales]);
+  }
+
+  res.huerfanos = [...porClave.keys()].filter((k) => !vistos.has(k)).length;
+
+  for (const [clave, campos] of redundantes) {
+    const ov = porClave.get(clave);
+    for (const c of campos) delete ov[c];
+    try {
+      if (!Object.keys(ov).length) {
+        await env.DB.prepare('DELETE FROM acopio_overlay WHERE clave = ?').bind(clave).run();
+      } else {
+        await env.DB.prepare('UPDATE acopio_overlay SET campos = ? WHERE clave = ?')
+          .bind(JSON.stringify(ov), clave).run();
+      }
+    } catch (e) { console.error('overlay no se pudo limpiar', clave, e && e.message); }
+  }
+  return res;
+}
+
 export async function refrescar(env, opciones = {}) {
   const url = env.ACOPIOS_CSV;
   if (!url) return null;
@@ -354,6 +484,10 @@ export async function refrescar(env, opciones = {}) {
   const { items, sin_ubicar, error } = normalizarFilas(parsearCSV(txt));
   if (error) throw new Error(error);
 
+  // Las correcciones aprobadas van ANTES de geocodificar: si una corrigió la
+  // dirección, el geocodificador tiene que ver la buena.
+  const overlays = await aplicarOverlays(env, items);
+
   // La caché se aplica siempre (es instantánea); las búsquedas nuevas solo
   // cuando quien llama las pide, porque cuestan ~1 s cada una.
   let geocodificados = 0;
@@ -369,6 +503,8 @@ export async function refrescar(env, opciones = {}) {
     sin_ubicar,
     con_punto_propio: items.filter((i) => !i.ap && i.la != null).length,
     geocodificados_ahora: geocodificados,
+    corregidos: overlays.aplicados,
+    cerrados: overlays.cerrados,
     revisado: false,       // nadie los ha confirmado en terreno
     items,
   };

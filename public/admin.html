@@ -1,0 +1,497 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Es una herramienta de trabajo, no una página del sitio. Que no la indexe
+     nadie: aunque sin token no muestre nada, aparecer en una búsqueda solo
+     sirve para que alguien se ponga a probar contraseñas. -->
+<meta name="robots" content="noindex,nofollow">
+<title>Panel · Mapa de ayuda</title>
+<style>
+:root{
+  --tinta:#16130f; --tenue:#5d574e; --papel:#f7f5f1; --tarjeta:#fff;
+  --linea:#e0dbd2; --rojo:#b4321e; --rojo-claro:#fdeceb;
+  --verde:#1d7a4c; --azul:#1b5fa8; --ambar:#8a6410; --ambar-claro:#fff3d6;
+  --sombra:0 1px 2px rgba(0,0,0,.05),0 4px 16px rgba(0,0,0,.06);
+  --r:10px;
+}
+*{box-sizing:border-box; margin:0; padding:0}
+body{
+  font:16px/1.5 Arial,'Helvetica Neue',Helvetica,sans-serif;
+  background:var(--papel); color:var(--tinta); padding:1rem;
+}
+.env{max-width:1000px; margin:0 auto}
+header{display:flex; align-items:baseline; gap:.6rem; flex-wrap:wrap; margin-bottom:1rem}
+h1{font-size:1.3rem}
+header .sub{color:var(--tenue); font-size:.85rem}
+header a{color:var(--tenue); font-size:.85rem; margin-left:auto}
+
+.tarjeta{
+  background:var(--tarjeta); border:1px solid var(--linea); border-radius:var(--r);
+  padding:.9rem 1rem; box-shadow:var(--sombra); margin-bottom:.7rem;
+}
+label{display:block; font-weight:700; font-size:.85rem; margin-bottom:.25rem}
+input[type=text],input[type=password],textarea{
+  width:100%; padding:.55rem .65rem; border:1px solid var(--linea);
+  border-radius:8px; font:inherit; background:#fff;
+}
+.btn{
+  border:1px solid var(--linea); background:#fff; color:var(--tinta);
+  border-radius:8px; padding:.45rem .8rem; font:inherit; cursor:pointer;
+}
+.btn:hover{background:#f4f1ec}
+.btn-pri{background:var(--tinta); color:#fff; border-color:var(--tinta); font-weight:700}
+.btn-ok{background:var(--verde); color:#fff; border-color:var(--verde); font-weight:700}
+.btn-no{background:#fff; color:var(--rojo); border-color:#e8c4bd}
+.btn-sm{padding:.3rem .6rem; font-size:.85rem}
+.btn:disabled{opacity:.5; cursor:default}
+
+.tabs{display:flex; gap:.4rem; margin-bottom:.8rem; flex-wrap:wrap}
+.tab{
+  border:1px solid var(--linea); background:#fff; border-radius:999px;
+  padding:.35rem .85rem; font:inherit; font-size:.9rem; cursor:pointer;
+}
+.tab[aria-pressed="true"]{background:var(--tinta); color:#fff; border-color:var(--tinta)}
+.tab .n{font-weight:700}
+
+.vacio{color:var(--tenue); text-align:center; padding:2rem 1rem}
+.aviso{
+  background:var(--ambar-claro); border:1px solid #f0dfae; color:var(--ambar);
+  border-radius:var(--r); padding:.6rem .8rem; font-size:.88rem; margin-bottom:.7rem;
+}
+.error-caja{
+  background:var(--rojo-claro); border:1px solid #e8c4bd; color:var(--rojo);
+  border-radius:var(--r); padding:.6rem .8rem; font-size:.88rem; margin-bottom:.7rem;
+}
+
+/* ── tarjeta de corrección ── */
+.sug-cab{display:flex; align-items:flex-start; gap:.5rem; flex-wrap:wrap; margin-bottom:.5rem}
+.sug-cab h3{font-size:1rem; flex:1 1 14rem}
+.sug-cab .donde{color:var(--tenue); font-size:.82rem; font-weight:400; display:block}
+.sello{
+  display:inline-block; font-size:.66rem; font-weight:700; text-transform:uppercase;
+  letter-spacing:.04em; padding:.12rem .4rem; border-radius:4px; white-space:nowrap;
+}
+.s-cierre{background:var(--rojo-claro); color:var(--rojo); border:1px solid #e8c4bd}
+.s-correccion{background:#e8f0fa; color:var(--azul); border:1px solid #c6dbf0}
+.s-confirmacion{background:#e7f4ed; color:var(--verde); border:1px solid #bfe3d0}
+.s-alerta{background:var(--ambar-claro); color:var(--ambar); border:1px solid #f0dfae}
+
+.dif{border-top:1px solid var(--linea); margin-top:.5rem; padding-top:.5rem}
+.dif-fila{display:grid; grid-template-columns:7.5rem 1fr; gap:.5rem; padding:.28rem 0;
+  font-size:.9rem; align-items:start}
+.dif-fila .campo{color:var(--tenue); font-size:.8rem; padding-top:.1rem}
+.de{color:var(--tenue); text-decoration:line-through; text-decoration-color:#c9c2b6}
+.a{font-weight:700}
+.flecha{color:var(--tenue); margin:0 .3rem}
+/* ⚠️ Cuando la hoja YA cambió desde que alguien corrigió, el "antes" guardado
+   deja de ser el actual. Aprobar a ciegas revive un dato ya arreglado. */
+.desfasado{background:var(--ambar-claro); border-radius:5px; padding:.1rem .3rem}
+
+.nota{background:#f4f1ec; border-radius:8px; padding:.5rem .65rem; margin-top:.5rem;
+  font-size:.9rem; white-space:pre-wrap}
+.nota b{display:block; font-size:.75rem; color:var(--tenue); text-transform:uppercase;
+  letter-spacing:.04em; margin-bottom:.15rem}
+.acc{display:flex; gap:.4rem; margin-top:.7rem; flex-wrap:wrap; align-items:center}
+.acc .meta{color:var(--tenue); font-size:.8rem; margin-left:auto}
+
+table{width:100%; border-collapse:collapse; font-size:.88rem}
+th,td{text-align:left; padding:.4rem .5rem; border-bottom:1px solid var(--linea);
+  vertical-align:top}
+th{font-size:.75rem; text-transform:uppercase; letter-spacing:.04em; color:var(--tenue)}
+td.num{white-space:nowrap}
+@media (max-width:640px){
+  .dif-fila{grid-template-columns:1fr}
+  .dif-fila .campo{padding-top:0}
+  table{font-size:.82rem}
+}
+</style>
+</head>
+<body>
+<div class="env">
+
+<header>
+  <h1>Panel · Mapa de ayuda</h1>
+  <span class="sub" id="sub"></span>
+  <a href="/" >← Ver el mapa</a>
+</header>
+
+<!-- ══════════ acceso ══════════ -->
+<div class="tarjeta" id="acceso">
+  <label for="tok">Token de administración</label>
+  <div style="display:flex; gap:.5rem; flex-wrap:wrap">
+    <input type="password" id="tok" autocomplete="current-password"
+           placeholder="El de ~/.config/ayuda-sismo/admin.env" style="flex:1 1 16rem">
+    <button class="btn btn-pri" id="entrar">Entrar</button>
+  </div>
+  <p style="color:var(--tenue); font-size:.82rem; margin-top:.5rem">
+    Se guarda en este navegador. No queda escrito en el código de la página.
+  </p>
+  <div class="error-caja" id="acc-error" hidden style="margin-top:.6rem; margin-bottom:0"></div>
+</div>
+
+<!-- ══════════ panel ══════════ -->
+<main id="panel" hidden>
+  <div class="tabs">
+    <button class="tab" data-v="pendiente" aria-pressed="true">
+      Por revisar <span class="n" id="n-pend">·</span></button>
+    <button class="tab" data-v="todas" aria-pressed="false">Historial</button>
+    <button class="tab" data-v="overlays" aria-pressed="false">
+      Cambios aplicados <span class="n" id="n-ov">·</span></button>
+    <button class="tab" data-v="reportes" aria-pressed="false">Reportes del mapa</button>
+    <button class="btn btn-sm" id="recargar" style="margin-left:auto">Recargar</button>
+  </div>
+
+  <div class="error-caja" id="err" hidden></div>
+  <div id="vista"></div>
+</main>
+
+</div>
+<script>
+'use strict';
+
+const API = location.hostname === 'localhost'
+  ? 'http://localhost:8787'
+  : 'https://ayuda-sismo.reruizc.workers.dev';
+
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g,
+  (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+let TOKEN = localStorage.getItem('sismo-admin') || '';
+let VISTA = 'pendiente';
+let DATOS = null;      // última respuesta de /admin/sugerencias
+let REPORTES = null;
+
+/* Nombres de campo tal como se llaman en la HOJA, no en el JSON. El panel
+   existe para decidir y para pasar el cambio a la hoja: hablar en "d" y "ne"
+   obligaría a traducir mentalmente cada vez. */
+const CAMPOS = {
+  d:   'Dirección',
+  ne:  'Necesidad',
+  ab:  'Horario abre',
+  ci:  'Horario cierre',
+  di:  'Días',
+  tel: 'Teléfono',
+  c:   'Contacto',
+  vol: 'Voluntarios',
+  rev: 'Última revisión',
+  tipo:'Tipo de lugar',
+};
+
+const TIPOS = {
+  correccion:   {n:'Corrección', cls:'s-correccion'},
+  cierre:       {n:'Cerró',      cls:'s-cierre'},
+  confirmacion: {n:'Confirmado', cls:'s-confirmacion'},
+};
+
+const valor = (v) => {
+  if (v === true) return 'sí';
+  if (v === false) return 'no';
+  const s = String(v ?? '').trim();
+  return s || '(vacío)';
+};
+
+function fecha(ts){
+  if (!ts) return '';
+  const d = new Date(ts);
+  const hoy = new Date();
+  const mismoDia = d.toDateString() === hoy.toDateString();
+  const hora = d.toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit'});
+  return mismoDia ? `hoy ${hora}`
+    : `${d.toLocaleDateString('es-CO', {day:'numeric', month:'short'})} ${hora}`;
+}
+
+/* ── llamadas ── */
+async function api(ruta, opciones = {}){
+  const r = await fetch(API + ruta, {
+    ...opciones,
+    headers: {'Content-Type':'application/json', 'X-Admin-Token': TOKEN, ...(opciones.headers || {})},
+  });
+  const d = await r.json().catch(() => ({}));
+  if (r.status === 401) { throw new Error('no_autorizado'); }
+  if (!r.ok || d.error) throw new Error(d.error || `http_${r.status}`);
+  return d;
+}
+
+async function entrar(){
+  const t = $('#tok').value.trim();
+  const err = $('#acc-error');
+  err.hidden = true;
+  if (t.length < 16) { err.textContent = 'Ese token es muy corto.'; err.hidden = false; return; }
+  TOKEN = t;
+  try {
+    await api('/admin/sugerencias?estado=pendiente');
+    localStorage.setItem('sismo-admin', TOKEN);
+    $('#acceso').hidden = true;
+    $('#panel').hidden = false;
+    cargar();
+  } catch (e) {
+    TOKEN = '';
+    err.textContent = e.message === 'no_autorizado'
+      ? 'El token no es válido.'
+      : 'No pudimos verificarlo. Revisa la conexión.';
+    err.hidden = false;
+  }
+}
+
+async function cargar(){
+  const err = $('#err'); err.hidden = true;
+  $('#vista').innerHTML = '<p class="vacio">Cargando…</p>';
+  try {
+    if (VISTA === 'reportes') {
+      REPORTES = await api('/admin/reportes');
+    } else {
+      DATOS = await api('/admin/sugerencias?estado=' + (VISTA === 'overlays' ? 'pendiente' : VISTA));
+    }
+    pintar();
+  } catch (e) {
+    $('#vista').innerHTML = '';
+    if (e.message === 'no_autorizado') {
+      // El token dejó de servir (rotado, o mal pegado): se vuelve a pedir en
+      // vez de dejar la pantalla en un error que no dice qué hacer.
+      localStorage.removeItem('sismo-admin');
+      TOKEN = '';
+      $('#panel').hidden = true;
+      $('#acceso').hidden = false;
+      return;
+    }
+    err.textContent = 'No se pudo cargar: ' + e.message;
+    err.hidden = false;
+  }
+}
+
+/* ── pintado ── */
+function pintar(){
+  if (DATOS) {
+    $('#n-pend').textContent = DATOS.pendientes ?? '·';
+    $('#n-ov').textContent = (DATOS.overlays || []).length;
+    $('#sub').textContent = DATOS.acopios
+      ? `${DATOS.acopios.total} acopios · hoja leída ${fecha(DATOS.acopios.generado)}` : '';
+  }
+  if (VISTA === 'reportes') return pintarReportes();
+  if (VISTA === 'overlays') return pintarOverlays();
+  pintarSugerencias();
+}
+
+function pintarSugerencias(){
+  const items = (DATOS && DATOS.items) || [];
+  if (!items.length) {
+    $('#vista').innerHTML = VISTA === 'pendiente'
+      ? '<p class="vacio">Nada por revisar. Cuando alguien corrija un acopio desde el mapa, aparece acá.</p>'
+      : '<p class="vacio">Todavía no hay correcciones.</p>';
+    return;
+  }
+  $('#vista').innerHTML = items.map(tarjetaSugerencia).join('');
+}
+
+function tarjetaSugerencia(s){
+  const t = TIPOS[s.tipo] || {n:s.tipo, cls:''};
+  const apoyos = (DATOS.apoyos || {})[`${s.clave}|${s.tipo}`] || 1;
+  const pend = s.estado === 'pendiente';
+
+  let dif = '';
+  if (s.tipo === 'correccion') {
+    const filas = Object.entries(s.campos || {}).map(([c, v]) => {
+      // El "antes" guardado se compara con el valor de AHORA. Si la hoja
+      // cambió en el intermedio, se avisa: aprobar sin mirar reemplazaría un
+      // dato que ya estaba corregido por uno viejo.
+      const ahora = s.actual ? s.actual[c] : undefined;
+      const movido = s.actual && String(ahora ?? '') !== String(v.de ?? '');
+      return `<div class="dif-fila">
+        <span class="campo">${esc(CAMPOS[c] || c)}</span>
+        <span><span class="de${movido ? ' desfasado' : ''}">${esc(valor(movido ? ahora : v.de))}</span>
+          <span class="flecha">→</span><span class="a">${esc(valor(v.a))}</span>
+          ${movido ? '<br><span style="font-size:.78rem;color:var(--ambar)">La hoja cambió'
+            + ` desde que se corrigió (decía «${esc(valor(v.de))}»)</span>` : ''}</span>
+      </div>`;
+    }).join('');
+    dif = filas ? `<div class="dif">${filas}</div>` : '';
+  } else if (s.tipo === 'cierre') {
+    dif = '<div class="dif"><div class="dif-fila"><span class="campo">Efecto</span>'
+      + '<span class="a">Sale del mapa</span></div></div>';
+  } else {
+    dif = '<div class="dif"><div class="dif-fila"><span class="campo">Efecto</span>'
+      + '<span class="a">Queda marcado como revisado hoy</span></div></div>';
+  }
+
+  return `<article class="tarjeta">
+    <div class="sug-cab">
+      <h3>${esc(s.acopio)}
+        <span class="donde">${esc([s.municipio, s.depto].filter(Boolean).join(', '))}</span></h3>
+      <span class="sello ${t.cls}">${esc(t.n)}</span>
+      ${apoyos > 1 && pend ? `<span class="sello s-alerta">${apoyos} personas</span>` : ''}
+      ${s.sin_captcha ? '<span class="sello s-alerta" title="Llegó sin verificar el captcha">sin captcha</span>' : ''}
+      ${s.huerfana ? '<span class="sello s-alerta">ya no está en la hoja</span>' : ''}
+      ${!pend ? `<span class="sello">${esc(s.estado)}</span>` : ''}
+    </div>
+    ${dif}
+    ${s.nota ? `<div class="nota"><b>Lo que escribieron</b>${esc(s.nota)}</div>` : ''}
+    ${s.contacto ? `<div class="nota"><b>Contacto de quien corrige</b>${esc(s.contacto)}</div>` : ''}
+    ${s.huerfana ? `<div class="aviso" style="margin:.6rem 0 0">
+      Este acopio ya no aparece en la hoja con ese nombre y municipio, así que
+      aprobar no cambiaría nada. Si le cambiaste el nombre, la corrección hay
+      que hacerla a mano.</div>` : ''}
+    <div class="acc">
+      ${pend && !s.huerfana ? `
+        <button class="btn btn-ok btn-sm" data-ap="${esc(s.id)}">Aprobar</button>
+        <button class="btn btn-no btn-sm" data-no="${esc(s.id)}">Rechazar</button>` : ''}
+      ${s.tipo === 'correccion'
+        ? `<button class="btn btn-sm" data-copiar="${esc(s.id)}">Copiar para la hoja</button>` : ''}
+      <span class="meta">${esc(fecha(s.ts))}</span>
+    </div>
+  </article>`;
+}
+
+function pintarOverlays(){
+  const ov = (DATOS && DATOS.overlays) || [];
+  if (!ov.length) {
+    $('#vista').innerHTML = `<p class="vacio">Ningún cambio aplicado en este momento.<br>
+      <span style="font-size:.88rem">Lo que apruebes aparece acá hasta que lo escribas
+      en la hoja; entonces se retira solo.</span></p>`;
+    return;
+  }
+  $('#vista').innerHTML = `
+    <div class="aviso">Esto es lo que el mapa está mostrando <b>por encima</b> de la hoja.
+      Cuando escribas el mismo valor en la hoja, la fila se retira sola en el
+      siguiente refresco — no hay que hacer nada.</div>
+    ${ov.map((o) => {
+      const campos = Object.entries(o.campos || {})
+        .map(([c, v]) => c === 'cerrado'
+          ? '<div class="dif-fila"><span class="campo">Estado</span><span class="a">Fuera del mapa</span></div>'
+          : `<div class="dif-fila"><span class="campo">${esc(CAMPOS[c] || c)}</span>
+               <span class="a">${esc(valor(v))}</span></div>`).join('');
+      return `<article class="tarjeta">
+        <div class="sug-cab"><h3>${esc(o.acopio)}</h3>
+          <span class="sello s-correccion">aplicado</span></div>
+        <div class="dif">${campos}</div>
+        <div class="acc">
+          <button class="btn btn-sm" data-quitar="${esc(o.clave)}">Quitar</button>
+          <span class="meta">${esc(fecha(o.ts))}</span>
+        </div>
+      </article>`;
+    }).join('')}`;
+}
+
+function pintarReportes(){
+  const items = (REPORTES && REPORTES.items) || [];
+  if (!items.length) { $('#vista').innerHTML = '<p class="vacio">Sin reportes.</p>'; return; }
+  $('#vista').innerHTML = `<div class="tarjeta"><table>
+    <thead><tr><th>Reporte</th><th>Dónde</th><th>Estado</th><th></th></tr></thead>
+    <tbody>${items.slice(0, 300).map((r) => `
+      <tr>
+        <td><b>${esc(r.titulo)}</b>
+          <div style="color:var(--tenue); font-size:.8rem">${esc(r.sit)} · ${esc(fecha(r.ts))}
+            ${r.abusos ? ` · <span style="color:var(--rojo)">${r.abusos} marcas</span>` : ''}
+            ${r.sin_captcha ? ' · sin captcha' : ''}</div></td>
+        <td>${esc([r.barrio, r.municipio, r.depto].filter(Boolean).join(', '))}</td>
+        <td class="num">${esc(r.estado)}${r.verificado ? ' ✓' : ''}</td>
+        <td class="num">
+          ${r.estado !== 'oculto'
+            ? `<button class="btn btn-sm btn-no" data-ocultar="${esc(r.id)}">Ocultar</button>`
+            : `<button class="btn btn-sm" data-mostrar="${esc(r.id)}">Restaurar</button>`}
+          ${!r.verificado
+            ? `<button class="btn btn-sm" data-verificar="${esc(r.id)}">Verificar</button>` : ''}
+        </td>
+      </tr>`).join('')}</tbody></table></div>`;
+}
+
+/* ── acciones ── */
+async function decidir(id, accion, boton){
+  const fila = boton.closest('.acc');
+  fila.querySelectorAll('button').forEach((b) => { b.disabled = true; });
+  try {
+    await api('/admin/sugerencia', {method:'POST', body: JSON.stringify({id, accion})});
+    await cargar();
+  } catch (e) {
+    alert('No se pudo: ' + e.message);
+    fila.querySelectorAll('button').forEach((b) => { b.disabled = false; });
+  }
+}
+
+async function quitarOverlay(clave, boton){
+  if (!confirm('¿Quitar este cambio?\n\nEl punto vuelve a mostrar lo que diga la hoja.')) return;
+  boton.disabled = true;
+  try {
+    await api('/admin/sugerencia', {method:'POST', body: JSON.stringify({accion:'quitar', clave})});
+    await cargar();
+  } catch (e) { alert('No se pudo: ' + e.message); boton.disabled = false; }
+}
+
+/**
+ * Copia los valores aprobados en el orden de las columnas de la hoja.
+ *
+ * Es el puente al trabajo manual: se pega en la fila del acopio y listo. Se
+ * copian SOLO los campos corregidos, cada uno rotulado con el nombre de su
+ * columna, porque pegar una fila entera pisaría lo que no se tocó.
+ */
+async function copiarParaHoja(s, boton){
+  const lineas = Object.entries(s.campos || {})
+    .map(([c, v]) => `${CAMPOS[c] || c}: ${valor(v.a)}`);
+  if (!lineas.length) return;
+  const txt = `${s.acopio} (${[s.municipio, s.depto].filter(Boolean).join(', ')})\n`
+    + lineas.join('\n');
+  try {
+    await navigator.clipboard.writeText(txt);
+    const antes = boton.textContent;
+    boton.textContent = 'Copiado ✓';
+    setTimeout(() => { boton.textContent = antes; }, 1500);
+  } catch {
+    // Sin permiso de portapapeles (o sin HTTPS): se muestra para copiar a mano
+    // en vez de dejar el botón sin hacer nada.
+    prompt('Copia esto en la hoja:', txt);
+  }
+}
+
+async function moderar(id, cambios, boton){
+  boton.disabled = true;
+  try {
+    await api('/admin/estado', {method:'POST', body: JSON.stringify({id, ...cambios})});
+    await cargar();
+  } catch (e) { alert('No se pudo: ' + e.message); boton.disabled = false; }
+}
+
+/* ── eventos ── */
+$('#entrar').addEventListener('click', entrar);
+$('#tok').addEventListener('keydown', (e) => { if (e.key === 'Enter') entrar(); });
+$('#recargar').addEventListener('click', cargar);
+
+document.querySelectorAll('.tab').forEach((t) => {
+  t.addEventListener('click', () => {
+    VISTA = t.dataset.v;
+    document.querySelectorAll('.tab').forEach((o) =>
+      o.setAttribute('aria-pressed', String(o.dataset.v === VISTA)));
+    // Los overlays vienen dentro de la misma respuesta que las correcciones,
+    // así que cambiar a esa pestaña no tiene por qué pedir nada de nuevo.
+    if (VISTA === 'overlays' && DATOS) pintar(); else cargar();
+  });
+});
+
+document.addEventListener('click', (e) => {
+  const ap = e.target.closest('[data-ap]');
+  if (ap) return decidir(ap.dataset.ap, 'aprobar', ap);
+  const no = e.target.closest('[data-no]');
+  if (no) return decidir(no.dataset.no, 'rechazar', no);
+  const q = e.target.closest('[data-quitar]');
+  if (q) return quitarOverlay(q.dataset.quitar, q);
+  const cp = e.target.closest('[data-copiar]');
+  if (cp) {
+    const s = ((DATOS && DATOS.items) || []).find((x) => x.id === cp.dataset.copiar);
+    if (s) copiarParaHoja(s, cp);
+    return;
+  }
+  const oc = e.target.closest('[data-ocultar]');
+  if (oc) return moderar(oc.dataset.ocultar, {estado:'oculto'}, oc);
+  const ms = e.target.closest('[data-mostrar]');
+  if (ms) return moderar(ms.dataset.mostrar, {estado:'activo'}, ms);
+  const vf = e.target.closest('[data-verificar]');
+  if (vf) return moderar(vf.dataset.verificar, {verificado:true}, vf);
+});
+
+// Con token guardado se entra directo: es una herramienta que se abre veinte
+// veces al día y volver a pegar el token cada vez sobra.
+if (TOKEN) { $('#tok').value = TOKEN; entrar(); }
+</script>
+</body>
+</html>

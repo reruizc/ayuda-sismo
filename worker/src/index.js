@@ -13,10 +13,13 @@
  *   POST /reporte/:id/estado      cerrar/reabrir (requiere token)
  *   POST /contacto                mensaje intermediado hacia el reportante
  *   POST /abuso                   marcar un reporte para revisión
+ *   POST /sugerencia              corregir / cerrar / confirmar un acopio (a revisión)
  *   GET  /inteligencia.json       pulso de prensa (lo recolecta el cron, no la visita)
  *   GET  /copernicus.json         daño evaluado desde satélite (cron diario)
  *   GET  /admin/reportes          moderación (X-Admin-Token)
  *   POST /admin/estado            ocultar / verificar (X-Admin-Token)
+ *   GET  /admin/sugerencias       correcciones de acopios + overlays activos
+ *   POST /admin/sugerencia        aprobar / rechazar, o quitar un overlay
  *   POST /admin/inteligencia      forzar una recolección (X-Admin-Token)
  *   GET  /admin/corridas          bitácora de corridas del cron (X-Admin-Token)
  *   POST /admin/copernicus        forzar la lectura de Copernicus (X-Admin-Token)
@@ -26,7 +29,7 @@ import {
   recolectar as recolectarPrensa, leer as leerPrensa,
   anotarCorrida, ultimaCorrida,
 } from './inteligencia.js';
-import { leer as leerAcopios, refrescar as refrescarAcopios } from './acopios.js';
+import { leer as leerAcopios, refrescar as refrescarAcopios, claveDe } from './acopios.js';
 import { leer as leerCopernicus, refrescar as refrescarCopernicus } from './copernicus.js';
 
 /**
@@ -97,7 +100,25 @@ const SITUACIONES = {
 const URGENCIAS = new Set(['inmediata', 'alta', 'media', 'baja']);
 const ESTADOS = new Set(['activo', 'resuelto', 'oculto']);
 
-const LIMITES = { reportesPorHora: 5, mensajesPorHora: 20, abusosPorHora: 30 };
+const LIMITES = {
+  reportesPorHora: 5, mensajesPorHora: 20, abusosPorHora: 30,
+  // Más alto que los reportes a propósito: corregir es barato y no publica
+  // nada solo. Quien va llegando a un acopio tras otro puede corregir varios
+  // seguidos, y frenarlo a los cinco sería castigar justo al que ayuda.
+  sugerenciasPorHora: 12,
+};
+
+/* Correcciones sobre un acopio.
+     correccion   cambia campos de la ficha
+     cierre       el sitio ya no recibe
+     confirmacion sigue igual y alguien lo verificó — es lo que llena la
+                  columna de revisión, que está vacía en casi toda la hoja */
+const SUG_TIPOS = new Set(['correccion', 'cierre', 'confirmacion']);
+
+/* Campos corregibles y su tope. NO están el nombre (es la llave que amarra la
+   corrección con su acopio) ni la ubicación (mover un pin desde un formulario
+   anónimo manda gente a otra dirección). Los dos se piden por la nota. */
+const SUG_CAMPOS = { d: 140, ne: 300, ab: 24, ci: 24, di: 40, tel: 60, c: 120 };
 
 // Fotos: se reciben DENTRO de /reporte en base64, no por un endpoint propio.
 // Un endpoint de subida suelto sería un almacenamiento abierto a internet;
@@ -226,12 +247,17 @@ async function verificarTurnstile(token, ip, env) {
   }
 }
 
+/* El nombre de la tabla entra a la consulta por concatenación, así que la
+   lista blanca es obligatoria: sin ella esto sería inyección de SQL con un
+   parámetro que hoy es interno pero mañana lo pone cualquiera. */
+const TABLAS_LIMITE = new Set(['reportes', 'mensajes', 'sugerencias']);
+
 async function bajoLimite(env, tabla, ipHash, max) {
+  if (!TABLAS_LIMITE.has(tabla)) throw new Error(`tabla_no_permitida:${tabla}`);
   const desde = Date.now() - 3600_000;
-  const q = tabla === 'mensajes'
-    ? 'SELECT COUNT(*) AS n FROM mensajes WHERE ip_hash = ? AND ts > ?'
-    : 'SELECT COUNT(*) AS n FROM reportes WHERE ip_hash = ? AND ts > ?';
-  const row = await env.DB.prepare(q).bind(ipHash, desde).first();
+  const row = await env.DB.prepare(
+    `SELECT COUNT(*) AS n FROM ${tabla} WHERE ip_hash = ? AND ts > ?`
+  ).bind(ipHash, desde).first();
   return (row?.n || 0) < max;
 }
 
@@ -591,6 +617,95 @@ async function reportarAbuso(req, env, origin, ip) {
   return json({ ok: true }, 200, origin);
 }
 
+/**
+ * Corrección sobre un acopio: cambió algo, cerró, o sigue igual.
+ *
+ * ⚠️⚠️ NO cambia el mapa. Queda pendiente hasta que alguien la apruebe en el
+ * panel. Es la diferencia entre corregir y vandalizar: acá cualquiera puede
+ * decir "este acopio cerró", y si eso apagara el pin al instante bastaría un
+ * formulario para borrar del mapa los acopios que sí están operando.
+ *
+ * La respuesta es la misma se apruebe o no —"recibido"—: quien corrige no
+ * tiene por qué esperar en línea a que un humano revise.
+ */
+async function crearSugerencia(req, env, origin, ip) {
+  let b; try { b = await req.json(); } catch { return json({ error: 'json_invalido' }, 400, origin); }
+
+  // Honeypot y tiempo de diligenciamiento: mismo criterio que /reporte, y se
+  // responde `ok` para no enseñarle al bot cuál de las dos reglas lo atajó.
+  if (limpiar(b.web, 40)) return json({ ok: true }, 200, origin);
+  const dt = Number(b.dt);
+  const sospechoso = !Number.isFinite(dt) || dt < 4000;
+  if (Number.isFinite(dt) && dt < 4000) return json({ ok: true }, 200, origin);
+
+  const tipo = SUG_TIPOS.has(b.tipo) ? b.tipo : null;
+  if (!tipo) return json({ error: 'tipo_invalido' }, 400, origin);
+
+  const clave = limpiar(b.clave, 200);
+  if (!clave) return json({ error: 'falta_acopio' }, 400, origin);
+
+  /* La llave se valida contra la lista real de acopios, y de ahí salen también
+     el nombre y el municipio que verá el panel.
+     ⚠️ No se toman del cuerpo del mensaje: quien envía podría escribir
+     cualquier nombre y la corrección aparecería en el panel disfrazada de otro
+     acopio. Lo único que se acepta del cliente es a CUÁL se refiere. */
+  const acopios = await leerAcopios(env);
+  const item = (acopios.items || []).find((a) => (a.k || claveDe(a.n, a.mu)) === clave);
+  if (!item) return json({ error: 'acopio_desconocido' }, 400, origin);
+
+  const nota = limpiar(b.nota, 600);
+  // Cerrar un acopio es lo más destructivo que se puede pedir acá, así que
+  // pide una razón: "fui esta mañana y estaba cerrado" es verificable, un
+  // clic suelto no.
+  if (tipo === 'cierre' && nota.length < 4) return json({ error: 'falta_motivo' }, 400, origin);
+
+  // Solo entra lo que de verdad cambia. Guardar el valor viejo al lado es lo
+  // que deja aprobar mirando la tarjeta, sin abrir la hoja a comparar.
+  const campos = {};
+  if (tipo === 'correccion') {
+    for (const [c, max] of Object.entries(SUG_CAMPOS)) {
+      if (b[c] === undefined || b[c] === null) continue;
+      const nuevo = limpiar(b[c], max);
+      const viejo = String(item[c] ?? '');
+      if (nuevo === viejo) continue;
+      campos[c] = { de: viejo, a: nuevo };
+    }
+    if (b.vol !== undefined && !!b.vol !== !!item.vol) {
+      campos.vol = { de: !!item.vol, a: !!b.vol };
+    }
+    if (!Object.keys(campos).length && !nota) return json({ error: 'sin_cambios' }, 400, origin);
+  }
+
+  const ipHash = await hashIp(ip, env.IP_SALT);
+  if (!(await bajoLimite(env, 'sugerencias', ipHash, LIMITES.sugerenciasPorHora))) {
+    return json({ error: 'demasiadas', mensaje: 'Ya enviaste varias correcciones en la última hora.' }, 429, origin);
+  }
+
+  /* Una misma persona no puede apilar la misma corrección sobre el mismo
+     acopio. Sin esto, el panel se llenaría de veinte tarjetas idénticas y el
+     conteo de "cuánta gente dice que cerró" —que es la señal que sirve para
+     decidir— dejaría de significar algo. */
+  const repetida = await env.DB.prepare(
+    `SELECT id FROM sugerencias
+      WHERE ip_hash = ? AND clave = ? AND tipo = ? AND estado = 'pendiente' AND ts > ?`
+  ).bind(ipHash, clave, tipo, Date.now() - 86400_000).first();
+  if (repetida) return json({ ok: true, repetida: true }, 200, origin);
+
+  const captcha = await verificarTurnstile(b.turnstile, ip, env);
+  if (!captcha.ok) return json({ error: 'captcha_invalido' }, 400, origin);
+
+  const id = crypto.randomUUID().slice(0, 10);
+  await env.DB.prepare(`
+    INSERT INTO sugerencias (id, ts, clave, acopio, municipio, depto, tipo, campos,
+      nota, contacto, estado, ip_hash, sin_captcha)
+    VALUES (?,?,?,?,?,?,?,?,?,?,'pendiente',?,?)
+  `).bind(id, Date.now(), clave, item.n, item.mu || null, item.dp || null, tipo,
+    JSON.stringify(campos), nota || null, limpiar(b.contacto, 120) || null,
+    ipHash, (captcha.verificado && !sospechoso) ? 0 : 1).run();
+
+  return json({ ok: true, id }, 200, origin);
+}
+
 function guardAdmin(req, env) {
   const t = req.headers.get('X-Admin-Token') || '';
   if (!env.ADMIN_TOKEN || t.length < 16) return false;
@@ -659,6 +774,187 @@ async function adminEstado(req, env, origin, ctx) {
   return json({ ok: true }, 200, origin);
 }
 
+/**
+ * Todo lo que el panel necesita para decidir, en una sola consulta.
+ *
+ * Cada corrección viaja con el valor ACTUAL del acopio al lado, no solo con el
+ * que tenía cuando se envió: entre que alguien corrigió y alguien revisa, la
+ * hoja pudo cambiar, y aprobar contra un "antes" viejo reviviría un dato que
+ * ya estaba arreglado.
+ */
+async function adminSugerencias(url, env, origin) {
+  const estado = ['pendiente', 'aplicada', 'rechazada'].includes(url.searchParams.get('estado'))
+    ? url.searchParams.get('estado') : 'pendiente';
+  const todas = url.searchParams.get('estado') === 'todas';
+
+  const { results } = await env.DB.prepare(`
+    SELECT id, ts, clave, acopio, municipio, depto, tipo, campos, nota, contacto,
+           estado, sin_captcha, revisado
+      FROM sugerencias ${todas ? '' : 'WHERE estado = ?'}
+     ORDER BY ts DESC LIMIT 400
+  `).bind(...(todas ? [] : [estado])).all();
+
+  const acopios = await leerAcopios(env);
+  const porClave = new Map();
+  for (const a of acopios.items || []) porClave.set(a.k || claveDe(a.n, a.mu), a);
+
+  const items = (results || []).map((s) => {
+    const a = porClave.get(s.clave);
+    return {
+      ...s,
+      campos: (() => { try { return JSON.parse(s.campos) || {}; } catch { return {}; } })(),
+      // `huerfana` = el acopio ya no está en la hoja (lo borraron, o le
+      // cambiaron el nombre y con eso la llave). Aprobarla no haría nada, así
+      // que el panel lo dice en vez de dejar el botón mintiendo.
+      huerfana: !a,
+      actual: a ? {
+        d: a.d, ne: a.ne, ab: a.ab, ci: a.ci, di: a.di,
+        tel: a.tel, c: a.c, vol: !!a.vol, rev: a.rev, tipo: a.tipo,
+      } : null,
+    };
+  });
+
+  // Cuántas personas distintas dicen lo mismo del mismo acopio. Una sola
+  // persona diciendo "cerró" es un dato; cuatro es casi una certeza.
+  const apoyos = {};
+  for (const s of items) {
+    if (s.estado !== 'pendiente') continue;
+    const k = `${s.clave}|${s.tipo}`;
+    apoyos[k] = (apoyos[k] || 0) + 1;
+  }
+
+  let overlays = [];
+  try {
+    const r = await env.DB.prepare(
+      'SELECT clave, ts, campos, origen FROM acopio_overlay ORDER BY ts DESC'
+    ).all();
+    overlays = (r.results || []).map((o) => {
+      const a = porClave.get(o.clave);
+      return {
+        ...o,
+        campos: (() => { try { return JSON.parse(o.campos) || {}; } catch { return {}; } })(),
+        // ⚠️ Un overlay de cierre saca su acopio de la lista, así que acá NO
+        // se puede leer "sin acopio" como huérfano: sería marcar como rota
+        // justo la corrección que está funcionando. El nombre se recupera de
+        // la llave cuando no hay fila que consultar.
+        acopio: a ? a.n : (o.clave.split('|')[0] || o.clave),
+      };
+    });
+  } catch { /* esquema sin aplicar: el panel funciona igual, sin esta sección */ }
+
+  const pendientes = await env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM sugerencias WHERE estado = 'pendiente'"
+  ).first().catch(() => ({ n: 0 }));
+
+  return json({
+    ok: true, total: items.length, pendientes: pendientes?.n || 0,
+    items, apoyos, overlays,
+    acopios: { total: acopios.total || 0, generado: acopios.generado },
+  }, 200, origin);
+}
+
+/**
+ * Aprobar, rechazar, o retirar un cambio ya aplicado.
+ *
+ * Aprobar escribe en `acopio_overlay` y refresca los acopios en el acto: si el
+ * cambio esperara al cron, aprobar "este acopio cerró" dejaría el pin puesto
+ * hasta tres horas, que es justo lo que se está tratando de evitar.
+ */
+async function adminSugerencia(req, env, origin, ctx) {
+  let b; try { b = await req.json(); } catch { return json({ error: 'json_invalido' }, 400, origin); }
+  const accion = ['aprobar', 'rechazar', 'quitar'].includes(b.accion) ? b.accion : null;
+  if (!accion) return json({ error: 'accion_invalida' }, 400, origin);
+
+  const purgar = async () => {
+    // Los acopios viven 300 s en el edge. Aprobar un cierre y que el pin siga
+    // ahí cinco minutos es exactamente el problema que esto resuelve.
+    if (!env.API_BASE) return;
+    try { await caches.default.delete(new Request(`${env.API_BASE}/acopios.json`)); }
+    catch (e) { console.error('purga de acopios fallida', e && e.message); }
+  };
+
+  // Retirar un overlay: se usa cuando el cambio YA quedó escrito en la hoja y
+  // el puente sobra. (Igual se limpia solo, pero poder hacerlo a mano evita
+  // esperar al siguiente refresco.)
+  if (accion === 'quitar') {
+    const clave = limpiar(b.clave, 200);
+    if (!clave) return json({ error: 'falta_clave' }, 400, origin);
+    await env.DB.prepare('DELETE FROM acopio_overlay WHERE clave = ?').bind(clave).run();
+    await refrescarAcopios(env);
+    ctx.waitUntil(purgar());
+    return json({ ok: true }, 200, origin);
+  }
+
+  const id = limpiar(b.id, 40);
+  if (!id) return json({ error: 'falta_id' }, 400, origin);
+  const s = await env.DB.prepare('SELECT * FROM sugerencias WHERE id = ?').bind(id).first();
+  if (!s) return json({ error: 'no_existe' }, 404, origin);
+
+  if (accion === 'rechazar') {
+    await env.DB.prepare("UPDATE sugerencias SET estado = 'rechazada', revisado = ? WHERE id = ?")
+      .bind(Date.now(), id).run();
+    return json({ ok: true, estado: 'rechazada' }, 200, origin);
+  }
+
+  // ── aprobar ──
+  let campos = {};
+  try { campos = JSON.parse(s.campos) || {}; } catch { /* sin cambios de campo */ }
+
+  const nuevo = {};
+  if (s.tipo === 'cierre') {
+    nuevo.cerrado = 1;
+  } else if (s.tipo === 'confirmacion') {
+    // Confirmar es lo que llena la columna de revisión, que está vacía en casi
+    // toda la hoja: el sello pasa de "sin revisar" a "revisado {fecha}".
+    nuevo.rev = new Date().toISOString().slice(0, 10);
+  } else {
+    for (const [c, v] of Object.entries(campos)) {
+      if (!v || typeof v !== 'object') continue;
+      nuevo[c] = c === 'vol' ? (v.a ? 1 : 0) : String(v.a ?? '');
+    }
+    // Aprobar una corrección implica que alguien la miró: vale como revisión.
+    if (Object.keys(nuevo).length) nuevo.rev = new Date().toISOString().slice(0, 10);
+  }
+  if (!Object.keys(nuevo).length) {
+    return json({ error: 'nada_que_aplicar' }, 400, origin);
+  }
+
+  // Se FUNDE con lo que ya hubiera para ese acopio, no lo reemplaza: dos
+  // correcciones distintas —una del horario, otra del teléfono— tienen que
+  // poder convivir, y la segunda no puede deshacer la primera.
+  let previo = {};
+  try {
+    const row = await env.DB.prepare('SELECT campos FROM acopio_overlay WHERE clave = ?')
+      .bind(s.clave).first();
+    if (row?.campos) previo = JSON.parse(row.campos) || {};
+  } catch { /* primera corrección de este acopio */ }
+
+  // Reabrir es quitar el cierre, no acumularlo encima.
+  if (s.tipo !== 'cierre') delete previo.cerrado;
+
+  await env.DB.prepare(`
+    INSERT INTO acopio_overlay (clave, ts, campos, origen) VALUES (?,?,?,?)
+    ON CONFLICT(clave) DO UPDATE SET ts = excluded.ts, campos = excluded.campos,
+                                     origen = excluded.origen
+  `).bind(s.clave, Date.now(), JSON.stringify({ ...previo, ...nuevo }), id).run();
+
+  await env.DB.prepare("UPDATE sugerencias SET estado = 'aplicada', revisado = ? WHERE id = ?")
+    .bind(Date.now(), id).run();
+
+  /* Las demás correcciones pendientes del MISMO acopio y del MISMO tipo ya
+     quedaron resueltas por esta: si tres personas avisaron que cerró, aprobar
+     una deja las otras dos como ruido pendiente para siempre. */
+  await env.DB.prepare(`
+    UPDATE sugerencias SET estado = 'aplicada', revisado = ?
+     WHERE clave = ? AND tipo = ? AND estado = 'pendiente'
+  `).bind(Date.now(), s.clave, s.tipo).run();
+
+  // Sin geocodificar: son ~1 s por búsqueda y acá se está esperando en línea.
+  const d = await refrescarAcopios(env);
+  ctx.waitUntil(purgar());
+  return json({ ok: true, estado: 'aplicada', total: d?.total, cerrados: d?.cerrados }, 200, origin);
+}
+
 // ─────────────────────────────── router ───────────────────────────────
 
 export default {
@@ -714,6 +1010,7 @@ export default {
       if (ruta === '/reporte' && req.method === 'POST') return crearReporte(req, env, origin, ip);
       if (ruta === '/contacto' && req.method === 'POST') return contactar(req, env, origin, ip);
       if (ruta === '/abuso' && req.method === 'POST') return reportarAbuso(req, env, origin, ip);
+      if (ruta === '/sugerencia' && req.method === 'POST') return crearSugerencia(req, env, origin, ip);
 
       const mPriv = ruta.match(/^\/reporte\/([\w-]{4,40})$/);
       if (mPriv && req.method === 'GET') return verReportePrivado(mPriv[1], url, env, origin);
@@ -725,6 +1022,8 @@ export default {
         if (!guardAdmin(req, env)) return json({ error: 'no_autorizado' }, 401, origin);
         if (ruta === '/admin/reportes' && req.method === 'GET') return adminReportes(url, env, origin);
         if (ruta === '/admin/estado' && req.method === 'POST') return adminEstado(req, env, origin, ctx);
+        if (ruta === '/admin/sugerencias' && req.method === 'GET') return adminSugerencias(url, env, origin);
+        if (ruta === '/admin/sugerencia' && req.method === 'POST') return adminSugerencia(req, env, origin, ctx);
         if (ruta === '/admin/acopios' && req.method === 'POST') {
           const d = await refrescarAcopios(env, { geocodificar: 25 });
           return json({ ok: true, total: d.total, con_punto_propio: d.con_punto_propio,

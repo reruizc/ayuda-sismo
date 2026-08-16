@@ -991,8 +991,9 @@ body.con-ctx .cuerpo{height:calc(100dvh - 196px)}
     <div class="modal-cab">
       <div>
         <h2 id="t-acopio">Registrar un centro de acopio</h2>
-        <p>Si ya existe y algo cambió —horario, qué reciben, si cerró— llénalo
-           igual: nos sirve para corregirlo.</p>
+        <p>Para un punto que todavía no está en el mapa. Si ya aparece y algo
+           cambió, ábrelo en el mapa y usa <b>Corregir</b>: así la corrección
+           llega pegada a ese punto y no como uno nuevo al lado.</p>
       </div>
       <button class="cerrar" data-cerrar aria-label="Cerrar">&times;</button>
     </div>
@@ -1063,6 +1064,104 @@ body.con-ctx .cuerpo{height:calc(100dvh - 196px)}
         <p style="color:var(--tenue); font-size:.95rem">
           Queda publicado en el mapa como oferta y pasa a revisión antes de entrar
           a la lista oficial de acopios. Gracias.
+        </p>
+        <button class="btn btn-pri" data-cerrar style="width:100%; margin-top:.6rem">Volver al mapa</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ modal: corregir un acopio que ya está en el mapa ══════════
+     Distinto del de arriba: aquel REGISTRA un punto nuevo, este CORRIGE uno
+     que ya existe. Antes los dos caían en el mismo formulario, así que una
+     corrección aterrizaba como un pin nuevo al lado del acopio viejo —que
+     seguía diciendo lo mismo— y nadie sabía a cuál se refería. -->
+<div class="velo" id="velo-corregir" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="t-corregir" style="max-width:540px">
+    <div class="modal-cab">
+      <div>
+        <h2 id="t-corregir">Corregir este punto</h2>
+        <p id="cr-sitio">—</p>
+      </div>
+      <button class="cerrar" data-cerrar aria-label="Cerrar">&times;</button>
+    </div>
+    <div class="modal-cuerpo">
+      <form id="form-corregir" novalidate>
+        <div class="campo">
+          <label>¿Qué pasa con este punto?</label>
+          <div class="grupos" id="cr-tipo">
+            <button type="button" class="grupo" data-t="correccion" aria-pressed="false">
+              <b>Algo cambió</b><span>Horario, dirección, qué reciben</span></button>
+            <button type="button" class="grupo" data-t="cierre" aria-pressed="false">
+              <b>Ya cerró</b><span>No está recibiendo</span></button>
+            <button type="button" class="grupo" data-t="confirmacion" aria-pressed="false">
+              <b>Está bien así</b><span>Fui y todo coincide</span></button>
+          </div>
+        </div>
+
+        <!-- Los campos vienen precargados con lo que dice hoy la ficha, y solo
+             se manda lo que la persona cambie. Así el panel muestra "antes →
+             después" en vez de una ficha entera que hay que comparar a ojo. -->
+        <div id="cr-campos" hidden>
+          <div class="campo">
+            <label for="cr-dir">Dirección</label>
+            <input type="text" id="cr-dir" maxlength="140">
+          </div>
+          <div class="campo">
+            <label for="cr-recibe">¿Qué reciben?</label>
+            <textarea id="cr-recibe" maxlength="300"></textarea>
+          </div>
+          <div class="rejilla">
+            <div class="campo">
+              <label for="cr-abre">Abre</label>
+              <input type="text" id="cr-abre" maxlength="24" placeholder="Ej.: 8:00 am">
+            </div>
+            <div class="campo">
+              <label for="cr-cierra">Cierra</label>
+              <input type="text" id="cr-cierra" maxlength="24" placeholder="Ej.: 6:00 pm">
+            </div>
+          </div>
+          <div class="campo">
+            <label for="cr-tel">Teléfono</label>
+            <input type="text" id="cr-tel" maxlength="60">
+          </div>
+          <div class="campo">
+            <label class="check">
+              <input type="checkbox" id="cr-vol">
+              <span>Necesitan voluntarios</span>
+            </label>
+          </div>
+          <p class="ayuda">¿El nombre o la ubicación están mal? Escríbelo abajo:
+            eso se corrige a mano, para no romper el vínculo con este punto.</p>
+        </div>
+
+        <div class="campo" id="cr-nota-campo" hidden>
+          <label for="cr-nota" id="cr-nota-lbl">Cuéntanos</label>
+          <textarea id="cr-nota" maxlength="600"></textarea>
+          <p class="ayuda" id="cr-nota-ayuda"></p>
+        </div>
+
+        <div class="campo" id="cr-contacto-campo" hidden>
+          <label for="cr-contacto">Tu contacto
+            <span style="font-weight:400;color:var(--tenue)">(opcional)</span></label>
+          <input type="text" id="cr-contacto" maxlength="120" placeholder="Celular o correo">
+          <p class="ayuda">Solo por si hay que confirmar algo contigo. No se publica.</p>
+        </div>
+
+        <div style="position:absolute; left:-9999px" aria-hidden="true">
+          <label>No llenar<input type="text" id="cr-web" tabindex="-1" autocomplete="off"></label>
+        </div>
+        <div class="error" id="cr-error" hidden></div>
+        <button type="submit" class="btn btn-pri" id="cr-enviar" hidden
+                style="width:100%; padding:.75rem; font-size:1rem">Enviar la corrección</button>
+      </form>
+      <div id="cr-ok" hidden class="exito">
+        <div class="tick">✓</div>
+        <h2 style="margin:.4rem 0">Gracias</h2>
+        <p style="color:var(--tenue); font-size:.95rem">
+          Queda para revisión. El punto no cambia todavía: alguien confirma antes
+          de tocarlo, para que nadie pueda cerrar desde acá un acopio que sí está
+          operando.
         </p>
         <button class="btn btn-pri" data-cerrar style="width:100%; margin-top:.6rem">Volver al mapa</button>
       </div>
@@ -2094,6 +2193,12 @@ function pintarAcopios(){
         El punto está en el centro del municipio. Guíate por la dirección${ruta ? ', no por el pin' : ''}.</div>`
        : (a.geo ? `<div style="font-size:.72rem;color:#8a8378;margin-top:.4rem">
         Ubicación del sitio según OpenStreetMap.</div>` : '')}
+      ${/* ⚠️ El botón tiene que estar TAMBIÉN acá, no solo en la ficha de
+            escritorio: en el teléfono esta burbuja ES la ficha, y quien sabe
+            que un acopio cerró es justamente el que está parado enfrente con
+            el celular en la mano. */
+        a.k ? `<div class="pop-acc"><button class="btn btn-sm"
+          data-corregir="${esc(a.k)}">Corregir o avisar que cerró</button></div>` : ''}
     `, {maxWidth:280});
     m.addTo(capaAcopios);
     S.capasAcopio.set(a._ix, m);
@@ -2193,7 +2298,13 @@ function pintarDetalle(){
       <div class="pop-acc">
         ${ruta ? `<a href="${esc(ruta)}" target="_blank" rel="noopener">Cómo llegar →</a>` : ''}
         ${tel ? `<a href="tel:${esc(tel)}">Llamar ${esc(a.tel)}</a>` : ''}
+        ${/* Sin llave no hay a qué amarrar la corrección: pasa solo con la copia
+              guardada de antes de este cambio, y se arregla sola en el primer
+              refresco. Se esconde el botón en vez de ofrecer algo que fallaría. */
+          a.k ? `<button class="btn btn-sm" data-corregir="${esc(a.k)}">Corregir o avisar que cerró</button>` : ''}
       </div>
+      ${a.ed ? `<p class="ac-m" style="color:#8a8378">Corregido con lo que reportó
+        alguien que fue al sitio.</p>` : ''}
       ${a.ap ? `<p class="ac-m" style="color:#8a8378">El punto está en el centro del
         municipio. Guíate por la dirección, no por el pin.</p>` : ''}`;
     caja.hidden = false;
@@ -3491,9 +3602,18 @@ function hayBorrador(){
   const velo = [...document.querySelectorAll('.velo')].find((v) => !v.hidden);
   if (!velo) return false;
   return [...velo.querySelectorAll('input[type=text], input[type=tel], input[type=email], textarea')]
-    .some((el) => !el.closest('[hidden]')          // la pantalla de éxito no cuenta
-                && el.id !== 'f-web' && el.id !== 'a-web'   // trampas anti-robot
-                && (el.value || '').trim() !== '');
+    .some((el) => {
+      if (el.closest('[hidden]')) return false;            // la pantalla de éxito no cuenta
+      if (['f-web', 'a-web', 'cr-web'].includes(el.id)) return false;   // trampas anti-robot
+      /* ⚠️ Un campo PRECARGADO no es texto escrito. El formulario de corrección
+         abre con la ficha actual adentro —esa es la gracia: corregir el horario
+         sin volver a teclear la dirección—, así que sin esto cerrarlo sin haber
+         tocado nada preguntaría "¿salir sin enviar?" y entrenaría a la gente a
+         decirle que sí al aviso, que es justo lo que protege el formulario de
+         reportes. Cuenta como borrador solo lo que se APARTÓ de lo precargado. */
+      if (el.dataset.precargado !== undefined) return el.value !== el.dataset.precargado;
+      return (el.value || '').trim() !== '';
+    });
 }
 
 /**
@@ -4028,6 +4148,142 @@ function ubicarAcopio(){
      {enableHighAccuracy:true, timeout:10000, maximumAge:60000});
 }
 
+/* ═════════════════════ corregir un acopio que ya existe ═════════════════════
+ *
+ * ⚠️⚠️ Esto NO edita el mapa. Manda la corrección a revisión y el punto sigue
+ * igual hasta que alguien la aprueba. La razón es que acá el abuso no sería
+ * spam sino daño: si "ya cerró" apagara el pin al instante, un formulario
+ * anónimo bastaría para borrar del mapa los acopios que sí están operando y
+ * dejar a la gente sin dónde entregar lo que llevaba.
+ */
+let corrigiendo = null, corrigiendoDesde = 0, crTipo = '';
+
+function abrirCorregir(clave){
+  const a = (S.acopios || []).find((x) => (x.k || '') === clave);
+  if (!a) return;
+  corrigiendo = a;
+  corrigiendoDesde = Date.now();
+  crTipo = '';
+
+  $('#cr-sitio').textContent = [a.n, a.mu, a.dp].filter(Boolean).join(' · ');
+  $('#form-corregir').hidden = false;
+  $('#cr-ok').hidden = true;
+  $('#cr-error').hidden = true;
+
+  // Precargado con lo que dice hoy: quien corrige el horario no tiene que
+  // volver a escribir la dirección para que no se pierda.
+  $('#cr-dir').value = a.d || '';
+  $('#cr-recibe').value = a.ne || '';
+  $('#cr-abre').value = a.ab || '';
+  $('#cr-cierra').value = a.ci || '';
+  $('#cr-tel').value = a.tel || '';
+  $('#cr-vol').checked = !!a.vol;
+  $('#cr-nota').value = '';
+  $('#cr-contacto').value = '';
+  $('#cr-web').value = '';
+
+  // Marca lo que se precargó, para que `hayBorrador` no confunda la ficha
+  // actual con texto que la persona escribió y no ha enviado.
+  ['cr-dir', 'cr-recibe', 'cr-abre', 'cr-cierra', 'cr-tel']
+    .forEach((id) => { const el = $('#' + id); el.dataset.precargado = el.value; });
+
+  $('#cr-tipo').querySelectorAll('.grupo').forEach((b) => b.setAttribute('aria-pressed', 'false'));
+  $('#cr-campos').hidden = true;
+  $('#cr-nota-campo').hidden = true;
+  $('#cr-contacto-campo').hidden = true;
+  $('#cr-enviar').hidden = true;
+
+  abrir('#velo-corregir');
+}
+
+/** El formulario cambia de forma según qué se vino a decir. */
+function elegirTipoCorreccion(t){
+  crTipo = t;
+  $('#cr-tipo').querySelectorAll('.grupo').forEach((b) =>
+    b.setAttribute('aria-pressed', String(b.dataset.t === t)));
+  $('#cr-error').hidden = true;
+
+  $('#cr-campos').hidden = t !== 'correccion';
+  $('#cr-nota-campo').hidden = false;
+  $('#cr-contacto-campo').hidden = false;
+  $('#cr-enviar').hidden = false;
+
+  const lbl = $('#cr-nota-lbl'), ayuda = $('#cr-nota-ayuda');
+  if (t === 'cierre') {
+    lbl.textContent = '¿Cómo lo sabes?';
+    // Se pide porque cerrar es lo más destructivo que se puede pedir desde acá,
+    // y "fui esta mañana" se puede confirmar; un clic suelto, no.
+    ayuda.textContent = 'Hace falta. Ej.: "fui esta mañana y ya no estaban recibiendo".';
+    $('#cr-enviar').textContent = 'Avisar que cerró';
+  } else if (t === 'confirmacion') {
+    lbl.textContent = 'Algo que agregar (opcional)';
+    ayuda.textContent = 'Con esto el punto queda marcado como revisado hoy.';
+    $('#cr-enviar').textContent = 'Confirmar que sigue igual';
+  } else {
+    lbl.textContent = 'Algo más que debamos saber (opcional)';
+    ayuda.textContent = 'Cambios de nombre o de ubicación van acá.';
+    $('#cr-enviar').textContent = 'Enviar la corrección';
+  }
+}
+
+async function enviarCorreccion(e){
+  e.preventDefault();
+  const err = $('#cr-error'); err.hidden = true;
+  if (!corrigiendo) return;
+  if (!crTipo) return fallo(err, 'Dinos primero qué pasa con este punto.');
+
+  const nota = $('#cr-nota').value.trim();
+  if (crTipo === 'cierre' && nota.length < 4) {
+    return fallo(err, 'Cuéntanos cómo sabes que cerró. Con eso lo podemos confirmar.');
+  }
+
+  const cuerpo = {
+    tipo: crTipo, clave: corrigiendo.k, nota,
+    contacto: $('#cr-contacto').value.trim(),
+    web: $('#cr-web').value,
+    dt: corrigiendoDesde ? Date.now() - corrigiendoDesde : null,
+    turnstile: await (window.tokenTurnstile ? tokenTurnstile() : Promise.resolve('')),
+  };
+  if (crTipo === 'correccion') {
+    Object.assign(cuerpo, {
+      d: $('#cr-dir').value.trim(),
+      ne: $('#cr-recibe').value.trim(),
+      ab: $('#cr-abre').value.trim(),
+      ci: $('#cr-cierra').value.trim(),
+      tel: $('#cr-tel').value.trim(),
+      vol: $('#cr-vol').checked,
+    });
+    // El servidor descarta lo que llegue igual a lo que ya tiene, pero mirarlo
+    // acá evita el viaje y da un mensaje que se entiende.
+    const igual = cuerpo.d === (corrigiendo.d || '') && cuerpo.ne === (corrigiendo.ne || '')
+      && cuerpo.ab === (corrigiendo.ab || '') && cuerpo.ci === (corrigiendo.ci || '')
+      && cuerpo.tel === (corrigiendo.tel || '') && cuerpo.vol === !!corrigiendo.vol;
+    if (igual && !nota) {
+      return fallo(err, 'No cambiaste nada. Corrige algún campo o escríbenos abajo qué está mal.');
+    }
+  }
+
+  const btn = $('#cr-enviar');
+  const textoBtn = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Enviando…';
+  try {
+    const r = await fetch(`${CONFIG.API}/sugerencia`, {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(cuerpo),
+    });
+    const d = await r.json();
+    if (!r.ok || !d.ok) throw new Error(d.error || 'no_ok');
+    $('#form-corregir').hidden = true;
+    $('#cr-ok').hidden = false;
+  } catch (ex) {
+    fallo(err, ex.message === 'demasiadas'
+      ? 'Ya enviaste varias correcciones en la última hora.'
+      : 'No pudimos enviarla. Revisa tu conexión e intenta otra vez.');
+  } finally {
+    btn.disabled = false; btn.textContent = textoBtn;
+  }
+}
+
 async function enviarAcopio(e){
   e.preventDefault();
   const err = $('#acopio-error'); err.hidden = true;
@@ -4469,6 +4725,11 @@ async function iniciar(){
   $('#a-depto').addEventListener('change', alCambiarDeptoAcopio);
   $('#a-gps').addEventListener('click', ubicarAcopio);
   $('#form-acopio').addEventListener('submit', enviarAcopio);
+  $('#form-corregir').addEventListener('submit', enviarCorreccion);
+  $('#cr-tipo').addEventListener('click', (e) => {
+    const b = e.target.closest('.grupo'); if (!b) return;
+    elegirTipoCorreccion(b.dataset.t);
+  });
   $('#f-pub').addEventListener('change', () => { $('#aviso-mask').hidden = $('#f-pub').checked; });
   $('#form').addEventListener('submit', enviarReporte);
   $('#form-contacto').addEventListener('submit', enviarContacto);
@@ -4490,6 +4751,8 @@ async function iniciar(){
     if (c) return abrirContacto(c.dataset.contactar);
     const a = e.target.closest('[data-abuso]');
     if (a) return marcarAbuso(a.dataset.abuso);
+    const cg = e.target.closest('[data-corregir]');
+    if (cg) return abrirCorregir(cg.dataset.corregir);
     const am = e.target.closest('[data-abrir-mio]');
     if (am) { const [i, t] = am.dataset.abrirMio.split('|'); return abrirMio(i, t); }
     const rs = e.target.closest('[data-resolver]');

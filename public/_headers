@@ -12,3 +12,12 @@
 
 /index.html
   Cache-Control: public, max-age=120
+
+# El panel de moderación. Sin token no muestra nada, pero no tiene por qué
+# salir en un buscador: indexarlo solo sirve para que alguien se ponga a
+# probar. El meta robots ya está en la página; el header cubre el caso de que
+# un rastreador no ejecute el HTML. Y NO se cachea: es una herramienta de
+# trabajo y una versión vieja daría por buena una decisión ya tomada.
+/admin.html
+  X-Robots-Tag: noindex, nofollow
+  Cache-Control: no-store
