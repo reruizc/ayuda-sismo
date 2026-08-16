@@ -91,7 +91,10 @@ a{color:var(--azul)}
 }
 .zonas .rot{font-size:.78rem; color:var(--tenue); font-weight:600; flex:none}
 .zona{
-  border:1px solid var(--linea); background:var(--tarjeta); border-radius:999px;
+  /* Cuadrados, no píldoras: con radio 999 los rótulos cortos —"Salud", "Otro",
+     "Tolima"— quedaban casi circulares y la fila se leía como un rosario de
+     burbujas de distinto tamaño. Con un radio fijo todos comparten silueta. */
+  border:1px solid var(--linea); background:var(--tarjeta); border-radius:8px;
   padding:.3rem .7rem; font-size:.82rem; font-weight:600; color:var(--tinta); flex:none;
 }
 .zona[aria-pressed="true"]{background:var(--tinta); border-color:var(--tinta); color:#fff}
@@ -174,7 +177,7 @@ a{color:var(--azul)}
    por el atributo hidden: sin esta regla, ocultar los filtros no hace nada. */
 .chips[hidden]{display:none}
 .chip{
-  border:1px solid var(--linea); background:var(--tarjeta); border-radius:999px;
+  border:1px solid var(--linea); background:var(--tarjeta); border-radius:8px;
   padding:.28rem .62rem; font-size:.8rem; font-weight:600; color:var(--tenue);
   display:inline-flex; align-items:center; gap:.32rem;
 }
@@ -2019,6 +2022,22 @@ function hace(ts){
 const urlFoto = (k) => `${CONFIG.API}/${k}`;
 
 /**
+ * Sello de revisión de un acopio.
+ *
+ * ⚠️⚠️ NO se inventa una fecha para los que nadie ha confirmado. Hoy son los
+ * 291, y estamparles "última revisión: 14 de agosto" diría que alguien los
+ * verificó ese día: la gente carga el carro, maneja dos horas y se encuentra
+ * un sitio cerrado. El sello ámbar es incómodo a propósito — es la señal de que
+ * falta el trabajo de terreno, y desaparece solo cuando alguien escribe la
+ * fecha en la columna ULTIMA REVISION de la hoja.
+ */
+function selloRevision(a){
+  return a.rev
+    ? `<span class="revok">última revisión: ${esc(a.rev)}</span>`
+    : '<span class="sinrev">sin confirmar</span>';
+}
+
+/**
  * Recorta en frontera de palabra, sin partir la última por la mitad.
  *
  * El detalle admite 1.000 caracteres y hay quien los usa: en el globo del mapa
@@ -2342,9 +2361,7 @@ function pintarAcopios(){
     });
     // El badge distingue lo confirmado de lo que solo salió en prensa: es la
     // razón de ser de la columna ULTIMA REVISION.
-    const badge = a.rev
-      ? `<span class="revok">revisado ${esc(a.rev)}</span>`
-      : '<span class="sinrev">sin revisar</span>';
+    const badge = selloRevision(a);
     const tel = (a.tel || '').replace(/[^\d+]/g, '');
 
     /* "Cómo llegar" delega la geocodificación al mapa del propio teléfono, que
@@ -2474,8 +2491,7 @@ function pintarDetalle(){
             a.tipo ? ` · ${esc(a.tipo)}` : ''}</div></div>
         <button class="cerrar" data-cerrar-detalle aria-label="Cerrar">&times;</button>
       </div>
-      ${a.rev ? `<span class="revok">revisado ${esc(a.rev)}</span>`
-              : '<span class="sinrev">sin revisar</span>'}
+      ${selloRevision(a)}
       ${a.d ? `<div class="campo-d"><b>Dirección</b>${esc(a.d)}</div>` : ''}
       ${a.ne ? `<div class="campo-d"><b>Recibe</b>${esc(a.ne)}</div>` : ''}
       ${a.h ? `<div class="campo-d"><b>Horario</b>${esc(a.h)}${
@@ -2571,11 +2587,20 @@ function pintarZonas(){
   // daño. No se anuncia solo "destruidos": daría a entender que el resto está
   // bien cuando lo que dice el dato es otra cosa.
   const nD = S.dano ? (S.dano.danos || []).length : 0;
+  /* ⚠️ Esa lista son los departamentos AFECTADOS, y solo sirve para mirar la
+     emergencia. Quien vino a entregar donaciones o a ser voluntario busca
+     acopios, y los acopios están donde hay gente y logística: 81 de ellos en
+     Bogotá, que no aparece en esa lista. Ofrecerle Caldas o Tolima ahí es
+     mandarlo a filtrar por sitios donde puede no haber nada y, de paso,
+     esconderle el suyo. Queda "Todo el país" y el buscador del panel, que es
+     el que sirve para acercarse. */
+  const soloPais = S.verAcopios
+    || ['acopios', 'voluntario'].includes((S.intencion || {}).accion);
   $('#zonas').innerHTML =
     `<span class="rot">Ir a:</span>
      <button class="zona" data-z="" aria-pressed="${!S.zona}">Todo el país</button>` +
-    afect.map((d) => `<button class="zona" data-z="${esc(d.c)}"
-       aria-pressed="${S.zona === d.c}">${esc(d.n)}</button>`).join('') +
+    (soloPais ? '' : afect.map((d) => `<button class="zona" data-z="${esc(d.c)}"
+       aria-pressed="${S.zona === d.c}">${esc(d.n)}</button>`).join('')) +
     `<span class="zona-sep"></span>
      <button class="zona acopio" id="tgl-acopios" aria-pressed="${S.verAcopios}">
        Acopios${S.acopios ? ` (${S.acopios.length})` : ''}</button>
@@ -3237,9 +3262,15 @@ function pintarContexto(){
     document.body.classList.remove('con-ctx');
     return;
   }
+  /* ⚠️ En la vista de acopios NO va el botón de publicar. Quien llegó ahí
+     entró a "quiero donar cosas": viene a buscar dónde entregar, no a
+     registrar un punto nuevo, y el botón le proponía justo lo contrario de lo
+     que estaba haciendo. Registrar un acopio sigue estando en el menú, que es
+     donde lo busca quien de verdad va a abrir uno. */
+  const acc = I.accion === 'acopios' ? '' : I.acc;
   ctx.innerHTML = `<span class="ctx-t">${I.ico} ${esc(I.ctx || I.n)} · ${esc(nombreLugar(L))}</span>
     <span class="ctx-acc">
-      ${I.acc ? `<button class="btn btn-sm" id="ctx-acc">${esc(I.acc)}</button>` : ''}
+      ${acc ? `<button class="btn btn-sm" id="ctx-acc">${esc(acc)}</button>` : ''}
       <button class="btn btn-sm" id="ctx-cambiar">Cambiar</button>
     </span>`;
   ctx.hidden = false;
@@ -3401,8 +3432,7 @@ function listaAcopios(){
         <div class="item-txt">
           <div class="ac-cab">
             <h3>${esc(a.n)}</h3>
-            ${a.rev ? `<span class="revok">revisado ${esc(a.rev)}</span>`
-                    : '<span class="sinrev">sin revisar</span>'}
+            ${selloRevision(a)}
           </div>
           <div class="ac-m">${esc([a.mu, a.dp].filter(Boolean).join(', '))}${
             a.tipo ? ` · ${esc(a.tipo)}` : ''}</div>
