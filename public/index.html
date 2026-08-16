@@ -2649,13 +2649,43 @@ function ubicarme(){
 /* Disponibilidad del voluntario. `dias` dice contra qué se compara la columna
    TODOS LOS DIAS O LV de la hoja; `ahora` marca a quien puede salir ya. */
 const DISPO = [
-  {k:'hoy',    n:'Hoy',              d:'Puedo salir en las próximas horas', ahora:1,
+  /* `dias()` devuelve los días de la semana (0=domingo … 6=sábado) contra los
+     que hay que mirar el horario del acopio. "Hoy" se calcula al momento: la
+     página no sabía qué día era y su respuesta no cambiaba absolutamente nada.
+     ⚠️ Usa el reloj del dispositivo. Si alguien lo tiene corrido, prioriza mal
+     por un día; es aceptable porque el resultado ORDENA, no esconde. */
+  {k:'hoy',    n:'Hoy',              d:'Puedo salir en las próximas horas',
+   dias:() => [new Date().getDay()],
    det:'Puedo ayudar hoy, en las próximas horas.'},
-  {k:'finde',  n:'Este fin de semana', d:'Sábado o domingo', dias:'finde',
+  {k:'finde',  n:'Este fin de semana', d:'Sábado o domingo',
+   dias:() => [0, 6],
    det:'Puedo ayudar este fin de semana, sábado o domingo.'},
-  {k:'semana', n:'Entre semana',     d:'De lunes a viernes', dias:'lv',
+  {k:'semana', n:'Entre semana',     d:'De lunes a viernes',
+   dias:() => [1, 2, 3, 4, 5],
    det:'Puedo ayudar entre semana, de lunes a viernes.'},
 ];
+
+/* ¿El acopio abre alguno de esos días?  true · false · null (no se sabe)
+ *
+ * ⚠️ La columna de la hoja es texto libre y casi siempre está vacía: medido,
+ * 190 de 205 dicen "SIN DATO", 12 "TODOS LOS DIAS", 2 "L-V" y 1 "JUEVES Y
+ * VIERNES". Por eso devuelve TRES estados y no un booleano: "no sé" no es "no
+ * abre", y confundirlos escondería sitios buenos por un dato que falta.
+ */
+const DIAS_SEM = ['domi', 'lune', 'mart', 'mier', 'juev', 'vier', 'saba'];
+
+function abreEn(di, dias) {
+  const t = norm(di || '');
+  if (!t || t === 'sin dato') return null;
+  if (t.includes('todos')) return true;
+  // "L-V", "L a V", "lunes a viernes"
+  if (/\bl\s*[-a]\s*v\b/.test(t) || t.includes('lunes a viernes')) {
+    return dias.some((d) => d >= 1 && d <= 5);
+  }
+  const nombrados = DIAS_SEM.map((n, i) => (t.includes(n) ? i : -1)).filter((i) => i >= 0);
+  if (nombrados.length) return dias.some((d) => nombrados.includes(d));
+  return null;                       // texto que no sabemos leer
+}
 
 /* ⚠️ La disponibilidad tiene que VIAJAR con la oferta, no morir en la pantalla.
    Se preguntaba "¿cuándo puedes ayudar?" y la respuesta solo servía para
@@ -3026,12 +3056,16 @@ function listaVoluntario(){
         ? [S.lugar.mun[2], S.lugar.mun[3]] : null);
   // "Viable" = le queda cerca, o su horario casa con cuando puede ir. No es
   // una promesa: es lo que sabemos, y por eso la leyenda dice de qué depende.
-  const casa = (a) => !dispo.dias || !a.di
-    || (dispo.dias === 'lv' ? true : /todos/i.test(a.di));
+  const dias = dispo.dias ? dispo.dias() : null;
+  // Tres tramos, como en los acopios: abre · no se sabe · no abre. Nunca
+  // esconde: el que no declaró horario queda en medio, no afuera.
+  const tramo = (a) => { const v = dias ? abreEn(a.di, dias) : null;
+                         return v === true ? 0 : v === null ? 1 : 2; };
+  const casa = (a) => tramo(a) < 2;
   const cercaDe = (a) => ref && a.la != null
     && Math.sqrt(dist2(a, ref)) * 111.32 <= 5;
-  const viable = (a) => cercaDe(a) || (!!a.di && casa(a));
-  l.sort((a, b) => (casa(b) - casa(a))
+  const viable = (a) => cercaDe(a) || (!!a.di && tramo(a) === 0);
+  l.sort((a, b) => (tramo(a) - tramo(b))
     || (ref ? dist2(a, ref) - dist2(b, ref) : 0)
     || (b.rev ? 1 : 0) - (a.rev ? 1 : 0));
 
