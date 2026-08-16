@@ -875,7 +875,15 @@ if (/^#\/mi\//.test(location.hash) || /[?&]ir=/.test(location.search))
             <label>No llenar<input type="text" id="f-web" tabindex="-1" autocomplete="off"></label>
           </div>
 
-          <div id="turnstile"></div>
+          <!-- ⚠️⚠️ El id NO puede ser "turnstile". Un elemento con id se expone
+               como propiedad global del window, así que `<div id="turnstile">`
+               hacía que `"turnstile" in window` fuera cierto ANTES de que
+               corriera api.js; el script lo tomaba por una carga repetida
+               ("Turnstile already has been loaded"), abortaba y nunca dejaba su
+               API. El widget no montaba nunca y TODOS los reportes entraban
+               marcados sin_captcha, en silencio, porque el captcha es
+               fail-soft. Medido: con id propio monta en 23 ms. -->
+          <div id="ts-widget"></div>
           <div class="error" id="form-error" hidden></div>
 
           <button type="submit" class="btn btn-pri" id="f-enviar"
@@ -1275,7 +1283,7 @@ if (/^#\/mi\//.test(location.hash) || /[?&]ir=/.test(location.search))
         <div style="position:absolute; left:-9999px" aria-hidden="true">
           <label>No llenar<input type="text" id="c-web" tabindex="-1" autocomplete="off"></label>
         </div>
-        <div id="turnstile-c"></div>
+        <div id="ts-widget-c"></div><!-- ver el aviso del otro contenedor -->
         <div class="error" id="contacto-error" hidden></div>
         <button type="submit" class="btn btn-pri" style="width:100%; padding:.7rem">Enviar mensaje</button>
       </form>
@@ -4633,8 +4641,8 @@ function montarTurnstile(){
   if (tsMontado || !CONFIG.TURNSTILE) return;
   if (!window.turnstile || typeof window.turnstile.render !== 'function') return;
   try {
-    tsId = window.turnstile.render('#turnstile', {sitekey: CONFIG.TURNSTILE});
-    tsIdC = window.turnstile.render('#turnstile-c', {sitekey: CONFIG.TURNSTILE});
+    tsId = window.turnstile.render('#ts-widget', {sitekey: CONFIG.TURNSTILE});
+    tsIdC = window.turnstile.render('#ts-widget-c', {sitekey: CONFIG.TURNSTILE});
     tsMontado = true;
   } catch (e) {
     // Si no se puede montar, el reporte igual se envía y queda marcado para
