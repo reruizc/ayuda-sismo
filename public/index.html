@@ -222,7 +222,17 @@ a{color:var(--azul)}
    con el nombre y la dirección —lo que hace falta para reconocer el punto— y
    todo lo demás se lee acá, sin tapar el mapa ni obligar a hacer scroll dentro
    de un globo de 280 px. */
-.detalle{padding:1rem; border-bottom:2px solid var(--tinta); background:#fbfaf8}
+/* ⚠️⚠️ La ficha es hija de `.panel`, que es un flex column de alto fijo. Sin
+   `min-height:0` un flex item NO se encoge por debajo de su contenido —es el
+   valor `auto` que trae por defecto— así que una ficha larga se salía del
+   panel y se montaba encima del pie de página: medido, 926 px de fondo dentro
+   de un contenedor que termina en 765. Con `min-height:0` puede encogerse y
+   con `overflow-y:auto` el texto largo hace scroll adentro.
+   El tope del 62% es para que la ficha no se coma la lista entera: quien abre
+   un punto tiene que seguir viendo que hay más. */
+.detalle{padding:1rem; border-bottom:2px solid var(--tinta); background:#fbfaf8;
+  flex:0 1 auto; min-height:0; max-height:62%; overflow-y:auto;
+  overscroll-behavior:contain}
 .detalle[hidden]{display:none}
 .detalle-cab{display:flex; gap:.7rem; align-items:flex-start; margin-bottom:.5rem}
 .detalle h3{font-size:1.15rem; line-height:1.25}
@@ -697,6 +707,10 @@ body.con-ctx .cuerpo{height:calc(100dvh - 196px)}
 .nt .m{font-size:.76rem; color:var(--tenue); margin-top:.25rem}
 
 @media (max-width:860px){
+  /* En el teléfono el panel crece con la página y no hay alto que repartir:
+     un tope en % no significaría nada y recortar la ficha sería esconder
+     información sin razón. */
+  .detalle{max-height:none; overflow:visible}
   .cuerpo{grid-template-columns:1fr; grid-template-rows:50dvh auto; height:auto}
   body.con-ctx .cuerpo{height:auto}
   .ops{grid-template-columns:1fr}
