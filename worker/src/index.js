@@ -14,6 +14,7 @@
  *   POST /contacto                mensaje intermediado hacia el reportante
  *   POST /abuso                   marcar un reporte para revisión
  *   POST /sugerencia              corregir / cerrar / confirmar un acopio (a revisión)
+ *   GET  /necesidades.json        quién PIDE ayuda (pestaña NECESIDADES de la hoja)
  *   GET  /inteligencia.json       pulso de prensa (lo recolecta el cron, no la visita)
  *   GET  /copernicus.json         daño evaluado desde satélite (cron diario)
  *   GET  /admin/reportes          moderación (X-Admin-Token)
@@ -30,6 +31,7 @@ import {
   anotarCorrida, ultimaCorrida,
 } from './inteligencia.js';
 import { leer as leerAcopios, refrescar as refrescarAcopios, claveDe } from './acopios.js';
+import { leer as leerNecesidades, refrescar as refrescarNecesidades } from './necesidades.js';
 import { leer as leerCopernicus, refrescar as refrescarCopernicus } from './copernicus.js';
 
 /**
@@ -1000,6 +1002,17 @@ export default {
         });
       }
 
+      /* Quién PIDE ayuda. Aparte de /acopios.json y no dentro: son dos
+         decisiones distintas para quien mira el mapa (a dónde llevo lo que
+         tengo vs. quién está pidiendo qué), y así una falla en la pestaña
+         nueva no puede dejar sin acopios al que va de camino. */
+      if (ruta === '/necesidades.json' && req.method === 'GET') {
+        const d = await leerNecesidades(env);
+        return json(d, 200, origin, {
+          'Cache-Control': 'public, max-age=60, s-maxage=300',
+        });
+      }
+
       if (ruta === '/inteligencia.json' && req.method === 'GET') {
         const [d, corrida] = await Promise.all([leerPrensa(env), ultimaCorrida(env, 'prensa')]);
         // Todavía sin corrida del cron: se responde 200 con `vacio`, no un
@@ -1046,6 +1059,13 @@ export default {
           const d = await refrescarAcopios(env, { geocodificar: 25 });
           return json({ ok: true, total: d.total, con_punto_propio: d.con_punto_propio,
                         geocodificados_ahora: d.geocodificados_ahora }, 200, origin);
+        }
+        if (ruta === '/admin/necesidades' && req.method === 'POST') {
+          const d = await refrescarNecesidades(env, { geocodificar: 15 });
+          if (!d) return json({ error: 'sin_hoja_configurada' }, 400, origin);
+          return json({ ok: true, total: d.total, con_punto_propio: d.con_punto_propio,
+                        geocodificados_ahora: d.geocodificados_ahora,
+                        fechas_descartadas: d.fechas_descartadas }, 200, origin);
         }
         if (ruta === '/admin/inteligencia' && req.method === 'POST') {
           try {
@@ -1134,6 +1154,30 @@ export default {
           await anotarCorrida(env, {
             tarea: 'acopios', origen: 'cron', ok: false, publicado: false,
             ms: Date.now() - t0, detalle: { error: String((e && e.message) || e) },
+          });
+        }
+
+        /* Las necesidades van DESPUÉS y en su propio try: si la pestaña nueva
+           falla, los acopios ya quedaron refrescados. Se le da menos cupo de
+           geocodificación porque son muchas menos filas y comparten el mismo
+           límite de una petición por segundo de Nominatim. */
+        const t1 = Date.now();
+        try {
+          const d = await refrescarNecesidades(env, { geocodificar: 10 });
+          if (d) {
+            console.log('necesidades', d.total, '·', d.geocodificados_ahora, 'geocodificadas');
+            await anotarCorrida(env, {
+              tarea: 'necesidades', origen: 'cron', ok: true, publicado: true,
+              ms: Date.now() - t1, notas: d.total,
+              detalle: { geocodificadas: d.geocodificados_ahora, sin_ubicar: d.sin_ubicar,
+                         fechas_descartadas: d.fechas_descartadas },
+            });
+          }
+        } catch (e) {
+          console.error('necesidades falló', e && e.message);
+          await anotarCorrida(env, {
+            tarea: 'necesidades', origen: 'cron', ok: false, publicado: false,
+            ms: Date.now() - t1, detalle: { error: String((e && e.message) || e) },
           });
         }
       })());

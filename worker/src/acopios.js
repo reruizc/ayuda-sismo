@@ -15,12 +15,12 @@
 import { MUNICIPIOS } from './municipios.js';
 
 // Centro de cada municipio, para ubicar un acopio que no traiga coordenada.
-const CENTRO = new Map();
+export const CENTRO = new Map();
 for (const [clave, nombre, dep, , la, lo] of MUNICIPIOS) {
   if (la != null && !CENTRO.has(clave)) CENTRO.set(clave, [nombre, dep, la, lo]);
 }
 
-const norm = (s) => String(s || '').toLowerCase()
+export const norm = (s) => String(s || '').toLowerCase()
   .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
   .replace(/\s+/g, ' ').trim();
 
@@ -48,7 +48,7 @@ export const claveDe = (nombre, municipio) => `${norm(nombre)}|${norm(municipio)
  * No se puede partir por comas: las direcciones traen comas ("Cra 5 #12-30,
  * local 2") y una hoja hecha a mano trae saltos de línea dentro de celdas.
  */
-function parsearCSV(txt) {
+export function parsearCSV(txt) {
   const filas = [];
   let fila = [], campo = '', enComillas = false;
   const s = txt.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
@@ -77,7 +77,7 @@ function parsearCSV(txt) {
  * justo la información por la que alguien la abre.
  */
 const AUSENTE = /^(sin dato|sin datos|n\/?a|nd|-|--|n\/d|pendiente)$/i;
-const LIMPIO = (v) => {
+export const LIMPIO = (v) => {
   const s = String(v ?? '').replace(/\s+/g, ' ').trim();
   return AUSENTE.test(s) ? '' : s;
 };
@@ -252,7 +252,7 @@ function km(la1, lo1, la2, lo2) {
  * Por nombre, en cambio, resuelve el PUNTO del lugar (hospital, universidad,
  * coliseo, centro comercial): 9 de 10 en la prueba, con el tipo correcto.
  */
-async function geocodificarNombre(nombre, municipio, centro) {
+export async function geocodificarNombre(nombre, municipio, centro) {
   const q = [nombre, municipio, 'Colombia'].filter(Boolean).join(', ');
   const url = `${NOMINATIM}?q=${encodeURIComponent(q)}&format=json&countrycodes=co&limit=1`;
   const r = await fetch(url, { headers: { 'User-Agent': UA_GEO } });

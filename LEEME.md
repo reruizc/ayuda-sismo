@@ -561,6 +561,63 @@ Gotchas del registro de placas, todos medidos:
 | La vía va aparte del número | `PDONVIAL='KR 15A'` + `PDOTEXTO LIKE '122 27%'` |
 | Sin placa exacta | se acepta la más cercana de la misma vía **solo dentro de ±20**, que en Bogotá es menos de media cuadra |
 
+## Quién PIDE ayuda · pestaña `NECESIDADES` de la misma hoja
+
+La contraparte de los acopios: un acopio **recibe**, esto es una organización
+que dice **qué le hace falta**. Se pinta en rojo (los acopios son verdes) con
+la misma caja, y el símbolo de adentro sale del **tipo de organización** —
+organismo de socorro, ONG, colectivo ciudadano, entidad pública —, que es lo
+que decide a quién llama alguien que tiene qué dar.
+
+- Vive en `worker/src/necesidades.js` y se sirve en `GET /necesidades.json`.
+  **Aparte de `/acopios.json` a propósito**: si esta pestaña se rompe, quien va
+  de camino a entregar un mercado tiene que seguir viendo a dónde llevarlo.
+- La URL es `NECESIDADES_CSV` en `wrangler.toml`, con **su `gid`**.
+  ⚠️⚠️ El `gid` no se puede reemplazar por `&sheet=NECESIDADES`: Google **ignora**
+  ese parámetro y responde 200 con la PRIMERA pestaña, así que el mapa mostraría
+  acopios creyendo que son necesidades y **nada avisaría**. El gid sale del
+  `htmlview` de la hoja.
+- Se refresca en el **mismo cron de 3 horas**, después de los acopios y en su
+  propio `try`. Forzarlo a mano: `POST /admin/necesidades`.
+- En el flujo de **donar** la capa se enciende sola y las dos listas se muestran
+  juntas en el panel: para quien tiene un mercado en el carro es una sola
+  pregunta, y tenerlas separadas lo obligaría a comparar entre dos pestañas.
+
+### ⚠️⚠️ Una fila NO es un punto: el arrastre de Google Sheets
+
+La hoja trae varias filas por organización y significan **dos cosas distintas**:
+
+| | |
+|---|---|
+| **Sedes de verdad** | `Chocopan por una sonrisa`: 4 filas, 4 vías distintas (Cra 34 #11-41, Cra 98A #73-03, Av. Ciudad de Cali #88-81, Cra 59A #129-30). Son 4 puntos. |
+| **Dos necesidades del mismo sitio** | `Teatro de garaje` pide construcción en una fila y alimentos en otra, con direcciones `Cra 10 # 54 A - 27` y `- 28`. Es **un** sitio. |
+
+El segundo caso es el **arrastre de autocompletado**: al halar la celda hacia
+abajo, Google incrementa el último número. Pasa igual en `Galería Aborigen`
+(-17 / -18) y en `Tolima nos necesita` (80-94 / 80-95). Pintarlos como dos
+puntos duplicaría el mismo sitio.
+
+Lo que separa un caso del otro es la **base de la dirección** (todo menos el
+número final, `baseDireccion`): misma base ⇒ mismo sitio y las necesidades se
+juntan; base distinta ⇒ sedes distintas. Medido sobre la hoja real: **15 filas
+→ 11 sedes**. Las direcciones descartadas viajan en `dv` para poder auditarlas.
+
+⚠️ El mismo arrastre corre el **año**: las 4 filas de Chocopan traen 2028, 2029,
+2030 y 2031. `fechaDe` descarta toda fecha futura o anterior al sismo y publica
+el conteo en `fechas_descartadas` — **no se adivina** el año que "debería" ser.
+Una ficha que diga "necesidad del 16 de agosto de 2031" le quita credibilidad a
+todo lo demás. Se arregla **en la hoja**, no en el código.
+
+⚠️ Una organización con **varias sedes no se geocodifica**. La búsqueda de
+OpenStreetMap es por nombre, así que las cuatro sedes recibirían la misma
+coordenada y tres quedarían con un pin preciso en la dirección equivocada. Se
+quedan en el centro del municipio, declarado aproximado, con "Cómo llegar".
+
+Para las demás sí se busca el sitio, y con una ventaja: **el nombre trae el
+lugar entre paréntesis** ("Cruz roja (Estadio el campín)", "Fundación pacifico
+somos todos (Hotel click clack)") y eso es justo lo que un mapa sabe encontrar;
+el nombre de la organización, casi nunca. `sitioDe` lo extrae.
+
 ## Desplegar
 
 Todo desde `worker` salvo el paso de Pages.

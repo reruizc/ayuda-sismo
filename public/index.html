@@ -34,6 +34,9 @@
   --tinta:#16130f; --tenue:#5d574e; --papel:#f7f5f1; --tarjeta:#fff;
   --linea:#e0dbd2; --rojo:#b4321e; --rojo-claro:#fdeceb;
   --verde:#1d7a4c; --azul:#1b5fa8; --morado:#7a2ea8;
+  /* Quien PIDE ayuda. Más saturado que --rojo (que es el acento de la página y
+     el de los reportes de rescate) para que se distinga sobre el mapa claro. */
+  --pide:#c1121f;
   --sombra:0 1px 2px rgba(0,0,0,.05),0 4px 16px rgba(0,0,0,.06);
   --r:10px;
   --titulo:Arial,'Helvetica Neue',Helvetica,sans-serif;
@@ -106,6 +109,7 @@ a{color:var(--azul)}
    enciende otra fuente de información. */
 .zona.prensa[aria-pressed="true"]{background:#1b5fa8; border-color:#1b5fa8; color:#fff}
 .zona.acopio[aria-pressed="true"]{background:var(--verde); border-color:var(--verde); color:#fff}
+.zona.pide[aria-pressed="true"]{background:var(--pide); border-color:var(--pide); color:#fff}
 .zona.dano[aria-pressed="true"]{background:#5b0f14; border-color:#5b0f14; color:#fff}
 
 /* ── daño evaluado desde satélite (Copernicus EMS) ──
@@ -594,6 +598,19 @@ body.con-ctx .cuerpo{height:calc(100dvh - 196px)}
   background:var(--verde); border:2px solid #fff; border-radius:8px;
   box-shadow:0 1px 3px rgba(0,0,0,.3)}
 .ac-icono{background:none; border:none}
+/* Quien PIDE. La misma caja del acopio y el color contrario: verde es a dónde
+   llevar lo que tengo, rojo es quién lo está pidiendo. Se distingue de los
+   marcadores de reporte porque esos son redondos — la caja dice "acá hay una
+   organización". El símbolo de adentro cambia con el TIPO de organización:
+   una fundación no se lee igual que un organismo de socorro. */
+.ne-pin{display:flex; align-items:center; justify-content:center;
+  background:var(--pide); border:2px solid #fff; border-radius:8px;
+  box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.ne-tag{display:inline-block; background:var(--pide); color:#fff; border-radius:4px;
+  padding:.05rem .34rem; font-size:.66rem; font-weight:700; letter-spacing:.04em;
+  vertical-align:.08em}
+.ne-li{margin:.3rem 0 0; padding-left:1rem; font-size:.83rem}
+.ne-li li{margin-bottom:.25rem}
 .ac-cab{display:flex; align-items:flex-start; gap:.4rem; flex-wrap:wrap; margin-bottom:.2rem}
 .ac-cab h3{font-size:.95rem}
 .ac-d{font-size:.85rem; margin:.25rem 0 0}
@@ -2006,6 +2023,9 @@ const S = {
   caps: {fotos:false, correo:false},
   prensa: null, verPrensa: false,
   acopios: null, verAcopios: false,
+  // Quien PIDE: organizaciones que dicen qué les hace falta. Capa aparte de
+  // los acopios porque son la decisión contraria de quien está donando.
+  pide: null, verPide: false,
   dano: null, verDano: false,
   // Puerta de entrada: con qué intención entró la persona y a qué lugar.
   // `listaModo` decide qué muestra el panel lateral: '' reportes · 'acopios'
@@ -2014,6 +2034,7 @@ const S = {
   prensaSel: null,
   pt: {i:null, l:null},
   capasAcopio: new Map(),
+  capasPide: new Map(),
 };
 
 const $ = (s) => document.querySelector(s);
@@ -2081,6 +2102,7 @@ const capaPuntos = L.layerGroup().addTo(mapa);
 // Capa aparte y por debajo: la prensa es contexto, los reportes son el dato.
 const capaPrensa = L.layerGroup();
 const capaAcopios = L.layerGroup();
+const capaPide = L.layerGroup();
 const capaDano = L.layerGroup();
 
 /**
@@ -2280,6 +2302,10 @@ const GLIFOS = {
   balon:     'M12 2.5A9.5 9.5 0 1 0 12 21.5 9.5 9.5 0 0 0 12 2.5zM12 7l4 3-1.5 4.7h-5L8 10z',
   manos:     'M6 12V6.5a1.5 1.5 0 0 1 3 0V11m0-1V5a1.5 1.5 0 0 1 3 0v5m0-.5V6a1.5 1.5 0 0 1 3 0v5.5'
              + 'M18 9.5a1.5 1.5 0 0 1 3 0V15a7 7 0 0 1-14 0v-1',
+  // Dos personas: un colectivo ciudadano o un voluntariado, que no es lo mismo
+  // que una fundación con personería.
+  gente:     'M9 10.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM2.5 20v-1.2c0-2.6 2.9-4.3 6.5-4.3s6.5 1.7 6.5 4.3V20'
+             + 'M16.5 5.2a3 3 0 0 1 0 6M17.5 14.9c2.4.5 4 1.9 4 3.9V20',
 };
 
 /** TIPO DE LUGAR (normalizado) → glifo. */
@@ -2316,6 +2342,48 @@ function iconoAcopio(a, px){
   const d = GLIFOS[glifoDe(a)] || GLIFOS.caja;
   const s = px || 30;
   return `<span class="ac-pin" style="width:${s}px;height:${s}px">
+    <svg viewBox="0 0 24 24" width="${Math.round(s * .6)}" height="${Math.round(s * .6)}"
+         fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"
+         stroke-linecap="round" aria-hidden="true"><path d="${d}"/></svg></span>`;
+}
+
+/* ── íconos de quien PIDE ──
+ *
+ * Misma caja que el acopio, en rojo, y el símbolo sale del TIPO DE
+ * ORGANIZACIÓN de la hoja: un organismo de socorro, una fundación, un
+ * colectivo de barrio y una entidad pública no se atienden igual ni piden lo
+ * mismo, y esa diferencia decide a quién llama alguien que tiene qué dar.
+ *
+ * ⚠️ La columna es de selección MÚLTIPLE ("Organismos de socorro, Entidad
+ * pública"): manda el primer valor, que es el que la persona escogió primero.
+ */
+const ORG_GLIFO = {
+  'organismos de socorro': 'cruz', 'cruz roja': 'cruz', 'defensa civil': 'cruz',
+  'bomberos': 'llama',
+  'ong': 'manos', 'fundacion': 'manos', 'ong/fundacion': 'manos',
+  'colectivo ciudadano': 'gente', 'voluntariado independiente': 'gente',
+  'junta de accion comunal': 'gente', 'jac': 'gente',
+  'entidad publica': 'edificio', 'alcaldia': 'edificio', 'gobernacion': 'edificio',
+  'universidad': 'birrete', 'institucion educativa': 'birrete',
+  'empresa': 'caja', 'sector privado': 'caja',
+  'iglesia': 'casa', 'comunidad religiosa': 'casa',
+};
+
+function glifoOrg(x){
+  const t = norm((x.org || '').split(',')[0]);
+  if (!t) return 'manos';
+  if (ORG_GLIFO[t]) return ORG_GLIFO[t];
+  // El texto de la hoja es libre ("ONG/Fundación", "Colectivo ciudadano
+  // /Voluntariado independiente"): se busca por contención antes de rendirse.
+  for (const [k, g] of Object.entries(ORG_GLIFO)) if (t.includes(k)) return g;
+  return 'manos';
+}
+
+/** Marcador: caja ROJA con el símbolo del tipo de organización en blanco. */
+function iconoPide(x, px){
+  const d = GLIFOS[glifoOrg(x)] || GLIFOS.manos;
+  const s = px || 30;
+  return `<span class="ne-pin" style="width:${s}px;height:${s}px">
     <svg viewBox="0 0 24 24" width="${Math.round(s * .6)}" height="${Math.round(s * .6)}"
          fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"
          stroke-linecap="round" aria-hidden="true"><path d="${d}"/></svg></span>`;
@@ -2437,6 +2505,91 @@ async function cargarAcopios(){
   return S.acopios;
 }
 
+/**
+ * Quién PIDE ayuda. La contraparte de los acopios y su misma mecánica.
+ *
+ * ⚠️ Una falla acá NO puede tumbar los acopios: son dos peticiones y dos
+ * capas independientes, y quien va de camino a entregar un mercado tiene que
+ * seguir viendo a dónde llevarlo aunque esta pestaña de la hoja esté rota.
+ */
+async function cargarPide(){
+  if (S.pide) return S.pide;
+  try {
+    const r = await fetch(`${CONFIG.API}/necesidades.json`);
+    const d = await r.json();
+    S.pide = (d && d.items) ? d.items.filter((x) => x.la != null) : [];
+    S.pide.forEach((x, i) => { x._ix = i; });
+  } catch { S.pide = []; }
+  return S.pide;
+}
+
+function pintarPide(){
+  capaPide.clearLayers();
+  if (!S.verPide || !S.pide) { mapa.removeLayer(capaPide); return; }
+
+  // Sin coordenada propia caen todas en el centro del municipio: las cuatro
+  // sedes de una misma organización quedarían apiladas en un pixel.
+  separarApilados(S.pide);
+  S.capasPide.clear();
+  S.pide.forEach((x) => {
+    if (x.la == null) return;
+    const m = L.marker([x._la ?? x.la, x._lo ?? x.lo], {
+      icon: L.divIcon({className:'ac-icono', html: iconoPide(x),
+        iconSize:[30, 30], iconAnchor:[15, 15], popupAnchor:[0, -13]}),
+      // Por encima de los acopios y por debajo de los reportes: entre las dos
+      // capas de la hoja, la que dice "hace falta esto" es la más urgente.
+      zIndexOffset: -150,
+    });
+    const tel = (x.tel || '').replace(/[^\d+]/g, '');
+    /* Misma razón que en los acopios: la dirección se la manda al mapa del
+       propio teléfono, que es el único que sabe leer una nomenclatura
+       colombiana. Acá no se geocodifica por dirección. */
+    const ruta = x.d
+      ? `https://www.google.com/maps/search/?api=1&query=${
+          encodeURIComponent([x.d, x.mu, x.dp, 'Colombia'].filter(Boolean).join(', '))}`
+      : '';
+
+    m.on('click', () => verDetalle('pide', x._ix));
+    m.bindPopup(esEscritorio() ? `
+      <h3>${esc(x.n)}</h3>
+      <div><span class="ne-tag">PIDE</span></div>
+      ${x.d ? `<div style="font-size:.86rem;margin-top:.25rem"><strong>${esc(x.d)}</strong></div>` : ''}
+      <div style="font-size:.8rem;color:#5d574e">${
+        esc([x.mu, x.dp].filter(Boolean).join(', '))}</div>` : `
+      <h3>${esc(x.n)}</h3>
+      <div style="margin-bottom:.3rem"><span class="ne-tag">PIDE</span>
+        ${x.sedes ? `<span style="font-size:.74rem;color:#5d574e">Sede ${x.sede} de ${x.sedes}</span>` : ''}</div>
+      <div style="font-size:.8rem;color:#5d574e;margin-bottom:.3rem">
+        ${esc([x.mu, x.dp].filter(Boolean).join(', '))}${x.org ? ` · ${esc(x.org)}` : ''}</div>
+      ${x.d ? `<p style="margin:.25rem 0"><strong>${esc(x.d)}</strong></p>` : ''}
+      ${(x.nes || []).length
+        ? `<div style="margin:.3rem 0"><b style="font-size:.8rem">Necesita</b>
+             <ul class="ne-li">${x.nes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul></div>`
+        : ''}
+      ${x.c ? `<p style="margin:.25rem 0">${esc(x.c)}</p>` : ''}
+      ${tel ? `<p style="margin:.25rem 0"><a href="tel:${esc(tel)}">${esc(x.tel)}</a></p>` : ''}
+      ${ruta ? `<p style="margin:.5rem 0 .1rem"><a href="${esc(ruta)}" target="_blank" rel="noopener"
+        style="font-weight:600">Cómo llegar →</a></p>` : ''}
+      ${x.f ? `<div style="font-size:.72rem;color:#8a8378;margin-top:.4rem">
+        Lo pidieron el ${esc(fechaCorta(x.f))}. Llama antes de ir: puede que ya no haga falta.</div>`
+       : '<div style="font-size:.72rem;color:#8a8378;margin-top:.4rem">Llama antes de ir: puede que ya no haga falta.</div>'}
+      ${x.ap ? `<div style="font-size:.72rem;color:#8a8378;margin-top:.4rem">
+        El punto está en el centro del municipio. Guíate por la dirección${ruta ? ', no por el pin' : ''}.</div>` : ''}
+    `, {maxWidth:280});
+    S.capasPide.set(x._ix, m);
+    m.addTo(capaPide);
+  });
+  capaPide.addTo(mapa);
+}
+
+/** "2026-08-16" → "16 de agosto". El año sobra: todo esto es de este mes. */
+function fechaCorta(iso){
+  const M = ['enero','febrero','marzo','abril','mayo','junio','julio',
+             'agosto','septiembre','octubre','noviembre','diciembre'];
+  const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? `${Number(m[3])} de ${M[Number(m[2]) - 1]}` : '';
+}
+
 async function cargarPrensa(){
   if (S.prensa) return S.prensa;
   try {
@@ -2523,6 +2676,39 @@ function pintarDetalle(){
       ${a.ed ? `<p class="ac-m" style="color:#8a8378">Corregido con lo que reportó
         alguien que fue al sitio.</p>` : ''}
       ${a.ap ? `<p class="ac-m" style="color:#8a8378">El punto está en el centro del
+        municipio. Guíate por la dirección, no por el pin.</p>` : ''}`;
+    caja.hidden = false;
+    return;
+  }
+
+  if (S.detalle.tipo === 'pide') {
+    const x = (S.pide || []).find((y) => y._ix === S.detalle.id);
+    if (!x) return cerrarDetalle();
+    const tel = (x.tel || '').replace(/[^\d+]/g, '');
+    const ruta = x.d ? `https://www.google.com/maps/search/?api=1&query=${
+      encodeURIComponent([x.d, x.mu, x.dp, 'Colombia'].filter(Boolean).join(', '))}` : '';
+    caja.innerHTML = `
+      <div class="detalle-cab">
+        ${iconoPide(x, 40)}
+        <div><h3>${esc(x.n)}</h3>
+          <div class="ac-m">${esc([x.mu, x.dp].filter(Boolean).join(', '))}${
+            x.org ? ` · ${esc(x.org)}` : ''}</div></div>
+        <button class="cerrar" data-cerrar-detalle aria-label="Cerrar">&times;</button>
+      </div>
+      <div><span class="ne-tag">PIDE</span>${x.sedes
+        ? ` <span class="ac-m" style="display:inline">Sede ${x.sede} de ${x.sedes}</span>` : ''}</div>
+      ${x.d ? `<div class="campo-d"><b>Dirección</b>${esc(x.d)}</div>` : ''}
+      ${(x.nes || []).length ? `<div class="campo-d"><b>Necesita</b>
+        <ul class="ne-li">${x.nes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul></div>` : ''}
+      ${x.c ? `<div class="campo-d"><b>Contacto</b>${esc(x.c)}</div>` : ''}
+      <div class="pop-acc">
+        ${ruta ? `<a href="${esc(ruta)}" target="_blank" rel="noopener">Cómo llegar →</a>` : ''}
+        ${tel ? `<a href="tel:${esc(tel)}">Llamar ${esc(x.tel)}</a>` : ''}
+      </div>
+      <p class="ac-m" style="color:#8a8378">${x.f
+        ? `Lo pidieron el ${esc(fechaCorta(x.f))}. Llama antes de ir: puede que ya no haga falta.`
+        : 'Llama antes de ir: puede que ya no haga falta.'}</p>
+      ${x.ap ? `<p class="ac-m" style="color:#8a8378">El punto está en el centro del
         municipio. Guíate por la dirección, no por el pin.</p>` : ''}`;
     caja.hidden = false;
     return;
@@ -2633,7 +2819,10 @@ function pintarZonas(){
        aria-pressed="${S.zona === d.c}">${esc(d.n)}</button>`).join('')) +
     `<span class="zona-sep"></span>
      <button class="zona acopio" id="tgl-acopios" aria-pressed="${S.verAcopios}">
-       Acopios${S.acopios ? ` (${S.acopios.length})` : ''}</button>` + capas;
+       Acopios${S.acopios ? ` (${S.acopios.length})` : ''}</button>
+     <button class="zona pide" id="tgl-pide" aria-pressed="${S.verPide}"
+       title="Organizaciones que dicen qué les hace falta. Es lo contrario de un acopio: acá piden, no reciben.">
+       Piden ayuda${S.pide ? ` (${S.pide.length})` : ''}</button>` + capas;
 
   // Con pocos botones la fila se veía descolgada a la izquierda; centrada
   // queda con el mismo eje que el resto de la página. Con la lista completa
@@ -3189,9 +3378,15 @@ async function modoAcopios(){
   $('#conteo').textContent = 'Cargando puntos de acopio…';
   $('#lista').innerHTML = '';
   S.verAcopios = true;
-  await cargarAcopios();
+  /* ⚠️ Quien viene a donar necesita ver las DOS cosas: a dónde entregar y
+     quién está pidiendo qué. Sin esto, una organización que publicó que le
+     faltan pañales queda invisible justo para la persona que los lleva.
+     Las dos peticiones van en paralelo — si una falla, la otra igual pinta. */
+  S.verPide = true;
+  await Promise.all([cargarAcopios(), cargarPide()]);
   pintarZonas();
   pintarAcopios();
+  pintarPide();
   pintar();
 }
 
@@ -3418,7 +3613,13 @@ function listaAcopios(){
   const q = norm(S.f.q.trim());
   // Qué dijo que puede donar, si lo dijo. Vive en la respuesta del paso.
   const cat = ((S.pt && S.pt.resp) || []).reduce((v, r) => (r && r.nec) || v, '');
-  let l = (S.acopios || []).slice();
+  /* Acopios y quien PIDE, en una sola lista.
+     Son dos hojas y dos capas del mapa, pero para quien tiene un mercado en el
+     carro es UNA sola pregunta: a dónde lo llevo. Tenerlos en listas separadas
+     obligaría a comparar entre dos pestañas justo cuando lo que importa es qué
+     falta y qué tan lejos queda. Cada tarjeta dice cuál es cuál. */
+  let l = (S.acopios || []).map((a) => ({ ...a, _t: 'ac' }));
+  if (S.verPide) l = l.concat((S.pide || []).map((x) => ({ ...x, _t: 'ne' })));
   const enZona = dep ? l.filter((a) => casaDep(a.dp, dep.n)) : l;
   // Si no hay ninguno en su departamento se muestran los del país entero en vez
   // de una lista vacía: mandar a alguien con un mercado a ninguna parte es peor.
@@ -3441,11 +3642,14 @@ function listaAcopios(){
 
   const nCat = cat && (((S.pt.i || {}).subs || [])[0] || {}).opciones
     ? ((S.pt.i.subs[0].opciones.find((o) => o.nec === cat) || {}).n || '').toLowerCase() : '';
+  const nPide = l.filter((a) => a._t === 'ne').length;
+  const nAc = l.length - nPide;
+  const sitios = `${nAc} punto${nAc === 1 ? '' : 's'} de acopio`
+    + (nPide ? ` y ${nPide} que ${nPide === 1 ? 'pide' : 'piden'} ayuda` : '');
   $('#conteo').textContent = l.length
     ? (cat
         ? `${casan} de ${l.length} piden ${nCat}` + (dep ? ` en ${dep.n}` : '')
-        : `${l.length} punto${l.length === 1 ? '' : 's'} de acopio`
-          + (ampliado ? ' · en todo el país' : (dep ? ` en ${dep.n}` : '')))
+        : sitios + (ampliado ? ' · en todo el país' : (dep ? ` en ${dep.n}` : '')))
     : 'Sin puntos de acopio con esta búsqueda';
 
   if (!l.length) {
@@ -3465,6 +3669,42 @@ function listaAcopios(){
       const tel = (a.tel || '').replace(/[^\d+]/g, '');
       const ruta = a.d ? `https://www.google.com/maps/search/?api=1&query=${
         encodeURIComponent([a.d, a.mu, a.dp, 'Colombia'].filter(Boolean).join(', '))}` : '';
+      const acc = `<div class="ac-acc">
+            ${ruta ? `<a href="${esc(ruta)}" target="_blank" rel="noopener">Cómo llegar →</a>` : ''}
+            ${tel ? `<a href="tel:${esc(tel)}">Llamar</a>` : ''}
+          </div>`;
+      const aprox = a.ap
+        ? '<p class="ac-m" style="color:#8a8378">El punto del mapa es el centro del municipio: guíate por la dirección.</p>'
+        : '';
+
+      /* Quien PIDE. Se lista la necesidad ENTERA y en viñetas, no recortada:
+         es el único dato por el que alguien abre esta tarjeta, y la hoja trae
+         listas largas ("gasas, vendajes, yesos, suturas…") donde lo que sirve
+         puede estar al final. */
+      if (a._t === 'ne') {
+        return `<article class="item" data-ne="${a._ix}" tabindex="0">
+        ${iconoPide(a, 34)}
+        <div class="item-txt">
+          <div class="ac-cab">
+            <h3>${esc(a.n)}</h3>
+            <span class="ne-tag">PIDE</span>
+          </div>
+          <div class="ac-m">${esc([a.mu, a.dp].filter(Boolean).join(', '))}${
+            a.org ? ` · ${esc(a.org)}` : ''}${
+            a.sedes ? ` · sede ${a.sede} de ${a.sedes}` : ''}</div>
+          ${a.d ? `<p class="ac-d"><strong>${esc(a.d)}</strong></p>` : ''}
+          ${(a.nes || []).length ? `<ul class="ne-li">${
+            a.nes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
+          ${a.c ? `<p class="ac-m">${esc(a.c)}</p>` : ''}
+          ${acc}
+          <p class="ac-m" style="color:#8a8378">${a.f
+            ? `Lo pidieron el ${esc(fechaCorta(a.f))}. Llama antes de ir: puede que ya no haga falta.`
+            : 'Llama antes de ir: puede que ya no haga falta.'}</p>
+          ${aprox}
+        </div>
+      </article>`;
+      }
+
       return `<article class="item" data-ac="${a._ix}" tabindex="0">
         ${iconoAcopio(a, 34)}
         <div class="item-txt">
@@ -3478,11 +3718,8 @@ function listaAcopios(){
           ${a.ne ? `<p class="ac-m">Recibe: ${esc(a.ne)}</p>` : ''}
           ${a.h ? `<p class="ac-m">Horario: ${esc(a.h)}${a.di ? ` · ${esc(a.di)}` : ''}</p>` : ''}
           ${a.vol ? '<p class="ac-m" style="color:var(--verde);font-weight:600">Necesita voluntarios</p>' : ''}
-          <div class="ac-acc">
-            ${ruta ? `<a href="${esc(ruta)}" target="_blank" rel="noopener">Cómo llegar →</a>` : ''}
-            ${tel ? `<a href="tel:${esc(tel)}">Llamar</a>` : ''}
-          </div>
-          ${a.ap ? '<p class="ac-m" style="color:#8a8378">El punto del mapa es el centro del municipio: guíate por la dirección.</p>' : ''}
+          ${acc}
+          ${aprox}
         </div>
       </article>`;
     }).join('');
@@ -5011,6 +5248,18 @@ async function iniciar(){
       pintarAcopios();
       return;
     }
+    const pd = e.target.closest('#tgl-pide');
+    if (pd) {
+      S.verPide = !S.verPide;
+      if (S.verPide) { pd.textContent = 'Cargando…'; await cargarPide(); }
+      // Al apagar la capa, la ficha de quien pedía quedaba abierta al lado de
+      // un mapa donde su punto ya no está: se lee como que la página se trabó.
+      else if (S.detalle && S.detalle.tipo === 'pide') cerrarDetalle();
+      pintarZonas();
+      pintarPide();
+      pintar();
+      return;
+    }
     const p = e.target.closest('#tgl-prensa');
     if (p) {
       S.verPrensa = !S.verPrensa;
@@ -5216,6 +5465,14 @@ async function iniciar(){
       const m = S.capasAcopio.get(Number(ac.dataset.ac));
       if (m) { mapa.setView(m.getLatLng(), Math.max(mapa.getZoom(), 14)); m.openPopup(); }
       verDetalle('acopio', Number(ac.dataset.ac));
+    }
+
+    // Tarjeta de quien PIDE, misma mecánica que la de acopio.
+    const ne = e.target.closest('.item[data-ne]');
+    if (ne && !e.target.closest('a')) {
+      const m = S.capasPide.get(Number(ne.dataset.ne));
+      if (m) { mapa.setView(m.getLatLng(), Math.max(mapa.getZoom(), 14)); m.openPopup(); }
+      verDetalle('pide', Number(ne.dataset.ne));
     }
   });
 
