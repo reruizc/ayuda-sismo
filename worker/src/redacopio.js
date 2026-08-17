@@ -76,11 +76,53 @@ function estadoDe(o) {
   return '';
 }
 
+/**
+ * Su campo `hours` NO siempre es un horario.
+ *
+ * ⚠️ Medido sobre sus 96 puntos: junto a "8 am. 9pm" y "24h" conviven
+ * "Lunes festivo SOLO voluntarios - NO donaciones.", "Se requieren voluntarios
+ * para cargar camión" y "7am a 10:30pm - 3009003386", con el teléfono pegado.
+ * Es un cajón de notas, no una hora. Metido tal cual en nuestro campo de
+ * horario produciría fichas que dicen "Horario: Se requieren voluntarios para
+ * cargar camión", que se lee como un error de la página.
+ *
+ * Lo que parece hora va al horario; lo demás va aparte, rotulado como nota de
+ * ellos. En la duda, nota: una nota mal puesta se entiende igual, un horario
+ * inventado manda a alguien a una puerta cerrada.
+ */
+const PARECE_HORA = /\d\s*(?:a\.?\s*m|p\.?\s*m|h(?:ora)?s?\b|:\s*\d)/i;
+
+/**
+ * ⚠️ Sus marcadores de ausencia. Medido: un punto solo (`.`) aparece en 5 de
+ * sus 96 puntos, y "Confirmar"/"Consultar" en otros 3. Es el mismo problema
+ * del "SIN DATO" de nuestra hoja: no son valores, son huecos, y publicarlos
+ * produce fichas que dicen "Horario: ." — que se lee como algo roto.
+ */
+const RA_AUSENTE = /^(?:[.\-–—·]+|por confirmar|confirmar|consultar|n\/?a|sin dato)$/i;
+
+export function horarioDe(txt) {
+  let t = String(txt || '').replace(/\s+/g, ' ').trim();
+  if (!t || RA_AUSENTE.test(t)) return { h: '', nota: '', tel: '' };
+  // Teléfono pegado al final: va al campo de teléfono, no al de horario.
+  const tel = t.match(/(?:\+?57)?\s*(3\d{9})\s*$/);
+  if (tel) t = t.slice(0, tel.index).replace(/[\s\-–—·,]+$/, '').trim();
+  if (!t || RA_AUSENTE.test(t)) return { h: '', nota: '', tel: tel ? tel[1] : '' };
+  /* El tope es generoso (120) a propósito: sus horarios buenos vienen con
+     matices que valen —"8am a 8pm - Lunes Festivo estará funcionando", "8:00
+     a.m. a 5:00 p.m. (posible extensión hasta las 8pm)"— y un tope corto los
+     mandaba a nota, escondiendo justo la hora. Lo que NO trae una hora
+     ("Lunes festivo SOLO voluntarios", "YA NO RECIBE DONACIONES") sigue
+     yéndose a nota, que es donde se entiende igual. */
+  const esHora = PARECE_HORA.test(t) && t.length <= 120;
+  return { h: esHora ? t : '', nota: esHora ? '' : t, tel: tel ? tel[1] : '' };
+}
+
 /** Un registro suyo, en la forma que ya entiende el frontend de acopios. */
 function aNuestraForma(o) {
   const needs = Array.isArray(o.needs) ? o.needs.filter(Boolean) : [];
   const vol = o.vol && typeof o.vol === 'object' ? o.vol : null;
   const c = o.contact && typeof o.contact === 'object' ? o.contact : {};
+  const hor = horarioDe(o.hours);
   return {
     // La llave lleva prefijo para que NUNCA choque con la de nuestra hoja:
     // son dos universos de identidad distintos y fundirlos por accidente
@@ -92,12 +134,14 @@ function aNuestraForma(o) {
     dp: 'Bogotá D.C.',
     d: String(o.address || '').trim(),
     ne: needs.join(', '),
-    h: String(o.hours || '').trim() === 'Por confirmar' ? '' : String(o.hours || '').trim(),
+    h: hor.h,
+    // Lo que su campo de horario traía y no era una hora. Se muestra rotulado.
+    nota_ra: hor.nota,
     vol: !!(vol && vol.need),
     vol_cupos: vol && Number.isFinite(vol.target)
       ? { objetivo: vol.target, actual: Number(vol.current) || 0 } : null,
     c: String(c.name || c.contacto || '').trim(),
-    tel: String(c.phone || c.tel || '').trim(),
+    tel: String(c.phone || c.tel || '').trim() || hor.tel || '',
     la: Number.isFinite(o.lat) ? o.lat : null,
     lo: Number.isFinite(o.lng) ? o.lng : null,
     ap: 0,                              // ellos sí traen coordenada del sitio
@@ -216,6 +260,16 @@ export function fusionar(nuestros, suyos) {
       if (x.flujo) par.flujo = x.flujo;
       if (x.vol_cupos) par.vol_cupos = x.vol_cupos;
       if (!par.rev && x.rev) { par.rev = x.rev; par.rev_fuente = 'redacopio'; }
+
+      /* ⚠️ RELLENA HUECOS, NUNCA PISA. Nuestra hoja la corrige gente que fue
+         al sitio y el panel de correcciones escribe encima de ella; si lo de
+         ellos ganara, una corrección aprobada se desharía sola en la
+         siguiente lectura. Solo entra donde no teníamos nada — y son 13 sin
+         horario y 20 sin necesidad, de 29 compartidos. */
+      if (!par.h && x.h) { par.h = x.h; par.h_fuente = 'redacopio'; }
+      if (!par.ne && x.ne) { par.ne = x.ne; par.ne_fuente = 'redacopio'; }
+      if (!par.tel && x.tel) par.tel = x.tel;
+      if (x.nota_ra) par.nota_ra = x.nota_ra;
       res.enriquecidos++;
 
       /* ⚠️⚠️ Un punto NUESTRO que ellos dan por cerrado NO se borra acá.

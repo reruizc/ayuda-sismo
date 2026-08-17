@@ -2603,6 +2603,8 @@ function pintarAcopios(){
       ${a.d ? `<p style="margin:.25rem 0"><strong>${esc(a.d)}</strong></p>` : ''}
       ${a.ne ? `<p style="margin:.25rem 0">Recibe: ${esc(a.ne)}</p>` : ''}
       ${a.h ? `<p style="margin:.25rem 0">Horario: ${esc(a.h)}${a.di ? ` · ${esc(a.di)}` : ''}</p>` : ''}
+      ${a.nota_ra ? `<p style="margin:.25rem 0;font-size:.82rem">${esc(a.nota_ra)}
+        <span style="color:#8a8378">· RedAcopio</span></p>` : ''}
       ${a.vol ? '<p style="margin:.25rem 0;color:#1d7a4c;font-weight:600">Necesita voluntarios</p>' : ''}
       ${a.c ? `<p style="margin:.25rem 0">${esc(a.c)}</p>` : ''}
       ${tel ? `<p style="margin:.25rem 0"><a href="tel:${esc(tel)}">${esc(a.tel)}</a></p>` : ''}
@@ -2805,6 +2807,7 @@ function pintarDetalle(){
       ${a.ne ? `<div class="campo-d"><b>Recibe</b>${esc(a.ne)}</div>` : ''}
       ${a.h ? `<div class="campo-d"><b>Horario</b>${esc(a.h)}${
         a.di ? ` · ${esc(a.di)}` : ''}</div>` : ''}
+      ${a.nota_ra ? `<div class="campo-d"><b>Según RedAcopio</b>${esc(a.nota_ra)}</div>` : ''}
       ${a.vol ? '<p style="color:var(--verde);font-weight:700">Necesitan voluntarios</p>' : ''}
       ${a.c ? `<div class="campo-d"><b>Contacto</b>${esc(a.c)}</div>` : ''}
       <div class="pop-acc">
@@ -3963,6 +3966,7 @@ function listaAcopios(){
           ${a.d ? `<p class="ac-d"><strong>${esc(a.d)}</strong></p>` : ''}
           ${a.ne ? `<p class="ac-m">Recibe: ${esc(a.ne)}</p>` : ''}
           ${a.h ? `<p class="ac-m">Horario: ${esc(a.h)}${a.di ? ` · ${esc(a.di)}` : ''}</p>` : ''}
+          ${a.nota_ra ? `<p class="ac-m">${esc(a.nota_ra)} · RedAcopio</p>` : ''}
           ${a.vol ? '<p class="ac-m" style="color:var(--verde);font-weight:600">Necesita voluntarios</p>' : ''}
           ${acc}
           ${aprox}
