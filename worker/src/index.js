@@ -181,7 +181,17 @@ function limpiar(v, max) {
  * ⚠️ Sin esto la decisión de "no publicar el contacto" no vale nada: basta que
  * alguien escriba su celular dentro de la descripción para que quede expuesto,
  * y en desaparecidos ese es justo el dato que habilita la llamada extorsiva.
- * Se aplica a TODO reporte cuyo contacto no sea público.
+ *
+ * ⚠️⚠️ PERO SOLO PROTEGE A QUIEN PIDE. Un reporte del grupo `ofrezco` es lo
+ * contrario: una línea de atención psicológica, una brigada médica o alguien
+ * con una camioneta PUBLICAN su número justamente para que los llamen, y
+ * taparlo borra la única forma de usar lo que están ofreciendo. Se vio en la
+ * línea gratuita de la Konrad Lorenz, que quedó publicada con un
+ * "[teléfono oculto]" donde iba el número de registro.
+ *
+ * El riesgo que motivó esto —la llamada extorsiva a una familia que busca a
+ * alguien— no existe del lado de la oferta: no hay a quién extorsionar con
+ * una oferta de ayuda, y quien la publica ya decidió exponerse.
  */
 function enmascarar(texto) {
   if (!texto) return texto;
@@ -485,7 +495,8 @@ async function snapshot(req, env, ctx) {
     c: r.cat,
     u: r.urgencia,
     ti: r.titulo,
-    d: r.contacto_pub ? r.detalle : enmascarar(r.detalle),
+    // `ofrezco` publica su detalle tal cual: ver el comentario de `enmascarar`.
+    d: (r.contacto_pub || r.tipo === 'ofrezco') ? r.detalle : enmascarar(r.detalle),
     dp: r.depto,
     mu: r.municipio,
     b: r.barrio,

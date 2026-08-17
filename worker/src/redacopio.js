@@ -64,6 +64,13 @@ export function extraer(html) {
   return items;
 }
 
+/** El recuadro de Colombia, para descartar coordenadas que no lo son. */
+const BBOX = { latMin: -4.3, latMax: 13.6, lonMin: -82.0, lonMax: -66.8 };
+const enColombia = (la, lo) =>
+  Number.isFinite(la) && Number.isFinite(lo)
+  && la >= BBOX.latMin && la <= BBOX.latMax
+  && lo >= BBOX.lonMin && lo <= BBOX.lonMax;
+
 /** Su vocabulario de estado → el nuestro. */
 function estadoDe(o) {
   const st = norm(o.status);
@@ -142,8 +149,14 @@ function aNuestraForma(o) {
       ? { objetivo: vol.target, actual: Number(vol.current) || 0 } : null,
     c: String(c.name || c.contacto || '').trim(),
     tel: String(c.phone || c.tel || '').trim() || hor.tel || '',
-    la: Number.isFinite(o.lat) ? o.lat : null,
-    lo: Number.isFinite(o.lng) ? o.lng : null,
+    /* ⚠️⚠️ `Number.isFinite(0)` es true, así que un 0,0 pasaba como
+       coordenada válida: 4 de sus 96 puntos vienen así y dos de ellos
+       —Unicentro y Fundación El Combo— estaban publicados en el golfo de
+       Guinea. Es la misma trampa que `coordenada()` ya cuida del lado de la
+       hoja: un cero es una celda vacía con formato de número, no la isla nula.
+       Se valida contra el recuadro de Colombia, no solo contra "es finito". */
+    la: enColombia(o.lat, o.lng) ? o.lat : null,
+    lo: enColombia(o.lat, o.lng) ? o.lng : null,
     ap: 0,                              // ellos sí traen coordenada del sitio
     // Lo que ellos aportan y nuestra hoja no tiene.
     estado: estadoDe(o),
