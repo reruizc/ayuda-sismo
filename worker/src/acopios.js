@@ -13,6 +13,7 @@
  * escriba en la columna CONTACTO queda a la vista de todo el mundo.
  */
 import { MUNICIPIOS } from './municipios.js';
+import { centroDe } from './centros.js';
 
 // Centro de cada municipio, para ubicar un acopio que no traiga coordenada.
 export const CENTRO = new Map();
@@ -209,7 +210,16 @@ export function normalizarFilas(filas) {
     if (la == null || lo == null) {
       const c = CENTRO.get(norm(muni));
       if (c) { la = c[2]; lo = c[3]; aprox = true; if (!dep) dep = c[1]; }
-      else { la = null; lo = null; sinUbicar++; }
+      else {
+        /* ⚠️ `CENTRO` sale de `municipios.js`, que solo trae 118 nombres —los
+           que el detector de prensa vigila—. Mosquera, Popayán e Ibagué no
+           están, y sus acopios quedaban INVISIBLES: ni coordenada propia ni
+           centro, o sea fuera del mapa sin que nada lo dijera. `centros.js`
+           tiene los 1.125 del país y solo se usa para ubicar. */
+        const t = centroDe(muni, dep);
+        if (t) { la = t[1]; lo = t[2]; aprox = true; if (!dep) dep = t[0]; }
+        else { la = null; lo = null; sinUbicar++; }
+      }
     }
     // Un punto fuera de Colombia es un error de digitación, no una ubicación.
     if (la != null && (la < BBOX.latMin || la > BBOX.latMax ||

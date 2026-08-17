@@ -15,6 +15,7 @@
  * necesidad vieja o mal anotada hace que llegue lo que ya no falta.
  */
 import { CENTRO, norm, parsearCSV, LIMPIO, geocodificarNombre } from './acopios.js';
+import { centroDe } from './centros.js';
 
 /* ─────────────────────────────── identidad ─────────────────────────────── */
 
@@ -157,6 +158,11 @@ export function normalizarFilas(filas, ahora) {
       let la = null, lo = null, aprox = false;
       const c = CENTRO.get(norm(muni));
       if (c) { la = c[2]; lo = c[3]; aprox = true; if (!dep) dep = c[1]; }
+      // Mismo respaldo que en acopios: la tabla de prensa solo trae 118.
+      else {
+        const t = centroDe(muni, dep);
+        if (t) { la = t[1]; lo = t[2]; aprox = true; if (!dep) dep = t[0]; }
+      }
 
       it = {
         k: clave,

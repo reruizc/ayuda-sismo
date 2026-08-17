@@ -561,6 +561,31 @@ Gotchas del registro de placas, todos medidos:
 | La vía va aparte del número | `PDONVIAL='KR 15A'` + `PDOTEXTO LIKE '122 27%'` |
 | Sin placa exacta | se acepta la más cercana de la misma vía **solo dentro de ±20**, que en Bogotá es menos de media cuadra |
 
+## Dos tablas de municipios, no una
+
+⚠️⚠️ `municipios.js` y `centros.js` NO deben fundirse. Son el mismo dato para
+dos trabajos con requisitos **opuestos**:
+
+| | Para qué | Qué necesita |
+|---|---|---|
+| `municipios.js` (118) | **DETECTAR** municipios en titulares de prensa | ser conservadora — 24 nombres ya quedaron fuera por ambiguos (Sevilla, Florida, Bolívar) y su propio comentario advierte que 118 × 1.500 titulares ya aprieta el CPU |
+| `centros.js` (1.125) | **UBICAR** un acopio que no trajo coordenada | ser completa |
+
+Mezclarlas llenaría el conteo de prensa de notas ajenas.
+
+**El síntoma que lo destapó:** Mosquera, Popayán e Ibagué no están entre los
+118, así que sus acopios quedaban **invisibles** — ni coordenada propia ni
+centro, o sea fuera del mapa sin que nada lo dijera. `acopios.js` y
+`necesidades.js` ahora caen a `centros.js` cuando la primera no conoce el
+municipio.
+
+⚠️ Un nombre que se repite entre departamentos (64 casos: Albania, Argelia,
+Bolívar…) **no entra al índice suelto**: sin el departamento no hay forma de
+saber cuál es, y escoger uno pondría el punto a cientos de kilómetros con
+pinta de exacto. Se resuelven solo si la fila trae departamento.
+
+Regenerar: `python3 tools/build_centros_js.py` (sale de `public/geo.json`).
+
 ## Al publicar: lo más cerca de lo que se acaba de pedir
 
 Publicar y quedarse esperando es lo que hace que alguien cierre la página
