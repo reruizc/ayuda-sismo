@@ -512,6 +512,20 @@ body.pt-raiz .pt-pie{margin-top:.6rem; padding-top:.55rem}
 }
 .pt-volver:hover{background:#9c2b1a}
 
+/* Lo último que publicó la gente, en la puerta de entrada. Tarjetas más
+   apretadas que las de intención: acá se compara y se elige, no se navega. */
+.urg-cargando{color:var(--tenue); font-size:.92rem; text-align:center; padding:1.2rem .4rem}
+.urg-lista{display:flex; flex-direction:column; gap:.45rem}
+.urg-it{display:block; width:100%; text-align:left; background:var(--tarjeta);
+  border:1px solid var(--linea); border-left:4px solid var(--acc); border-radius:var(--r);
+  padding:.6rem .8rem; font:inherit; color:inherit; cursor:pointer}
+.urg-it:hover{border-color:var(--acc)}
+.urg-cab{display:flex; align-items:center; gap:.4rem; flex-wrap:wrap}
+.urg-cab b{font-size:.95rem; overflow-wrap:anywhere}
+.urg-m{display:block; font-size:.79rem; color:var(--tenue); margin-top:.2rem}
+.urg-pie{display:flex; gap:.5rem; margin-top:1rem}
+.urg-pie .btn{flex:1 1 0; padding:.65rem; text-align:center}
+
 .fase-pie{margin-top:1rem; text-align:center}
 .fase-cuenta{margin:0 0 .5rem; font-size:.8rem; color:var(--tenue)}
 .fase-btn{width:100%; padding:.75rem; font-size:1rem}
@@ -1500,11 +1514,11 @@ const SIT = {
   'busco-mascota':  {g:'busco', f:'mascota', n:'Busco a mi mascota',
     foto:1, sinPersonas:1, ej:'Ej.: Perro criollo café, collar rojo, se perdió al evacuar'},
 
-  /* `oculta` — no aparece en el selector manual de "Necesito", porque tiene su
-     propia tarjeta roja en la puerta de entrada. Sigue existiendo en el
-     catálogo: la tarjeta la usa, y los reportes ya publicados con ella se
-     pintan y se filtran igual. */
-  'nec-rescate':    {g:'necesito', f:'rescate', urgFija:'inmediata', oculta:1, n:'Personas atrapadas o remoción de escombros',
+  /* Volvió al selector manual al quitarse la tarjeta roja de la puerta: si se
+     quedaba `oculta` y además se iba la tarjeta, NO quedaría ninguna forma de
+     reportar personas atrapadas. Es menos probable a siete días del sismo,
+     pero "menos probable" no es "imposible". */
+  'nec-rescate':    {g:'necesito', f:'rescate', urgFija:'inmediata', n:'Personas atrapadas o remoción de escombros',
     ej:'Ej.: Vecinos escuchan voces bajo la placa caída del segundo piso'},
   'nec-viveres':    {g:'necesito', f:'viveres', n:'Víveres, agua o ropa',
     ej:'Ej.: Familia de 5 sin agua ni comida desde el lunes'},
@@ -1666,6 +1680,17 @@ const INTENCIONES = [
    col:'#8c2616', tint:'#fadfda',
    d:'Escombros, alguien bajo una placa caída',
    accion:'form', sit:'nec-rescate', ctx:'Reportando personas atrapadas', acc:'Abrir el formulario'},
+
+  /* Ocupa el lugar que tenía "hay personas atrapadas" en la puerta. No abre un
+     formulario ni pide lugar: MUESTRA lo último que publicó la gente. A siete
+     días del sismo, quien llega ya no viene a reportar un rescate; viene a ver
+     qué está pasando y a quién puede ayudar hoy.
+     `accion:'urgentes'` la pinta `pintarOpciones` como un nivel más, igual que
+     una familia, y por eso no necesita lugar ni pasos. */
+  {k:'urgentes', ico:'🆘', n:'Ver necesidades urgentes', urg:1, img:'op-necesito.jpg',
+   col:'#8c2616', tint:'#fadfda',
+   d:'Lo último que ha publicado la gente',
+   accion:'urgentes', ctx:'Necesidades urgentes', acc:'Ver el mapa completo'},
 
   {k:'alojamiento', ico:'🛏️', n:'Busco alojamiento', img:'op-alojamiento.jpg',
    col:'#1b5fa8', tint:'#e6eefa',
@@ -3129,7 +3154,13 @@ function pintarOpciones(){
     // página en la que el tiempo se mide en minutos, y hacer que alguien
     // navegue un menú para reportar a una persona bajo escombros es un costo
     // que no compensa ninguna limpieza de la pantalla.
-    const urg = INTENCIONES.find((i) => i.k === 'rescate');
+    /* ⚠️ A siete días del sismo, "hay personas atrapadas" dejó de ser el caso
+       probable de quien abre la página, y tener el lugar de honor le quitaba
+       peso a lo que sí está pasando. En su sitio va lo que la gente acaba de
+       publicar. `nec-rescate` NO desapareció: volvió al selector manual de
+       "Necesito" (se le quitó el `oculta`), que es de donde había salido
+       justamente porque esta tarjeta existía. */
+    const urg = INTENCIONES.find((i) => i.k === 'urgentes');
     /* "Ver cómo va lo que publiqué" es una tarjeta más, no un enlace al pie:
        quien ya reportó vuelve justamente a eso, y en texto chiquito abajo no
        lo encontraba. Va de última porque solo le sirve a quien ya publicó, y
@@ -3197,7 +3228,10 @@ function verificarFamilias(){
 function pasosDe(I){
   // Un enlace no necesita saber dónde: se abre y ya. Donar tampoco: la
   // transferencia no ocurre en un municipio.
-  if (I.accion === 'url' || I.accion === 'donar' || I.accion === 'colaborar') return [];
+  // `urgentes` tampoco: muestra lo último publicado en TODO el país, y
+  // preguntar el lugar antes escondería justo lo que la tarjeta promete.
+  if (I.accion === 'url' || I.accion === 'donar' || I.accion === 'colaborar'
+      || I.accion === 'urgentes') return [];
   /* "Ver el mapa completo" tampoco: ofrece TODO lo publicado y preguntar dónde
      antes de abrirlo se contradice con lo que la tarjeta acaba de prometer.
      Quien entra por ahí ya dijo que quiere el mapa entero y filtrar a mano; el
@@ -3207,6 +3241,64 @@ function pasosDe(I){
   if (I.accion === 'voluntario') p.push('dispo');   // cuándo, y después dónde
   p.push('lugar');
   return p;
+}
+
+/* ══════════════ lo último que publicó la gente ══════════════
+ *
+ * Reemplaza a la tarjeta de rescate en la puerta. A siete días del sismo,
+ * quien abre la página ya no viene casi nunca a reportar a alguien bajo una
+ * placa: viene a ver qué está pasando. Mostrarle de una lo último publicado
+ * es más útil que pedirle que navegue un menú para llegar al mapa.
+ *
+ * ⚠️ Solo lo que la gente PIDE (`necesito` y `busco`), no lo que ofrece: la
+ * tarjeta promete "necesidades urgentes" y mezclarle ofertas la volvería otra
+ * cosa. Primero las urgentes, después por recientes.
+ */
+const URG_N = 5;
+
+async function verUrgentes(){
+  const caja = $('#ops');
+  $('#pt-titulo').textContent = 'Necesidades urgentes';
+  $('#pt-sub').textContent = 'Lo último que ha publicado la gente. '
+    + 'Toca una para verla en el mapa.';
+  document.body.classList.remove('pt-raiz');
+  caja.className = 'ops ops-nivel';
+  caja.innerHTML = '<p class="urg-cargando">Buscando lo último publicado…</p>';
+  armarHistorial();
+  const c = $('#pt-caja'); if (c) c.scrollTop = 0;
+
+  if (!S.items) { try { await cargar(); } catch { /* se muestra el vacío */ } }
+
+  const pide = (S.items || []).filter((r) => r.p === 'necesito' || r.p === 'busco');
+  pide.sort((a, b) => (URG_ALTA.has(b.u) ? 1 : 0) - (URG_ALTA.has(a.u) ? 1 : 0)
+    || b.t - a.t);
+  const top = pide.slice(0, URG_N);
+
+  const pie = `<div class="urg-pie">
+      <button type="button" class="btn" data-f="">← Volver</button>
+      <button type="button" class="btn btn-pri" id="urg-mapa">Ver el mapa completo</button>
+    </div>`;
+
+  if (!top.length) {
+    caja.innerHTML = `<p class="urg-cargando">Todavía no hay necesidades publicadas
+      por acá. En el mapa completo está todo lo demás: acopios, quién pide ayuda
+      y lo que va saliendo en prensa.</p>${pie}`;
+    return;
+  }
+
+  caja.innerHTML = `<div class="urg-lista">${top.map((r) => {
+    const s = SIT[r.s] || {};
+    const fam = FAM[r.c] || FAM.otro;
+    const donde = [r.b, r.mu, r.dp].filter(Boolean).join(', ');
+    return `<button type="button" class="urg-it" data-urg="${esc(r.i)}"
+        style="--acc:${fam.c}">
+      <span class="urg-cab">
+        ${URG_ALTA.has(r.u) ? '<span class="etq etq-alta">Urgente</span>' : ''}
+        <b>${esc(r.ti)}</b>
+      </span>
+      <span class="urg-m">${esc(s.n || fam.n)}${donde ? ` · ${esc(donde)}` : ''} · ${hace(r.t)}</span>
+    </button>`;
+  }).join('')}</div>${pie}`;
 }
 
 function elegirIntencion(k){
@@ -3588,6 +3680,10 @@ function ejecutar(){
      ventana deja a la persona exactamente donde estaba. */
   if (I.accion === 'donar') { abrirDonar(); return; }
   if (I.accion === 'colaborar') { abrir('#velo-colaborar'); return; }
+  /* Igual que donar: NO cierra la puerta. Es una lectura, no un modo — quien
+     entra a ver qué se publicó tiene que poder devolverse a las tarjetas sin
+     pasar por el mapa. */
+  if (I.accion === 'urgentes') { verUrgentes(); return; }
 
   S.intencion = I; S.lugar = L;
   cerrarPuerta();
@@ -5612,6 +5708,20 @@ async function iniciar(){
     // `__mis` NO es una familia: comparte la pieza visual para verse igual a
     // las demás, pero abre la lista de lo propio en vez de un submenú.
     if (f) return f.dataset.f === '__mis' ? verMisReportes() : abrirFamilia(f.dataset.f);
+    // Un reporte de la lista de urgentes: cierra la puerta y lo abre en el mapa.
+    const u = e.target.closest('[data-urg]');
+    if (u) {
+      cerrarPuerta(); limpiarModo(); pintar();
+      const m = S.capas.get(u.dataset.urg);
+      if (m) { mapa.setView(m.getLatLng(), Math.max(mapa.getZoom(), 13)); m.openPopup(); }
+      verDetalle('reporte', u.dataset.urg);
+      return;
+    }
+    if (e.target.closest('#urg-mapa')) {
+      S.pt = {i:EXPLORAR, l:null, pasos:[], idx:0};
+      ejecutar();
+      return;
+    }
     const b = e.target.closest('.op'); if (b) elegirIntencion(b.dataset.i);
   });
   /* ⚠️⚠️ El botón "← Atrás" de los pasos NO ESTABA CONECTADO A NADA (lo

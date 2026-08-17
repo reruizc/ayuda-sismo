@@ -582,6 +582,26 @@ alguien encontró, quien ofrece alojamiento ve a quién le falta techo.
 - Al lado va la nota de que seguimos moviendo el caso por difusión, redactada
   sin prometer tiempos ni garantizar que alguien llegue.
 
+## La puerta muestra lo último publicado, no el rescate
+
+A siete días del sismo, "hay personas atrapadas" dejó de ser el caso probable
+de quien abre la página, y tener el lugar de honor le quitaba peso a lo que sí
+está pasando. En su sitio va **"Ver necesidades urgentes"**: las 5 últimas que
+publicó la gente, primero las urgentes y después por recientes.
+
+- Solo lo que la gente **PIDE** (`necesito` y `busco`), nunca lo que ofrece: la
+  tarjeta promete necesidades y mezclarle ofertas la volvería otra cosa.
+- Tocar una cierra la puerta y la abre en el mapa. Al pie, "← Volver" y "Ver el
+  mapa completo".
+- `accion:'urgentes'` NO pide lugar (`pasosDe`) ni cierra la puerta
+  (`ejecutar`): es una lectura, no un modo, y quien entra a mirar tiene que
+  poder devolverse a las tarjetas sin pasar por el mapa.
+
+⚠️⚠️ **Al quitar esa tarjeta hubo que devolver `nec-rescate` al selector manual
+de "Necesito"**, quitándole el `oculta`. Se había ocultado justamente PORQUE la
+tarjeta existía; dejando las dos cosas no quedaba **ninguna** forma de reportar
+personas atrapadas. Menos probable no es imposible.
+
 ## `oculta` en el catálogo de situaciones
 
 `nec-rescate` (personas atrapadas) **no aparece en el selector manual** de
