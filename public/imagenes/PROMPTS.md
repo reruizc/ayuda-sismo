@@ -307,6 +307,7 @@ Exportar igual que las demás:
 | `fam-ayudar.jpg` | Quiero ayudar | `#0f766e` | `#e3f2f0` |
 | `fam-necesito.jpg` | Necesito ayuda | `#b4321e` | `#fdeceb` |
 | `fam-ver.jpg` | Ver el mapa e informes | `#1b3f66` | `#e6ecf3` |
+| `fam-mis-reportes.jpg` | Ver cómo va lo que publiqué | `#5d574e` | `#f0ede8` |
 
 ## `fam-ayudar.jpg` — Quiero ayudar ✅ hecha
 
@@ -435,3 +436,30 @@ llamado, la que ofrece muestra a alguien presentándose.
 >
 > Tono: aporte discreto y confiable. NO signos de peso ni de dólar, NO tarjeta
 > de crédito, NO monedas sueltas, NO logos de bancos, NO rostros.
+
+## `fam-mis-reportes.jpg` — Ver cómo va lo que publiqué
+
+Es la única tarjeta que NO lleva a pedir ni a ofrecer: lleva a lo propio. Por
+eso va en gris cálido, el color más apagado del juego, y de última en la fila.
+
+> Ilustración editorial plana, cuadrada 1:1, para la tarjeta principal de un
+> mapa de ayuda humanitaria tras un terremoto en Colombia.
+>
+> Sujeto: una hoja de papel con un par de renglones escritos y una chincheta
+> de mapa apoyada sobre ella, vistas de frente y centradas. El sujeto ocupa
+> cerca del 70% del alto del cuadro, centrado, con margen parejo arriba y
+> abajo.
+>
+> Estilo: vectorial plano, formas gruesas y simples, sin degradados, sin
+> sombras realistas, sin textura de ruido. Trazo grueso y parejo. Debe leerse
+> con claridad reducida a 76×76 píxeles: un solo sujeto, siluetas limpias,
+> nada de detalle fino.
+>
+> Paleta estricta de tres colores: gris cálido #5d574e para el trazo y las
+> formas principales, fondo arena muy claro #f0ede8, y crudo #f7f5f1 para los
+> vacíos. Sin ningún otro color.
+>
+> Tono: digno y sereno, ayuda mutua entre vecinos. NO dramático, NO
+> catastrófico, NO caricaturesco, NO tierno. Sin texto, sin letras, sin
+> números, sin logotipos, sin banderas, sin marcas de agua. Sin rostros.
+> Fondo plano, sin escena de fondo.

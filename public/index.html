@@ -512,15 +512,6 @@ body.pt-raiz .pt-pie{margin-top:.6rem; padding-top:.55rem}
 }
 .pt-volver:hover{background:#9c2b1a}
 
-/* Volver a lo propio no es una manera de entrar: va al pie, en texto, sin
-   competir con las tarjetas de intención. */
-.pt-mis{
-  display:block; margin:1.1rem auto 0; background:none; border:none;
-  color:var(--tenue); font:inherit; font-size:.92rem; font-weight:600;
-  text-decoration:underline; text-underline-offset:3px; cursor:pointer;
-}
-.pt-mis:hover{color:var(--tinta)}
-
 .fase-pie{margin-top:1rem; text-align:center}
 .fase-cuenta{margin:0 0 .5rem; font-size:.8rem; color:var(--tenue)}
 .fase-btn{width:100%; padding:.75rem; font-size:1rem}
@@ -751,14 +742,6 @@ if (/^#\/mi\//.test(location.hash) || /[?&]ir=/.test(location.search))
 
     <div id="pt-paso1">
       <div class="ops" id="ops"></div>
-      <!-- Quien ya publicó algo vuelve a la página a ver cómo va, y hasta
-           ahora el único camino era el enlace privado que le llegó al terminar
-           —que se pierde—. Va al pie y no como tarjeta: no es una manera de
-           entrar, es volver a lo propio. Se esconde solo si este dispositivo
-           nunca publicó nada, para no ofrecerle una lista vacía a quien llega
-           por primera vez. -->
-      <button type="button" class="pt-mis" id="pt-mis" hidden>
-        Ver cómo va lo que publiqué</button>
     </div>
 
     <div id="pt-paso2" hidden>
@@ -3119,9 +3102,25 @@ function pintarOpciones(){
     // navegue un menú para reportar a una persona bajo escombros es un costo
     // que no compensa ninguna limpieza de la pantalla.
     const urg = INTENCIONES.find((i) => i.k === 'rescate');
+    /* "Ver cómo va lo que publiqué" es una tarjeta más, no un enlace al pie:
+       quien ya reportó vuelve justamente a eso, y en texto chiquito abajo no
+       lo encontraba. Va de última porque solo le sirve a quien ya publicó, y
+       solo aparece si este dispositivo tiene reportes: a quien llega por
+       primera vez no se le ofrece una lista vacía. */
+    let mios = [];
+    try { mios = JSON.parse(localStorage.getItem('sismo-mis-reportes') || '[]'); } catch {}
+    const tarjMis = mios.length ? tarjetaFam({
+      k:'__mis', ico:'📋', n:'Ver cómo va lo que publiqué',
+      img:'fam-mis-reportes.jpg', col:'#5d574e', tint:'#f0ede8',
+      d: mios.length === 1
+        ? 'Tu reporte, los mensajes que te hayan dejado y cómo cerrarlo'
+        : `Tus ${mios.length} reportes, los mensajes que te hayan dejado y cómo cerrarlos`,
+    }, FAMILIAS.length + 1) : '';
+
     $('#ops').innerHTML =
       (urg ? `<div class="ops-urg">${tarjetaOp(urg, 0)}</div>` : '')
-      + `<div class="ops-fam">${FAMILIAS.map((f, i) => tarjetaFam(f, i + 1)).join('')}</div>`;
+      + `<div class="ops-fam">${FAMILIAS.map((f, i) => tarjetaFam(f, i + 1)).join('')}
+         ${tarjMis}</div>`;
     return;
   }
 
@@ -4527,10 +4526,17 @@ function aplicarSituacion(){
 
   const lbl = $('#foto-lbl');
   if (lbl) {
+    /* El rótulo dice para QUÉ sirve la foto en cada caso. En una persona
+       desaparecida es lo único que permite que alguien la reconozca en la
+       calle o en un puesto de salud, y "opcional, ayuda mucho" no transmite
+       eso — igual que ya pasaba con las mascotas. */
     lbl.innerHTML = s.f === 'mascota'
       ? 'Foto del animal <span class="ayuda" style="display:inline">'
         + '(es lo que permite reconocerlo)</span>'
-      : 'Foto <span class="ayuda" style="display:inline">(opcional, ayuda mucho)</span>';
+      : sitSel === 'busco-persona'
+        ? 'Foto de la persona <span class="ayuda" style="display:inline">'
+          + '(es lo que permite que alguien la reconozca)</span>'
+        : 'Foto <span class="ayuda" style="display:inline">(opcional, ayuda mucho)</span>';
   }
 
   /* ⚠️ `caps` se lee del snapshot al arrancar, así que una pestaña abierta
@@ -5554,22 +5560,6 @@ async function iniciar(){
     abrirForm(I && I.accSit ? {sit:I.accSit, det:dsp2, lugar:S.lugar} : {lugar:S.lugar});
   }));
   $('#btn-puerta').addEventListener('click', () => abrirPuerta());
-  /* Desde la puerta de entrada, para ver cómo va lo que ya se publicó. Solo se
-     muestra si este dispositivo tiene reportes: a quien llega por primera vez
-     no se le ofrece una lista vacía. */
-  const bmis = $('#pt-mis');
-  if (bmis) {
-    bmis.addEventListener('click', verMisReportes);
-    try {
-      const n = JSON.parse(localStorage.getItem('sismo-mis-reportes') || '[]').length;
-      if (n) {
-        bmis.hidden = false;
-        bmis.textContent = n === 1
-          ? 'Ver cómo va lo que publiqué'
-          : `Ver cómo van mis ${n} reportes`;
-      }
-    } catch { /* almacenamiento bloqueado: el botón se queda escondido */ }
-  }
 
   /* ── puerta de entrada ── */
   // Un toque en cualquier parte de la intro la salta: quien ya sabe a qué
@@ -5581,7 +5571,9 @@ async function iniciar(){
     // lleva la clase `.op` (comparten pieza), así que si `.op` se evaluara
     // primero intentaría abrir una intención con la llave de una familia.
     const f = e.target.closest('[data-f]');
-    if (f) return abrirFamilia(f.dataset.f);
+    // `__mis` NO es una familia: comparte la pieza visual para verse igual a
+    // las demás, pero abre la lista de lo propio en vez de un submenú.
+    if (f) return f.dataset.f === '__mis' ? verMisReportes() : abrirFamilia(f.dataset.f);
     const b = e.target.closest('.op'); if (b) elegirIntencion(b.dataset.i);
   });
   /* ⚠️⚠️ El botón "← Atrás" de los pasos NO ESTABA CONECTADO A NADA (lo
