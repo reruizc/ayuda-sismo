@@ -8,3 +8,4 @@ tools/*.bak
 
 # Secretos de desarrollo local. NUNCA al repo: este es público.
 .dev.vars
+columna-AD-estado-registro.txt

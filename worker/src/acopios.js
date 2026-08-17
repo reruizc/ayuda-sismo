@@ -110,8 +110,27 @@ function indices(cab) {
     // del municipio y el punto deja de ser aproximado.
     lat:      buscar('lat', 'latitud'),
     lon:      buscar('lon', 'lng', 'longitud'),
+    /* ⚠️⚠️ Esta columna YA EXISTÍA en la hoja y el código NO la leía. Ocho
+       puntos marcados a mano como `cerrado` o `descartado` seguían publicados
+       en el mapa: alguien hizo el trabajo de revisarlos y no sirvió de nada.
+       Al agregar una columna a la hoja hay que agregarla también acá. */
+    estado:   buscar('estado registro', 'estado del registro', 'estado'),
   };
 }
+
+/**
+ * Valores de ESTADO REGISTRO que sacan un punto del mapa.
+ *
+ * `cerrado` = operó y ya no. `descartado` = no era un acopio, o no se pudo
+ * verificar que existiera. Los dos casos terminan igual para quien va con un
+ * mercado en el carro, así que los dos se ocultan.
+ *
+ * ⚠️ `por_verificar` NO oculta: es un punto del que se duda, no uno negado, y
+ * esconder lo dudoso en plena emergencia le quita opciones a la gente. Se
+ * queda con el sello "sin revisar", que es justo lo que la ficha ya dice.
+ */
+const ESTADO_OCULTA = new Set(['cerrado', 'cerrada', 'descartado', 'descartada',
+  'duplicado', 'duplicada', 'no aplica', 'no existe', 'eliminado', 'eliminada']);
 
 const BBOX = { latMin: -4.3, latMax: 13.6, lonMin: -82.0, lonMax: -66.8 };
 
@@ -169,12 +188,17 @@ export function normalizarFilas(filas) {
 
   const items = [];
   let sinUbicar = 0;
+  let ocultos = 0;
   const g = (f, i) => (i >= 0 ? LIMPIO(f[i]) : '');
 
   for (let r = 1; r < filas.length; r++) {
     const f = filas[r];
     const nombre = g(f, ix.nombre);
     if (!nombre) continue;                       // fila vacía o de relleno
+
+    // Lo que alguien ya revisó y descartó no vuelve al mapa. Se cuenta, para
+    // que se pueda ver desde afuera cuántos se están ocultando.
+    if (ESTADO_OCULTA.has(norm(g(f, ix.estado)).replace(/[_-]/g, ' '))) { ocultos++; continue; }
 
     const muni = g(f, ix.municipio);
     let la = coordenada(g(f, ix.lat), 'lat');
@@ -221,7 +245,7 @@ export function normalizarFilas(filas) {
       ap: aprox ? 1 : 0,     // ubicación al centro del municipio, no exacta
     });
   }
-  return { items, sin_ubicar: sinUbicar };
+  return { items, sin_ubicar: sinUbicar, ocultos };
 }
 
 /* ─────────────────────────── geocodificación ─────────────────────────── */
@@ -481,7 +505,7 @@ export async function refrescar(env, opciones = {}) {
   // Guardar eso pisaría la última copia buena con basura.
   if (/^\s*<(!doctype|html)/i.test(txt)) throw new Error('la hoja no es pública');
 
-  const { items, sin_ubicar, error } = normalizarFilas(parsearCSV(txt));
+  const { items, sin_ubicar, ocultos, error } = normalizarFilas(parsearCSV(txt));
   if (error) throw new Error(error);
 
   // Las correcciones aprobadas van ANTES de geocodificar: si una corrigió la
@@ -501,6 +525,9 @@ export async function refrescar(env, opciones = {}) {
     generado: Date.now(),
     total: items.length,
     sin_ubicar,
+    // Cuántos sacó de la hoja la columna ESTADO REGISTRO. Se publica para que
+    // se pueda ver desde afuera: ocultar en silencio es como no leer.
+    ocultos_por_estado: ocultos || 0,
     con_punto_propio: items.filter((i) => !i.ap && i.la != null).length,
     geocodificados_ahora: geocodificados,
     corregidos: overlays.aplicados,
