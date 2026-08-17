@@ -66,10 +66,24 @@ a{color:var(--azul)}
   padding-top:calc(.6rem + env(safe-area-inset-top));
   display:flex; align-items:center; gap:1rem; flex-wrap:wrap;
 }
-.marca{display:flex; align-items:baseline; gap:.55rem; min-width:0}
-.marca strong{font-size:1.06rem}
-.marca span{font-size:.8rem; color:var(--tenue); white-space:nowrap}
+/* Tres columnas para que el título quede CENTRADO de verdad: los dos costados
+   ocupan lo mismo aunque el de la derecha esté vacío. Con `margin-left:auto`
+   el centro se corría según lo largo que fuera el botón de la izquierda. */
+.top-izq,.top-der{flex:1 1 0; display:flex; gap:.5rem; align-items:center; min-width:0}
+.top-der{justify-content:flex-end}
+.marca{display:flex; flex-direction:column; align-items:center; text-align:center;
+  gap:.1rem; min-width:0; flex:0 1 auto}
+.marca strong{font-size:1.06rem; line-height:1.2}
+.marca span{font-size:.8rem; color:var(--tenue); line-height:1.25}
 .top-acc{margin-left:auto; display:flex; gap:.5rem; align-items:center}
+@media (max-width:860px){
+  /* En el teléfono el título va primero y en su propia línea: es lo que dice
+     dónde está parada la persona, y encajado entre botones se partía en tres. */
+  .top{flex-wrap:wrap; gap:.5rem}
+  .marca{order:-1; flex:1 0 100%}
+  .top-izq,.top-der{flex:1 1 auto}
+  .marca span{white-space:normal}
+}
 .btn{
   border:1px solid var(--linea); background:var(--tarjeta); color:var(--tinta);
   border-radius:var(--r); padding:.5rem .85rem; font-weight:600; font-size:.9rem;
@@ -110,7 +124,20 @@ a{color:var(--azul)}
 .zona.prensa[aria-pressed="true"]{background:#1b5fa8; border-color:#1b5fa8; color:#fff}
 .zona.acopio[aria-pressed="true"]{background:var(--verde); border-color:var(--verde); color:#fff}
 .zona.pide[aria-pressed="true"]{background:var(--pide); border-color:var(--pide); color:#fff}
-.zona.dano[aria-pressed="true"]{background:#5b0f14; border-color:#5b0f14; color:#fff}
+/* Daño satelital va SIEMPRE en azul oscuro, apagado o encendido: no es una
+   capa nuestra sino de Copernicus, y distinguirla de un vistazo evita leerla
+   como si fuera daño que reportó la gente. Encendido solo se marca el borde. */
+.zona.dano{background:#132a52; border-color:#132a52; color:#fff}
+.zona.dano:hover{background:#1b3a70}
+.zona.dano[aria-pressed="true"]{background:#132a52; border-color:#8fb4ee; color:#fff;
+  box-shadow:inset 0 0 0 1px #8fb4ee}
+/* El desplegable de departamentos comparte la caja de los botones de la fila
+   para que no se lea como un control de otro sitio. */
+.zona-sel{
+  border:1px solid var(--linea); background:var(--tarjeta); border-radius:0;
+  padding:.3rem .5rem; font-size:.82rem; font-weight:600; color:var(--tinta);
+  flex:none; font-family:inherit; max-width:190px;
+}
 
 /* ── daño evaluado desde satélite (Copernicus EMS) ──
    Un solo tono granate, del oscuro al pálido. Los reportes ya usan diez
@@ -485,6 +512,15 @@ body.pt-raiz .pt-pie{margin-top:.6rem; padding-top:.55rem}
 }
 .pt-volver:hover{background:#9c2b1a}
 
+/* Volver a lo propio no es una manera de entrar: va al pie, en texto, sin
+   competir con las tarjetas de intención. */
+.pt-mis{
+  display:block; margin:1.1rem auto 0; background:none; border:none;
+  color:var(--tenue); font:inherit; font-size:.92rem; font-weight:600;
+  text-decoration:underline; text-underline-offset:3px; cursor:pointer;
+}
+.pt-mis:hover{color:var(--tinta)}
+
 .fase-pie{margin-top:1rem; text-align:center}
 .fase-cuenta{margin:0 0 .5rem; font-size:.8rem; color:var(--tenue)}
 .fase-btn{width:100%; padding:.75rem; font-size:1rem}
@@ -609,6 +645,15 @@ body.con-ctx .cuerpo{height:calc(100dvh - 196px)}
 /* Caja del marcador de acopio. El símbolo va en blanco adentro; el color no
    cambia por tipo a propósito: si cada tipo tuviera su color, la capa dejaría
    de leerse como "acopios" y competiría con los colores de los reportes. */
+/* Latido de los puntos urgentes que están pidiendo. Es un pulso lento y sin
+   desaparecer del todo (baja a .35, no a 0): un parpadeo duro sobre un mapa de
+   emergencia se lee como un error de la página, y en el momento en que el
+   punto se apaga deja de poder tocarse. */
+@keyframes late{0%,100%{opacity:1}50%{opacity:.35}}
+.pt-late{animation:late 1.6s ease-in-out infinite}
+/* ⚠️ Obligatorio: hay gente a la que el movimiento le produce mareo o migraña,
+   y esta página se abre justo cuando peor se está. */
+@media (prefers-reduced-motion:reduce){.pt-late{animation:none}}
 .ac-pin{display:flex; align-items:center; justify-content:center;
   background:var(--verde); border:2px solid #fff; border-radius:8px;
   box-shadow:0 1px 3px rgba(0,0,0,.3)}
@@ -706,6 +751,14 @@ if (/^#\/mi\//.test(location.hash) || /[?&]ir=/.test(location.search))
 
     <div id="pt-paso1">
       <div class="ops" id="ops"></div>
+      <!-- Quien ya publicó algo vuelve a la página a ver cómo va, y hasta
+           ahora el único camino era el enlace privado que le llegó al terminar
+           —que se pierde—. Va al pie y no como tarjeta: no es una manera de
+           entrar, es volver a lo propio. Se esconde solo si este dispositivo
+           nunca publicó nada, para no ofrecerle una lista vacía a quien llega
+           por primera vez. -->
+      <button type="button" class="pt-mis" id="pt-mis" hidden>
+        Ver cómo va lo que publiqué</button>
     </div>
 
     <div id="pt-paso2" hidden>
@@ -741,20 +794,21 @@ if (/^#\/mi\//.test(location.hash) || /[?&]ir=/.test(location.search))
 <!-- El título dice a QUÉ entró la persona, no siempre "Mapa de ayuda": quien
      viene de "quiero donar cosas" está viendo acopios, y el rótulo genérico le
      borraba el rastro de por dónde entró. Lo pone `pintarContexto`. -->
+<!-- Volver al inicio va SOLO a la izquierda y el título queda centrado en la
+     barra. "Ver todas las temáticas" bajó a la fila de "Ir a", que es donde
+     están las demás decisiones sobre qué se ve en el mapa; "Mis reportes" y
+     "Registrar" salieron de acá: el primero vive ahora en la puerta de
+     entrada, y para registrar están la tarjeta de la puerta y el botón grande
+     del pie. Una barra con cuatro botones competía con el título. -->
 <header class="top">
-  <div class="marca">
-    <strong id="top-titulo">Mapa de ayuda</strong>
-    <span>Sismo del 10 de agosto de 2026</span>
-  </div>
-  <div class="top-acc">
-    <!-- Volver al menú es la salida principal desde el mapa: va en rojo y de
-         primero, porque es lo que busca quien entró por una sola cosa y quiere
-         hacer otra. -->
+  <div class="top-izq">
     <button class="btn btn-pri" id="btn-puerta">← Volver al inicio</button>
-    <button class="btn btn-sm" id="btn-todo-mapa">Ver todas las temáticas del mapa</button>
-    <button class="btn btn-sm" id="btn-mis">Mis reportes</button>
-    <button class="btn btn-pri btn-reportar" id="btn-reportar">Registrar</button>
   </div>
+  <div class="marca">
+    <strong id="top-titulo">Mapa de necesidades y apoyos</strong>
+    <span>Desastres naturales de la segunda semana de agosto</span>
+  </div>
+  <div class="top-der"></div>
 </header>
 
 <div class="oficial">
@@ -2136,6 +2190,12 @@ const mapa = L.map('mapa', {preferCanvas:true}).setView([4.6, -75.9], 7);
 L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
   attribution:'&copy; OpenStreetMap &copy; CARTO', maxZoom:19,
 }).addTo(mapa);
+/* ⚠️⚠️ El mapa se dibuja en CANVAS (`preferCanvas`), y en canvas un
+   `className` NO existe: Leaflet lo acepta sin chistar y el CSS nunca llega al
+   punto. Por eso los urgentes se dibujan con un renderer SVG propio — son
+   poquísimos, así que no se pierde el rendimiento que da el canvas para los
+   demás, y ahí sí el latido del CSS funciona. */
+const rendUrgente = L.svg({ padding: .5 });
 const capaPuntos = L.layerGroup().addTo(mapa);
 // Capa aparte y por debajo: la prensa es contexto, los reportes son el dato.
 const capaPrensa = L.layerGroup();
@@ -2643,8 +2703,16 @@ function dibujarMapa(items){
   S.capas.clear();
   items.forEach((r) => {
     const col = (FAM[r.c] || FAM.otro).c;
+    /* ⚠️ Parpadean SOLO los urgentes que están PIDIENDO, no todos los puntos.
+       Si late el mapa entero, el latido deja de significar nada y queda una
+       pantalla mareadora; latiendo solo lo urgente, el ojo va derecho a donde
+       hay que ir primero. Una oferta nunca late: nadie tiene que correr a
+       atender a quien está ofreciendo alojamiento.
+       El CSS lo apaga si el sistema pide menos movimiento. */
+    const urge = URG_ALTA.has(r.u) && r.p !== 'ofrezco';
     const m = L.circleMarker([r.la, r.lo], {
       radius: URG_ALTA.has(r.u) ? 9 : 7,
+      ...(urge ? { className:'pt-late', renderer: rendUrgente } : {}),
       color:'#fff', weight:2, fillColor:col,
       // Lo que se ofrece va translúcido: de un vistazo se separa la demanda
       // (sólido) de la oferta (tenue) sin necesidad de leer la leyenda.
@@ -2819,19 +2887,16 @@ function popupHTMLCompleto(r){
 
 /* ══════════════════════════════ zonas (drill del mapa) ══════════════════════════════ */
 function pintarZonas(){
-  const afect = (S.geo || []).filter((d) => d.a);
   const nP = S.prensa ? S.prensa.length : 0;
   // Los tres grados juntos, que es el número de edificios evaluados con algún
   // daño. No se anuncia solo "destruidos": daría a entender que el resto está
   // bien cuando lo que dice el dato es otra cosa.
   const nD = S.dano ? (S.dano.danos || []).length : 0;
-  /* ⚠️ Esa lista son los departamentos AFECTADOS, y solo sirve para mirar la
-     emergencia. Quien vino a entregar donaciones o a ser voluntario busca
-     acopios, y los acopios están donde hay gente y logística: 81 de ellos en
-     Bogotá, que no aparece en esa lista. Ofrecerle Caldas o Tolima ahí es
-     mandarlo a filtrar por sitios donde puede no haber nada y, de paso,
-     esconderle el suyo. Queda "Todo el país" y el buscador del panel, que es
-     el que sirve para acercarse. */
+  /* ⚠️ Antes acá iba una fila con los siete departamentos AFECTADOS, y solo
+     servía para mirar la emergencia: los acopios están donde hay gente y
+     logística —80 en Bogotá, que no está en esa lista— así que a quien venía a
+     donar se le escondía el suyo. La fila se reemplazó por un desplegable con
+     los 33, que sirve para las dos cosas. */
   /* ⚠️ Depende de POR DÓNDE ENTRÓ la persona, no de si la capa de acopios está
      encendida. Con `S.verAcopios` en la condición, encender esa capa desde el
      mapa general escondía los departamentos y las demás capas —y no volvían al
@@ -2850,12 +2915,25 @@ function pintarZonas(){
        title="Edificios y vías con daño evaluado por Copernicus EMS. Cubre solo unas zonas urbanas.">
        Daño satelital${nD ? ` (${nD})` : ''}</button>`;
 
+  /* ⚠️⚠️ El desplegable trae los 33 departamentos, no solo los afectados.
+     Quien OFRECE ayuda está en todo el país —la línea psicológica de la Konrad
+     Lorenz atiende desde Bogotá a cualquier lugar, y hay acopios en 20
+     departamentos que no están en la lista de afectados—. Con solo los siete
+     afectados, alguien de Antioquia o Santander no tenía cómo llegar a lo suyo.
+     Los afectados van primero y marcados, para que sigan a un toque. */
+  const deptos = (S.geo || []).slice()
+    .sort((a, b) => (b.a ? 1 : 0) - (a.a ? 1 : 0) || a.n.localeCompare(b.n, 'es'));
+  const opciones = deptos.map((d) => `<option value="${esc(d.c)}"${
+    S.zona === d.c ? ' selected' : ''}>${esc(d.n)}${d.a ? ' ·' : ''}</option>`).join('');
+
   $('#zonas').innerHTML =
     `<span class="rot">Ir a:</span>
-     <button class="zona" data-z="" aria-pressed="${!S.zona}">Todo el país</button>` +
-    (soloPais ? '' : afect.map((d) => `<button class="zona" data-z="${esc(d.c)}"
-       aria-pressed="${S.zona === d.c}">${esc(d.n)}</button>`).join('')) +
-    `<span class="zona-sep"></span>
+     <button class="zona" data-z="" aria-pressed="${!S.zona}">Todo el país</button>
+     <select class="zona-sel" id="sel-depto" aria-label="Ir a un departamento">
+       <option value="">Un departamento…</option>${opciones}
+     </select>
+     <button class="zona" id="btn-todo-mapa">Ver todas las temáticas del mapa</button>
+     <span class="zona-sep"></span>
      <button class="zona acopio" id="tgl-acopios" aria-pressed="${S.verAcopios}">
        Acopios${S.acopios ? ` (${S.acopios.length})` : ''}</button>
      <button class="zona pide" id="tgl-pide" aria-pressed="${S.verPide}"
@@ -3526,7 +3604,8 @@ function pintarContexto(){
      única señal de por dónde había entrado. En el mapa general vuelve al
      nombre de la página. */
   const t = $('#top-titulo');
-  if (t) t.textContent = (I && I.accion !== 'mapa' && I.ctx) ? `${I.ico} ${I.ctx}` : 'Mapa de ayuda';
+  if (t) t.textContent = (I && I.accion !== 'mapa' && I.ctx)
+    ? `${I.ico} ${I.ctx}` : 'Mapa de necesidades y apoyos';
 
   if (!I || I.accion === 'mapa') {
     ctx.hidden = true;
@@ -5443,26 +5522,54 @@ async function iniciar(){
       pintarDano();
       return;
     }
+    /* Lleva al mapa SIN intención: todas las capas y todos los filtros a la
+       vista. Bajó de la barra de arriba a esta fila, que es donde están las
+       demás decisiones sobre qué se ve en el mapa. Va DELEGADO porque
+       `pintarZonas` vuelve a crear el botón en cada repintado. */
+    if (e.target.closest('#btn-todo-mapa')) {
+      cerrarTodo();
+      S.pt = {i:EXPLORAR, l:null, pasos:[], idx:0};
+      ejecutar();
+      return;
+    }
     const b = e.target.closest('.zona');
-    if (b) irAZona(b.dataset.z);
+    // ⚠️ El `<select>` también lleva la clase `.zona` (comparte el estilo de la
+    // fila): sin esta salida, un clic para abrirlo dispararía `irAZona('')` y
+    // devolvería el mapa a nacional antes de poder elegir nada.
+    if (b && b.tagName !== 'SELECT') irAZona(b.dataset.z);
+  });
+
+  // El desplegable de departamentos: `change`, no `click`.
+  $('#zonas').addEventListener('change', (e) => {
+    const s = e.target.closest('#sel-depto');
+    if (s) irAZona(s.value);
   });
 
   // Sin envolver, el listener le pasaría el MouseEvent como preselección.
-  [$('#btn-reportar'), $('#fab')].forEach((b) => b.addEventListener('click', () => {
+  // ⚠️ `#btn-reportar` salió de la barra de arriba: se filtra lo que no exista
+  // para que quitar un botón del HTML no tumbe el resto del arranque.
+  [$('#btn-reportar'), $('#fab')].filter(Boolean).forEach((b) => b.addEventListener('click', () => {
     const I = S.intencion;
     const dsp2 = I && I.accion === 'voluntario' ? [detDispo()].filter(Boolean) : [];
     abrirForm(I && I.accSit ? {sit:I.accSit, det:dsp2, lugar:S.lugar} : {lugar:S.lugar});
   }));
-  $('#btn-mis').addEventListener('click', verMisReportes);
   $('#btn-puerta').addEventListener('click', () => abrirPuerta());
-  /* Lleva al mapa SIN intención: todas las capas y todos los filtros a la
-     vista. Reemplaza al enlace del informe de prensa, que se llevaba a la
-     persona a otra página justo cuando estaba mirando el mapa. */
-  $('#btn-todo-mapa').addEventListener('click', () => {
-    cerrarTodo();
-    S.pt = {i:EXPLORAR, l:null, pasos:[], idx:0};
-    ejecutar();
-  });
+  /* Desde la puerta de entrada, para ver cómo va lo que ya se publicó. Solo se
+     muestra si este dispositivo tiene reportes: a quien llega por primera vez
+     no se le ofrece una lista vacía. */
+  const bmis = $('#pt-mis');
+  if (bmis) {
+    bmis.addEventListener('click', verMisReportes);
+    try {
+      const n = JSON.parse(localStorage.getItem('sismo-mis-reportes') || '[]').length;
+      if (n) {
+        bmis.hidden = false;
+        bmis.textContent = n === 1
+          ? 'Ver cómo va lo que publiqué'
+          : `Ver cómo van mis ${n} reportes`;
+      }
+    } catch { /* almacenamiento bloqueado: el botón se queda escondido */ }
+  }
 
   /* ── puerta de entrada ── */
   // Un toque en cualquier parte de la intro la salta: quien ya sabe a qué
