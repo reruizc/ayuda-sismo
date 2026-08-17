@@ -660,6 +660,16 @@ body.con-ctx .cuerpo{height:calc(100dvh - 196px)}
 .ne-tag{display:inline-block; background:var(--pide); color:#fff; border-radius:4px;
   padding:.05rem .34rem; font-size:.66rem; font-weight:700; letter-spacing:.04em;
   vertical-align:.08em}
+/* Estado operativo que reporta RedAcopio Bogotá: si el punto está recibiendo
+   ahora, si está lleno o si cerró. Nuestra hoja no lo sabe sola. */
+.est{display:inline-block; border-radius:4px; padding:.05rem .34rem; font-size:.66rem;
+  font-weight:700; letter-spacing:.04em; vertical-align:.08em}
+.est-cerrado{background:#7a1d12; color:#fff}
+.est-lleno{background:#b3730c; color:#fff}
+.est-abierto{background:#e3f2f0; color:#0f766e; border:1px solid #0f766e}
+/* Un acopio que cerró se ve apagado en el mapa: sigue estando, pero no compite
+   con los que sí reciben. */
+.ac-pin.cerrado{background:#8a8378; opacity:.75}
 .ne-li{margin:.3rem 0 0; padding-left:1rem; font-size:.83rem}
 .ne-li li{margin-bottom:.25rem}
 .ac-cab{display:flex; align-items:flex-start; gap:.4rem; flex-wrap:wrap; margin-bottom:.2rem}
@@ -2418,14 +2428,31 @@ function glifoDe(a){
   return 'caja';
 }
 
-/** Marcador: caja verde con el símbolo del tipo en blanco. */
+/** Marcador: caja verde con el símbolo del tipo en blanco. Gris si cerró. */
 function iconoAcopio(a, px){
   const d = GLIFOS[glifoDe(a)] || GLIFOS.caja;
   const s = px || 30;
-  return `<span class="ac-pin" style="width:${s}px;height:${s}px">
+  return `<span class="ac-pin${a.estado === 'cerrado' ? ' cerrado' : ''}"
+      style="width:${s}px;height:${s}px">
     <svg viewBox="0 0 24 24" width="${Math.round(s * .6)}" height="${Math.round(s * .6)}"
          fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"
          stroke-linecap="round" aria-hidden="true"><path d="${d}"/></svg></span>`;
+}
+
+/**
+ * Sello del estado operativo, cuando alguien lo reportó.
+ *
+ * ⚠️ Dice DE DÓNDE sale. No es lo mismo "cerrado" puesto por quien coordina la
+ * hoja que "cerrado" leído de otra plataforma: lo segundo puede estar
+ * desactualizado o mal cruzado, y quien lo lee tiene derecho a saberlo antes
+ * de decidir si arranca para allá o llama primero.
+ */
+function selloEstado(a){
+  if (!a || !a.estado) return '';
+  const N = {cerrado:'Cerrado', lleno:'Lleno', abierto:'Recibiendo'};
+  const n = N[a.estado]; if (!n) return '';
+  const via = a.estado_fuente === 'redacopio' ? ' según RedAcopio Bogotá' : '';
+  return `<span class="est est-${esc(a.estado)}" title="Reportado${esc(via)}">${n}</span>`;
 }
 
 /* ── íconos de quien PIDE ──
@@ -2545,7 +2572,7 @@ function pintarAcopios(){
       ${a.d ? `<div style="font-size:.86rem"><strong>${esc(a.d)}</strong></div>` : ''}
       <div style="font-size:.8rem;color:#5d574e">${
         esc([a.mu, a.dp].filter(Boolean).join(', '))}</div>` : `
-      <h3>${esc(a.n)}${badge}</h3>
+      <h3>${esc(a.n)}${badge}${selloEstado(a)}</h3>
       <div style="font-size:.8rem;color:#5d574e;margin-bottom:.3rem">
         ${esc([a.mu, a.dp].filter(Boolean).join(', '))}${a.tipo ? ` · ${esc(a.tipo)}` : ''}</div>
       ${a.d ? `<p style="margin:.25rem 0"><strong>${esc(a.d)}</strong></p>` : ''}
@@ -2747,6 +2774,7 @@ function pintarDetalle(){
             a.tipo ? ` · ${esc(a.tipo)}` : ''}</div></div>
         <button class="cerrar" data-cerrar-detalle aria-label="Cerrar">&times;</button>
       </div>
+      ${selloEstado(a)}
       ${selloRevision(a)}
       ${a.d ? `<div class="campo-d"><b>Dirección</b>${esc(a.d)}</div>` : ''}
       ${a.ne ? `<div class="campo-d"><b>Recibe</b>${esc(a.ne)}</div>` : ''}
@@ -3751,7 +3779,12 @@ function listaAcopios(){
   const ref = (S.lugar && S.lugar.punto)
     || (S.lugar && S.lugar.mun && S.lugar.mun[2] != null
         ? [S.lugar.mun[2], S.lugar.mun[3]] : null);
-  l.sort((a, b) => (cat ? rango(a) - rango(b) : 0)
+  /* Los cerrados van al FINAL, no se esconden: quien ya iba para allá tiene
+     derecho a ver que cerró, y esconderlo lo dejaría creyendo que nos
+     equivocamos. Pero no puede encabezar la lista de a dónde llevar algo. */
+  const cerrado = (a) => (a.estado === 'cerrado' ? 1 : 0);
+  l.sort((a, b) => cerrado(a) - cerrado(b)
+    || (cat ? rango(a) - rango(b) : 0)
     || (ref ? dist2(a, ref) - dist2(b, ref) : 0)
     || (b.rev ? 1 : 0) - (a.rev ? 1 : 0));
   const casan = cat ? l.filter((a) => rango(a) === 0).length : 0;
@@ -3826,6 +3859,7 @@ function listaAcopios(){
         <div class="item-txt">
           <div class="ac-cab">
             <h3>${esc(a.n)}</h3>
+            ${selloEstado(a)}
             ${selloRevision(a)}
           </div>
           <div class="ac-m">${esc([a.mu, a.dp].filter(Boolean).join(', '))}${
@@ -4015,6 +4049,10 @@ async function mostrarCercanos(sit, lat, lon){
     }
     if (cfg.acopios) {
       for (const a of (S.acopios || [])) {
+        /* ⚠️ Un acopio cerrado NUNCA se sugiere. Acá el daño es directo: se le
+           está diciendo a alguien que acaba de pedir ayuda "anda a este sitio",
+           y mandarlo a una puerta cerrada es peor que no sugerirle nada. */
+        if (a.estado === 'cerrado') continue;
         const km = kmEntre(a, ref);
         if (km == null || km > MAX_CERCA_KM) continue;
         cand.push({ km, tipo:'acopio', id:a._ix, t:a.n,

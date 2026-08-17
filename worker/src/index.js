@@ -32,6 +32,9 @@ import {
 } from './inteligencia.js';
 import { leer as leerAcopios, refrescar as refrescarAcopios, claveDe } from './acopios.js';
 import { leer as leerNecesidades, refrescar as refrescarNecesidades } from './necesidades.js';
+import {
+  leer as leerRedacopio, refrescar as refrescarRedacopio, fusionar as fusionarRedacopio,
+} from './redacopio.js';
 import { leer as leerCopernicus, refrescar as refrescarCopernicus } from './copernicus.js';
 
 /**
@@ -802,6 +805,38 @@ async function adminEstado(req, env, origin, ctx) {
  * hoja pudo cambiar, y aprobar contra un "antes" viejo reviviría un dato que
  * ya estaba arreglado.
  */
+/**
+ * Los acopios de la hoja, con lo que RedAcopio Bogotá sabe encima.
+ *
+ * ⚠️⚠️ La fusión se hace al SERVIR, no al refrescar. Si se guardara fusionado
+ * en `externos.acopios`, la siguiente corrida fusionaría sobre lo ya fusionado
+ * y los puntos de ellos se volverían indistinguibles de los nuestros — y
+ * apagar la integración dejaría de ser posible sin limpiar la tabla a mano.
+ * Así, `externos.acopios` sigue siendo la hoja y nada más.
+ *
+ * ⚠️ Falla hacia adelante: si su lectura no está o está vieja, se sirven los
+ * acopios tal cual. Quien va de camino a entregar un mercado no puede quedarse
+ * sin mapa porque la página de un tercero cambió de formato.
+ */
+async function acopiosFusionados(env) {
+  const d = await leerAcopios(env);
+  if (!env.REDACOPIO_URL || !Array.isArray(d.items)) return d;
+  try {
+    const ra = await leerRedacopio(env);
+    if (!ra || !ra.items || !ra.items.length) return d;
+    const items = d.items.slice();
+    const f = fusionarRedacopio(items, ra.items);
+    return { ...d, items, total: items.length, redacopio: {
+      generado: ra.generado, fuente: ra.fuente, fuente_url: ra.fuente_url,
+      enriquecidos: f.enriquecidos, nuevos: f.nuevos,
+      omitidos_cerrados: f.omitidos, candidatos_a_cerrar: f.candidatos.length,
+    } };
+  } catch (e) {
+    console.error('fusión con redacopio falló', e && e.message);
+    return d;
+  }
+}
+
 async function adminSugerencias(url, env, origin) {
   const estado = ['pendiente', 'aplicada', 'rechazada'].includes(url.searchParams.get('estado'))
     ? url.searchParams.get('estado') : 'pendiente';
@@ -1054,7 +1089,7 @@ export default {
       if (mFoto && req.method === 'GET') return servirFoto(mFoto[1], env, ctx, req);
 
       if (ruta === '/acopios.json' && req.method === 'GET') {
-        const d = await leerAcopios(env);
+        const d = await acopiosFusionados(env);
         return json(d, 200, origin, {
           // Se edita en vivo, así que la ventana es corta; aun así el edge
           // absorbe el grueso y Google no ve una petición por visitante.
@@ -1119,6 +1154,22 @@ export default {
           const d = await refrescarAcopios(env, { geocodificar: 25 });
           return json({ ok: true, total: d.total, con_punto_propio: d.con_punto_propio,
                         geocodificados_ahora: d.geocodificados_ahora }, 200, origin);
+        }
+        /* Refresca la lectura de RedAcopio y devuelve los CANDIDATOS a cerrar:
+           puntos nuestros que ellos dan por cerrados. No se cierra nada acá —
+           la lista es para escribirla en la columna ESTADO REGISTRO de la
+           hoja, que es donde el cierre queda con dueño y fecha. */
+        if (ruta === '/admin/redacopio' && req.method === 'POST') {
+          if (!env.REDACOPIO_URL) return json({ error: 'sin_url_configurada' }, 400, origin);
+          const ra = await refrescarRedacopio(env);
+          const base = await leerAcopios(env);
+          const items = (base.items || []).slice();
+          const f = fusionarRedacopio(items, ra.items);
+          return json({ ok: true, leidos: ra.total, abiertos: ra.abiertos,
+                        cerrados: ra.cerrados, llenos: ra.llenos,
+                        enriquecidos: f.enriquecidos, nuevos: f.nuevos,
+                        omitidos_cerrados: f.omitidos,
+                        candidatos_a_cerrar: f.candidatos }, 200, origin);
         }
         if (ruta === '/admin/necesidades' && req.method === 'POST') {
           const d = await refrescarNecesidades(env, { geocodificar: 15 });
@@ -1214,6 +1265,30 @@ export default {
           await anotarCorrida(env, {
             tarea: 'acopios', origen: 'cron', ok: false, publicado: false,
             ms: Date.now() - t0, detalle: { error: String((e && e.message) || e) },
+          });
+        }
+
+        /* RedAcopio Bogotá: su lectura va en su propio try y DESPUÉS de los
+           acopios. Es la fuente más frágil de todas —se lee de su HTML— así
+           que ni puede retrasar ni puede tumbar lo demás. */
+        const tRA = Date.now();
+        try {
+          const d = await refrescarRedacopio(env);
+          if (d) {
+            console.log('redacopio', d.total, '·', d.cerrados, 'cerrados');
+            await anotarCorrida(env, {
+              tarea: 'redacopio', origen: 'cron', ok: true, publicado: true,
+              ms: Date.now() - tRA, notas: d.total,
+              detalle: { abiertos: d.abiertos, cerrados: d.cerrados, llenos: d.llenos },
+            });
+          }
+        } catch (e) {
+          // La guarda del módulo tira acá cuando el parseo trae mucho menos de
+          // lo normal: se conserva la última copia buena y queda constancia.
+          console.error('redacopio falló', e && e.message);
+          await anotarCorrida(env, {
+            tarea: 'redacopio', origen: 'cron', ok: false, publicado: false,
+            ms: Date.now() - tRA, detalle: { error: String((e && e.message) || e) },
           });
         }
 

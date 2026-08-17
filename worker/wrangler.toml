@@ -68,6 +68,15 @@ ACOPIOS_CSV = "https://docs.google.com/spreadsheets/d/1dj1fNYuwGMW0zLit4I6w_5abJ
 # el error sería silencioso — el mapa mostraría centros de acopio creyendo que
 # son necesidades. El gid se saca del `htmlview` de la hoja.
 NECESIDADES_CSV = "https://docs.google.com/spreadsheets/d/1dj1fNYuwGMW0zLit4I6w_5abJGxuGVZttwA1QMbvQts/export?format=csv&gid=1167775401"
+# RedAcopio Bogotá. Ellos verifican en terreno y publican si cada punto está
+# abierto, cerrado o lleno — que es justo lo que nuestra hoja no sabe sola.
+#
+# ⚠️⚠️ Se lee de su HTML porque NO exponen API: su sitio es un Next.js que
+# sirve los datos dentro del documento. Es frágil por definición, así que el
+# módulo descarta la corrida si el parseo trae mucho menos de lo normal y
+# conserva la última copia buena. Para apagar la integración entera basta con
+# borrar esta línea y desplegar: el mapa vuelve a ser solo la hoja.
+REDACOPIO_URL = "https://redacopiobogota.com"
 RESEND_FROM = "Mapa de ayuda <hola@ricardoruiz.co>"
 
 # Secretos (NO van acá — se cargan con `wrangler secret put`):

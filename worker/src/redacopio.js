@@ -194,7 +194,7 @@ const tokens = (s) => new Set(norm(s).replace(/[^a-z0-9ñ ]/g, ' ').split(/\s+/)
  * casan entran como puntos nuevos, marcados con su fuente.
  */
 export function fusionar(nuestros, suyos) {
-  const res = { enriquecidos: 0, nuevos: 0, cerrados: 0 };
+  const res = { enriquecidos: 0, nuevos: 0, candidatos: [], omitidos: 0 };
   if (!Array.isArray(suyos) || !suyos.length) return res;
 
   const conCoord = nuestros.filter((a) => a.la != null && !a.ap);
@@ -217,11 +217,27 @@ export function fusionar(nuestros, suyos) {
       if (x.vol_cupos) par.vol_cupos = x.vol_cupos;
       if (!par.rev && x.rev) { par.rev = x.rev; par.rev_fuente = 'redacopio'; }
       res.enriquecidos++;
+
+      /* ⚠️⚠️ Un punto NUESTRO que ellos dan por cerrado NO se borra acá.
+         Borrar en automático, con un dato leído raspando la página de un
+         tercero, es demasiado poder para una tubería frágil: un cambio en su
+         build o un cruce mal hecho sacaría acopios que sí están operando.
+         Se marca en el mapa y se propone como CANDIDATO para que alguien lo
+         escriba en la columna ESTADO REGISTRO de la hoja, que es donde el
+         cierre queda con dueño. Mismo principio del panel de correcciones. */
+      if (x.estado === 'cerrado') {
+        res.candidatos.push({ k: par.k, n: par.n, mu: par.mu, d: par.d,
+                              segun: x.n, ra_id: x.ra_id });
+      }
+    } else if (x.estado === 'cerrado') {
+      /* Cerrado y que además NO tenemos: no se agrega. Un pin nuevo que dice
+         "cerrado" no le sirve a quien está buscando a dónde llevar un mercado;
+         es ruido en el mapa justo donde estorba. */
+      res.omitidos++;
     } else {
       nuestros.push({ ...x });
       res.nuevos++;
     }
-    if (x.estado === 'cerrado') res.cerrados++;
   }
   return res;
 }
