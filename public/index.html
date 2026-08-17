@@ -2702,6 +2702,8 @@ function pintarPide(){
              <ul class="ne-li">${x.nes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul></div>`
         : ''}
       ${x.c ? `<p style="margin:.25rem 0">${esc(x.c)}</p>` : ''}
+      ${x.url ? `<p style="margin:.25rem 0;font-size:.8rem"><a href="${esc(x.url)}"
+        target="_blank" rel="noopener">De dónde salió esta necesidad →</a></p>` : ''}
       ${tel ? `<p style="margin:.25rem 0"><a href="tel:${esc(tel)}">${esc(x.tel)}</a></p>` : ''}
       ${ruta ? `<p style="margin:.5rem 0 .1rem"><a href="${esc(ruta)}" target="_blank" rel="noopener"
         style="font-weight:600">Cómo llegar →</a></p>` : ''}
@@ -2846,6 +2848,8 @@ function pintarDetalle(){
       ${(x.nes || []).length ? `<div class="campo-d"><b>Necesita</b>
         <ul class="ne-li">${x.nes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul></div>` : ''}
       ${x.c ? `<div class="campo-d"><b>Contacto</b>${esc(x.c)}</div>` : ''}
+      ${x.url ? `<div class="campo-d"><b>De dónde salió</b><a href="${esc(x.url)}"
+        target="_blank" rel="noopener">${esc(x.url.replace(/^https?:\/\//, '').slice(0, 46))}</a></div>` : ''}
       <div class="pop-acc">
         ${ruta ? `<a href="${esc(ruta)}" target="_blank" rel="noopener">Cómo llegar →</a>` : ''}
         ${tel ? `<a href="tel:${esc(tel)}">Llamar ${esc(x.tel)}</a>` : ''}
@@ -3944,6 +3948,8 @@ function listaAcopios(){
           ${(a.nes || []).length ? `<ul class="ne-li">${
             a.nes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
           ${a.c ? `<p class="ac-m">${esc(a.c)}</p>` : ''}
+          ${a.url ? `<p class="ac-m"><a href="${esc(a.url)}" target="_blank"
+            rel="noopener">De dónde salió →</a></p>` : ''}
           ${acc}
           <p class="ac-m" style="color:#8a8378">${a.f
             ? `Lo pidieron el ${esc(fechaCorta(a.f))}. Llama antes de ir: puede que ya no haga falta.`

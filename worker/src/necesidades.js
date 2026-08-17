@@ -14,7 +14,7 @@
  * ⚠️⚠️ SIN VERIFICAR, igual que los acopios. Acá el riesgo es simétrico: una
  * necesidad vieja o mal anotada hace que llegue lo que ya no falta.
  */
-import { CENTRO, norm, parsearCSV, LIMPIO, geocodificarNombre } from './acopios.js';
+import { CENTRO, norm, parsearCSV, LIMPIO, geocodificarNombre, coordenada } from './acopios.js';
 import { centroDe } from './centros.js';
 
 /* ─────────────────────────────── identidad ─────────────────────────────── */
@@ -92,6 +92,16 @@ function indices(cab) {
     depto:     buscar('departamento', 'depto'),
     contacto:  buscar('contacto'),
     telefono:  buscar('telefono', 'tel'),
+    // De dónde salió la necesidad (un Instagram, una nota). Se muestra para
+    // que quien vaya a cargar un camión pueda verificar antes de salir.
+    fuente:    buscar('fuente', 'fuente url', 'enlace'),
+    /* ⚠️ Cuando la hoja trae coordenada, MANDA sobre el centro del municipio y
+       el punto deja de ser aproximado. Se lee con el mismo `coordenada()` de
+       acopios, que ya sabe de la trampa del punto como separador de miles:
+       pegar 4.668272 en un libro con configuración regional distinta lo guarda
+       como 4.668.272 y `Number()` da NaN, perdiendo la coordenada en silencio. */
+    lat:       buscar('latitud', 'lat'),
+    lon:       buscar('longitud', 'lon', 'lng'),
   };
 }
 
@@ -155,13 +165,17 @@ export function normalizarFilas(filas, ahora) {
     let it = porClave.get(clave);
     if (!it) {
       let dep = g(f, ix.depto);
-      let la = null, lo = null, aprox = false;
-      const c = CENTRO.get(norm(muni));
-      if (c) { la = c[2]; lo = c[3]; aprox = true; if (!dep) dep = c[1]; }
-      // Mismo respaldo que en acopios: la tabla de prensa solo trae 118.
-      else {
-        const t = centroDe(muni, dep);
-        if (t) { la = t[1]; lo = t[2]; aprox = true; if (!dep) dep = t[0]; }
+      let la = coordenada(g(f, ix.lat), 'lat');
+      let lo = coordenada(g(f, ix.lon), 'lon');
+      let aprox = false;
+      if (la == null || lo == null) {
+        const c = CENTRO.get(norm(muni));
+        if (c) { la = c[2]; lo = c[3]; aprox = true; if (!dep) dep = c[1]; }
+        // Mismo respaldo que en acopios: la tabla de prensa solo trae 118.
+        else {
+          const t = centroDe(muni, dep);
+          if (t) { la = t[1]; lo = t[2]; aprox = true; if (!dep) dep = t[0]; }
+        }
       }
 
       it = {
@@ -178,6 +192,7 @@ export function normalizarFilas(filas, ahora) {
         f: fecha,
         c: g(f, ix.contacto),
         tel: g(f, ix.telefono),
+        url: g(f, ix.fuente),
         la, lo,
         ap: aprox ? 1 : 0,
       };
@@ -192,6 +207,14 @@ export function normalizarFilas(filas, ahora) {
     if (fecha && (!it.f || fecha > it.f)) it.f = fecha;
     if (!it.c) it.c = g(f, ix.contacto);
     if (!it.tel) it.tel = g(f, ix.telefono);
+    if (!it.url) it.url = g(f, ix.fuente);
+    // Si UNA de las filas de la sede trajo coordenada, la sede deja de ser
+    // aproximada: la hoja se llena de a poquitos y basta con que una la tenga.
+    if (it.ap) {
+      const la2 = coordenada(g(f, ix.lat), 'lat');
+      const lo2 = coordenada(g(f, ix.lon), 'lon');
+      if (la2 != null && lo2 != null) { it.la = la2; it.lo = lo2; it.ap = 0; }
+    }
   }
 
   const items = [...porClave.values()];
