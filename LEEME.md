@@ -561,6 +561,54 @@ Gotchas del registro de placas, todos medidos:
 | La vía va aparte del número | `PDONVIAL='KR 15A'` + `PDOTEXTO LIKE '122 27%'` |
 | Sin placa exacta | se acepta la más cercana de la misma vía **solo dentro de ±20**, que en Bogotá es menos de media cuadra |
 
+## Al publicar: lo más cerca de lo que se acaba de pedir
+
+Publicar y quedarse esperando es lo que hace que alguien cierre la página
+creyendo que no pasó nada. La pantalla de confirmación ahora entrega, en el
+mismo momento, **lo más cercano que hay de lo contrario a lo que pidió**: quien
+pide apoyo psicológico ve a quién lo ofrece, quien busca su mascota ve las que
+alguien encontró, quien ofrece alojamiento ve a quién le falta techo.
+
+- El mapa de correspondencias es `CRUCE` en `index.html`, y va **en las dos
+  direcciones a propósito**: quien ofrece algo tiene el mismo problema al revés
+  —se ofrece y nadie le dice a quién le sirve—.
+- Se ordena por distancia real, tope 4 resultados y **60 km** (`MAX_CERCA_KM`).
+- ⚠️ **Si no hay nada, el bloque se queda oculto.** Una lista vacía bajo un
+  título que promete ayuda es peor que no prometer nada.
+- ⚠️ No bloquea la confirmación: se llama sin `await` y todo el cuerpo va en un
+  `try`. Si las capas no cargan, la persona igual ve que su reporte quedó.
+- Tocar un resultado **enciende su capa antes de mover el mapa**: llevar a una
+  coordenada donde no hay nada dibujado se lee como que la página se rompió.
+- Al lado va la nota de que seguimos moviendo el caso por difusión, redactada
+  sin prometer tiempos ni garantizar que alguien llegue.
+
+## `oculta` en el catálogo de situaciones
+
+`nec-rescate` (personas atrapadas) **no aparece en el selector manual** de
+"Necesito": tiene su propia tarjeta roja en la puerta de entrada, que es donde
+tiene que estar — quien tiene a alguien bajo una placa no baja por una lista de
+siete opciones. Repetirla le restaba peso a la tarjeta.
+
+⚠️ `oculta` **no borra la situación del catálogo**: la tarjeta roja la sigue
+usando, los reportes ya publicados con ella se pintan y filtran igual, y si
+alguien entra con esa situación preseleccionada el botón reaparece
+(`|| k === sitSel` en `pintarSituaciones`). Borrarla de `SIT` habría dejado sin
+etiqueta a los reportes existentes.
+
+## Responderle a quien corrige un acopio
+
+Quien va hasta un acopio y se toma el trabajo de avisar que ya no recibe es el
+**único sensor** que tenemos para saber que un punto dejó de operar: la hoja no
+se entera sola. Antes esa persona no recibía ni un acuse.
+
+- `avisarACorrector` manda correo al aprobar **y al rechazar**, si dejó correo.
+- ⚠️ **"Rechazada" es la palabra de la base de datos, no la del correo.** A quien
+  fue hasta allá no se le contesta que su reporte fue rechazado: se le dice qué
+  pasó y se le pide que vuelva a avisar si sigue igual.
+- Va en `waitUntil` y `avisarPorCorreo` se traga sus errores: **la moderación
+  nunca falla porque el correo falle**. Sin `RESEND_API_KEY` no manda nada.
+- En `/admin.html` el contacto es un `mailto:` con asunto y saludo ya armados.
+
 ## Quién PIDE ayuda · pestaña `NECESIDADES` de la misma hoja
 
 La contraparte de los acopios: un acopio **recibe**, esto es una organización

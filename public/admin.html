@@ -328,7 +328,17 @@ function tarjetaSugerencia(s){
     </div>
     ${dif}
     ${s.nota ? `<div class="nota"><b>Lo que escribieron</b>${esc(s.nota)}</div>` : ''}
-    ${s.contacto ? `<div class="nota"><b>Contacto de quien corrige</b>${esc(s.contacto)}</div>` : ''}
+    ${/* Clicable, no texto plano: quien reporta desde el terreno es el único
+          sensor que tenemos para saber que un acopio dejó de operar, y
+          responderle no puede costar copiar y pegar a mano. El asunto y el
+          saludo van armados para que sea escribir dos líneas y mandar. */
+      s.contacto ? `<div class="nota"><b>Contacto de quien corrige</b>${
+        /@/.test(s.contacto)
+          ? `<a href="mailto:${esc(s.contacto)}?subject=${
+              encodeURIComponent(`Sobre tu reporte de ${s.acopio}`)}&body=${
+              encodeURIComponent(`Hola, buen día.\n\nLe escribo de reconstruyocolombia.com. Usted nos reportó sobre ${s.acopio}${s.municipio ? ` (${s.municipio})` : ''}:\n\n"${s.nota || ''}"\n\n`)
+            }">${esc(s.contacto)}</a>`
+          : esc(s.contacto)}</div>` : ''}
     ${s.huerfana ? `<div class="aviso" style="margin:.6rem 0 0">
       Este acopio ya no aparece en la hoja con ese nombre y municipio, así que
       aprobar no cambiaría nada. Si le cambiaste el nombre, la corrección hay

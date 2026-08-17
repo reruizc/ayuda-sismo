@@ -329,6 +329,21 @@ input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid v
 .exito-pasos ol{margin:0; padding-left:1.2rem; font-size:1rem; line-height:1.55}
 .exito-pasos li{margin-bottom:.5rem}
 .exito .nota-priv{font-size:.95rem; line-height:1.5}
+/* Lo más cerca de lo que se acaba de pedir. Botones y no una lista: cada uno
+   lleva al punto en el mapa, que es lo único que la persona quiere hacer
+   después de publicar. */
+.exito-cerca{text-align:left; margin:1.1rem 0 0}
+.exito-cerca h3{font-size:1rem; margin-bottom:.5rem}
+.cerca-it{display:flex; align-items:center; gap:.6rem; width:100%; text-align:left;
+  background:var(--tarjeta); border:1px solid var(--linea); border-radius:var(--r);
+  padding:.6rem .7rem; margin-bottom:.4rem; cursor:pointer; font:inherit; color:inherit}
+.cerca-it:hover{border-color:var(--tinta)}
+.cerca-pt{width:10px; height:10px; border-radius:50%; flex:0 0 auto}
+.cerca-tx{flex:1 1 auto; min-width:0}
+.cerca-tx b{display:block; font-size:.92rem; overflow-wrap:anywhere}
+.cerca-tx span{display:block; font-size:.79rem; color:var(--tenue);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.cerca-km{flex:0 0 auto; font-size:.78rem; color:var(--tenue); font-variant-numeric:tabular-nums}
 .exito-guarda{color:var(--tenue); font-size:.95rem; margin:.3rem 0 0}
 .enlace{background:#f4f1ec; border-radius:var(--r); padding:.7rem; font-size:.78rem; word-break:break-all; margin:.7rem 0; font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 .pie{padding:1.1rem 1rem calc(1.4rem + env(safe-area-inset-bottom)); font-size:.8rem; color:var(--tenue); text-align:center; border-top:1px solid var(--linea); background:var(--tarjeta)}
@@ -968,6 +983,25 @@ if (/^#\/mi\//.test(location.hash) || /[?&]ir=/.test(location.search))
             <ol id="exito-pasos"></ol>
           </div>
 
+          <!-- Lo más cerca que hay AHORA de lo que la persona acaba de pedir.
+               Publicar y quedarse esperando es lo que hace que la gente cierre
+               la página pensando que no pasó nada: acá se le entrega algo
+               accionable en el mismo momento, y de paso se le dice que
+               nosotros seguimos moviendo su caso por nuestro lado. Va oculto
+               si no hay nada que ofrecer — una lista vacía es peor que no
+               prometer nada. -->
+          <div id="exito-cerca" hidden class="exito-cerca">
+            <h3 id="exito-cerca-t"></h3>
+            <div id="exito-cerca-lista"></div>
+          </div>
+
+          <div class="nota" style="margin:.8rem 0">
+            <b>Y nosotros seguimos moviendo lo tuyo.</b> Tu reporte entra a la
+            difusión que hacemos con organizaciones, brigadas y medios que están
+            trabajando en tu zona. No prometemos un tiempo ni podemos garantizar
+            que alguien llegue, pero no se queda quieto en el mapa.
+          </div>
+
           <div class="nota nota-priv" style="margin:.8rem 0">
             <b>Esto no despacha ayuda ni es un canal oficial.</b> Es un mapa
             ciudadano: sirve para que quien esté ayudando en tu zona sepa dónde ir.
@@ -1419,7 +1453,11 @@ const SIT = {
   'busco-mascota':  {g:'busco', f:'mascota', n:'Busco a mi mascota',
     foto:1, sinPersonas:1, ej:'Ej.: Perro criollo café, collar rojo, se perdió al evacuar'},
 
-  'nec-rescate':    {g:'necesito', f:'rescate', urgFija:'inmediata', n:'Personas atrapadas o remoción de escombros',
+  /* `oculta` — no aparece en el selector manual de "Necesito", porque tiene su
+     propia tarjeta roja en la puerta de entrada. Sigue existiendo en el
+     catálogo: la tarjeta la usa, y los reportes ya publicados con ella se
+     pintan y se filtran igual. */
+  'nec-rescate':    {g:'necesito', f:'rescate', urgFija:'inmediata', oculta:1, n:'Personas atrapadas o remoción de escombros',
     ej:'Ej.: Vecinos escuchan voces bajo la placa caída del segundo piso'},
   'nec-viveres':    {g:'necesito', f:'viveres', n:'Víveres, agua o ropa',
     ej:'Ej.: Familia de 5 sin agua ni comida desde el lunes'},
@@ -3821,6 +3859,117 @@ function dist2(a, ref){
   return dy * dy + dx * dx;
 }
 
+/** Kilómetros aproximados entre dos puntos, para decirlos en la tarjeta. */
+function kmEntre(a, ref){
+  if (a.la == null) return null;
+  const dy = (a.la - ref[0]) * 111.32;
+  const dx = (a.lo - ref[1]) * 111.32 * Math.cos(ref[0] * Math.PI / 180);
+  return Math.hypot(dx, dy);
+}
+
+/* ══════════════ lo más cerca de lo que se acaba de pedir ══════════════
+ *
+ * Qué le sirve a quien acaba de publicar. Es la contraparte exacta de lo que
+ * pidió: quien pide apoyo psicológico ve a quién lo ofrece, quien busca su
+ * mascota ve las que alguien encontró, quien ofrece alojamiento ve a quién le
+ * falta techo.
+ *
+ * ⚠️ Va en las DOS direcciones a propósito. Publicar y quedarse esperando es
+ * lo que hace que alguien cierre la página creyendo que no pasó nada; y quien
+ * ofrece algo tiene el mismo problema al revés — se ofrece y nadie le dice a
+ * quién le sirve.
+ */
+const CRUCE = {
+  'busco-persona':   {sits:['ofr-persona'],     t:'Personas que alguien encontró y no ha identificado'},
+  'busco-mascota':   {sits:['ofr-mascota'],     t:'Mascotas que alguien encontró'},
+
+  'nec-viveres':     {sits:['ofr-viveres'], acopios:1, t:'Dónde hay víveres y donaciones'},
+  'nec-salud':       {sits:['ofr-salud'],       t:'Quién ofrece atención médica'},
+  'nec-psicologico': {sits:['ofr-psicologico'], t:'Quién ofrece apoyo psicológico'},
+  'nec-refugio':     {sits:['ofr-alojamiento'], t:'Quién ofrece alojamiento'},
+  'nec-rescate':     {sits:['ofr-voluntario'],  t:'Voluntarios para remoción de escombros'},
+  'nec-estructural': {sits:['ofr-voluntario'],  t:'Voluntarios cerca de ti'},
+  'nec-servicios':   {sits:[], acopios:1,       t:'Los puntos de acopio más cercanos'},
+  'nec-otro':        {sits:[], acopios:1,       t:'Los puntos de acopio más cercanos'},
+
+  'ofr-persona':     {sits:['busco-persona'],   t:'Familias que están buscando a alguien'},
+  'ofr-mascota':     {sits:['busco-mascota'],   t:'Quién está buscando su mascota'},
+  'ofr-viveres':     {sits:['nec-viveres'], pide:1, t:'Quién está pidiendo víveres cerca'},
+  'ofr-salud':       {sits:['nec-salud'],       t:'Quién está pidiendo atención médica'},
+  'ofr-psicologico': {sits:['nec-psicologico'], t:'Quién está pidiendo apoyo psicológico'},
+  'ofr-alojamiento': {sits:['nec-refugio'],     t:'Quién necesita dónde dormir'},
+  'ofr-voluntario':  {sits:['nec-rescate', 'nec-estructural'], pide:1, t:'Dónde hacen falta manos'},
+  'ofr-transporte':  {sits:[], acopios:1, pide:1, t:'Dónde puede servir tu transporte'},
+  'ofr-otro':        {sits:[], acopios:1,       t:'Los puntos de acopio más cercanos'},
+};
+
+const MAX_CERCA_KM = 60;   // más lejos que eso ya no es "cerca de ti"
+
+/**
+ * Llena el bloque de la pantalla final. Nunca lanza ni bloquea: si no hay
+ * nada, o si las capas no cargaron, el bloque se queda oculto.
+ */
+async function mostrarCercanos(sit, lat, lon){
+  const caja = $('#exito-cerca');
+  if (!caja) return;
+  caja.hidden = true;
+  const cfg = CRUCE[sit];
+  if (!cfg || lat == null || lon == null) return;
+  const ref = [lat, lon];
+
+  try {
+    // Las capas que hagan falta, y solo esas: quien pide comida no necesita
+    // que se descarguen las necesidades de organizaciones.
+    const faltan = [];
+    if (cfg.acopios && !S.acopios) faltan.push(cargarAcopios());
+    if (cfg.pide && !S.pide) faltan.push(cargarPide());
+    if (faltan.length) await Promise.all(faltan);
+
+    const cand = [];
+
+    for (const r of (S.items || [])) {
+      if (!cfg.sits.includes(r.s)) continue;
+      const km = kmEntre(r, ref);
+      if (km == null || km > MAX_CERCA_KM) continue;
+      const s = SIT[r.s] || {};
+      cand.push({ km, tipo:'reporte', id:r.i, t:r.ti,
+                  sub:[s.n, hace(r.t)].filter(Boolean).join(' · '), col:(FAM[r.c] || FAM.otro).c });
+    }
+    if (cfg.acopios) {
+      for (const a of (S.acopios || [])) {
+        const km = kmEntre(a, ref);
+        if (km == null || km > MAX_CERCA_KM) continue;
+        cand.push({ km, tipo:'acopio', id:a._ix, t:a.n,
+                    sub:[a.d, a.h].filter(Boolean).join(' · ') || 'Punto de acopio', ico:'ac' });
+      }
+    }
+    if (cfg.pide) {
+      for (const x of (S.pide || [])) {
+        const km = kmEntre(x, ref);
+        if (km == null || km > MAX_CERCA_KM) continue;
+        cand.push({ km, tipo:'pide', id:x._ix, t:x.n,
+                    sub:(x.nes || [])[0] || 'Está pidiendo ayuda', ico:'ne' });
+      }
+    }
+    if (!cand.length) return;
+
+    cand.sort((a, b) => a.km - b.km);
+    const top = cand.slice(0, 4);
+    $('#exito-cerca-t').textContent = cfg.t;
+    $('#exito-cerca-lista').innerHTML = top.map((c) => `
+      <button type="button" class="cerca-it" data-cerca="${c.tipo}" data-cid="${esc(String(c.id))}">
+        <span class="cerca-pt" style="background:${c.ico === 'ac' ? 'var(--verde)'
+          : c.ico === 'ne' ? 'var(--pide)' : (c.col || 'var(--tenue)')}"></span>
+        <span class="cerca-tx">
+          <b>${esc(c.t)}</b>
+          <span>${esc(c.sub)}</span>
+        </span>
+        <span class="cerca-km">${c.km < 1 ? `${Math.round(c.km * 1000)} m` : `${c.km.toFixed(1)} km`}</span>
+      </button>`).join('');
+    caja.hidden = false;
+  } catch { /* el bloque se queda oculto; la confirmación no depende de esto */ }
+}
+
 /** Titulares de prensa del lugar elegido.
  *
  * ⚠️ Esto cuenta COBERTURA, no realidad: un municipio sin periodistas se ve
@@ -4222,8 +4371,16 @@ function botonSit(k){
 }
 
 function pintarSituaciones(){
+  /* ⚠️ `oculta` NO borra la situación del catálogo: la saca solo de este
+     selector manual. `nec-rescate` (personas atrapadas) tiene su propia
+     tarjeta roja en la puerta de entrada, que es donde tiene que estar —
+     quien tiene a alguien bajo una placa no baja por una lista de siete
+     opciones—. Repetirla acá le restaba peso a esa tarjeta y hacía la lista
+     más larga para todos los demás. Los reportes ya publicados con esa
+     situación se siguen mostrando igual, porque `SIT` sigue conociéndola. */
   $('#op-sit').innerHTML = Object.keys(SIT)
-    .filter((k) => SIT[k].g === grupoSel).map(botonSit).join('');
+    .filter((k) => SIT[k].g === grupoSel && (!SIT[k].oculta || k === sitSel))
+    .map(botonSit).join('');
 }
 
 function marcarGrupos(){
@@ -4645,6 +4802,10 @@ async function enviarReporte(e){
     pasos.push('Cuando ya te hayan ayudado, márcalo como resuelto desde el enlace: '
       + 'así quien está ayudando se concentra en lo que sigue abierto.');
     $('#exito-pasos').innerHTML = pasos.map((p) => `<li>${p}</li>`).join('');
+
+    /* Lo más cerca de lo que acaba de pedir. Sin `await`: la confirmación
+       tiene que aparecer ya, y este bloque se destapa solo cuando llegue. */
+    mostrarCercanos(sitSel, cuerpo.lat, cuerpo.lon);
 
     $('#btn-ver-mio').onclick = () => { cerrarTodo(); abrirMio(dd.id, dd.token); };
 
@@ -5415,6 +5576,26 @@ async function iniciar(){
     const c = document.querySelector('#velo-form .modal-cuerpo');
     if (c) c.scrollTop = 0;
   });
+  /* Tocar uno de los puntos cercanos cierra la confirmación y lleva a ese
+     punto en el mapa. ⚠️ Si es un acopio o alguien que pide, hay que ENCENDER
+     su capa antes: llevar el mapa a una coordenada donde no hay nada dibujado
+     se lee como que la página se rompió. */
+  $('#exito-cerca-lista').addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-cerca]'); if (!b) return;
+    const tipo = b.dataset.cerca;
+    const id = tipo === 'reporte' ? b.dataset.cid : Number(b.dataset.cid);
+    cerrarTodo();
+    if (tipo === 'acopio') {
+      S.verAcopios = true; await cargarAcopios(); pintarZonas(); pintarAcopios();
+    } else if (tipo === 'pide') {
+      S.verPide = true; await cargarPide(); pintarZonas(); pintarPide();
+    }
+    const capa = tipo === 'acopio' ? S.capasAcopio : tipo === 'pide' ? S.capasPide : S.capas;
+    const m = capa.get(id);
+    if (m) { mapa.setView(m.getLatLng(), Math.max(mapa.getZoom(), 14)); m.openPopup(); }
+    verDetalle(tipo === 'reporte' ? 'reporte' : tipo, id);
+  });
+
   $('#form-corregir').addEventListener('submit', enviarCorreccion);
   $('#cr-tipo').addEventListener('click', (e) => {
     const b = e.target.closest('.grupo'); if (!b) return;

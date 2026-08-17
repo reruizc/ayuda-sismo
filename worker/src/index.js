@@ -880,6 +880,63 @@ async function adminSugerencias(url, env, origin) {
  * cambio esperara al cron, aprobar "este acopio cerró" dejaría el pin puesto
  * hasta tres horas, que es justo lo que se está tratando de evitar.
  */
+/**
+ * Le cuenta a quien mandó una corrección en qué paró.
+ *
+ * ⚠️ Quien va hasta un acopio y se toma el trabajo de escribir que ya no
+ * recibe es el ÚNICO sensor que tenemos para saber que un punto dejó de
+ * operar: la hoja no se entera sola. Sin acuse, esa persona reporta una vez y
+ * no vuelve, y nosotros seguimos mandando gente a puertas cerradas hasta que
+ * aparezca otra igual de generosa.
+ *
+ * Nunca hace fallar la moderación: va en `waitUntil` y `avisarPorCorreo` se
+ * traga sus propios errores. Sin `RESEND_API_KEY` simplemente no manda nada.
+ */
+async function avisarACorrector(env, s, resultado) {
+  const para = String(s.contacto || '').trim();
+  if (!para.includes('@')) return false;      // dejó teléfono, o nada
+
+  const sitio = env.SITIO || 'https://reconstruyocolombia.com';
+  const donde = escHtml(s.acopio) + (s.municipio ? ` (${escHtml(s.municipio)})` : '');
+
+  /* ⚠️ "Rechazada" es la palabra de la base de datos, no la que va en el
+     correo. A quien fue hasta allá y avisó no se le contesta que su reporte
+     fue rechazado: se le dice qué pasó y se le deja la puerta abierta. */
+  const APLICADA = {
+    cierre: `Verificamos lo que nos contaste y <b>ya quitamos ${donde} del mapa</b>.`,
+    correccion: `Verificamos lo que nos contaste y <b>ya corregimos la información de ${donde}</b>.`,
+    confirmacion: `Gracias por confirmar que ${donde} sigue funcionando: <b>ya quedó marcado como revisado</b> en el mapa, con la fecha de hoy.`,
+  };
+  const cuerpo = resultado === 'aplicada'
+    ? (APLICADA[s.tipo] || APLICADA.correccion)
+    : `Revisamos lo que nos contaste sobre ${donde} y por ahora lo dejamos como
+       estaba, porque nos llegó información distinta de otra fuente. Puede que
+       nos estemos equivocando nosotros: si volviste a pasar por ahí y sigue
+       igual, cuéntanos otra vez y le damos prioridad.`;
+
+  const asunto = resultado === 'aplicada'
+    ? 'Gracias — tu reporte ya cambió el mapa'
+    : 'Sobre el punto que nos reportaste';
+
+  return avisarPorCorreo(env, para, asunto, `
+    <div style="font-family:system-ui,-apple-system,'Segoe UI',Arial,sans-serif;
+                max-width:520px;color:#16130f;line-height:1.55">
+      <p>Hola,</p>
+      <p>${cuerpo}</p>
+      ${s.nota ? `<p style="color:#5d574e;border-left:3px solid #e0dbd2;padding-left:.8rem;
+        margin:1rem 0">Nos escribiste: “${escHtml(s.nota)}”</p>` : ''}
+      <p>Gracias por tomarte el trabajo de avisarnos. Sin gente que nos cuente lo
+         que ve en la calle, un punto que cerró se queda publicado y le hace
+         perder el viaje al que va con un mercado.</p>
+      <p>Si ves otro punto que ya cerró o que no está recibiendo, el botón
+         <b>“Corregir o avisar que cerró”</b> está en la ficha de cada acopio del mapa:
+         <a href="${sitio}">${sitio.replace(/^https?:\/\//, '')}</a></p>
+      <p style="color:#8a8378;font-size:.9rem">Este es un correo automático de un
+         mapa ciudadano; no es un canal oficial de emergencias. Si hay vidas en
+         riesgo, la línea es el 123.</p>
+    </div>`);
+}
+
 async function adminSugerencia(req, env, origin, ctx) {
   let b; try { b = await req.json(); } catch { return json({ error: 'json_invalido' }, 400, origin); }
   const accion = ['aprobar', 'rechazar', 'quitar'].includes(b.accion) ? b.accion : null;
@@ -913,6 +970,7 @@ async function adminSugerencia(req, env, origin, ctx) {
   if (accion === 'rechazar') {
     await env.DB.prepare("UPDATE sugerencias SET estado = 'rechazada', revisado = ? WHERE id = ?")
       .bind(Date.now(), id).run();
+    ctx.waitUntil(avisarACorrector(env, s, 'rechazada'));
     return json({ ok: true, estado: 'rechazada' }, 200, origin);
   }
 
@@ -968,6 +1026,8 @@ async function adminSugerencia(req, env, origin, ctx) {
     UPDATE sugerencias SET estado = 'aplicada', revisado = ?
      WHERE clave = ? AND tipo = ? AND estado = 'pendiente'
   `).bind(Date.now(), s.clave, s.tipo).run();
+
+  ctx.waitUntil(avisarACorrector(env, s, 'aplicada'));
 
   // Sin geocodificar: son ~1 s por búsqueda y acá se está esperando en línea.
   const d = await refrescarAcopios(env);
