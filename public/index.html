@@ -360,11 +360,11 @@ a{color:var(--azul)}
    colaborar la dejan abierta detrás (para que su "Volver" no bote al mapa),
    el modal tiene que ir arriba. Un fallo así no aparece en consola: hay que
    mirar la pantalla. */
-.velo{position:fixed; inset:0; z-index:1300; display:flex; align-items:center;
-  justify-content:center; padding:1rem; overflow-y:auto;
-  background:var(--trama), radial-gradient(120% 60% at 12% -10%, #fff 0%, var(--papel) 60%);
+.velo,.velo-conf{position:fixed; inset:0; z-index:1300; display:flex; align-items:center;
+  justify-content:center; padding:1rem; overflow-y:auto}
+.velo[hidden],.velo-conf[hidden]{display:none}
+.velo{background:var(--trama), radial-gradient(120% 60% at 12% -10%, #fff 0%, var(--papel) 60%);
   background-color:var(--papel)}
-.velo[hidden]{display:none}
 /* Sobre papel, la tarjeta necesita un borde: blanco sobre crema casi no se
    distingue y el modal se veía como parte del fondo. */
 .modal{background:var(--tarjeta); border:1px solid var(--linea);
@@ -384,6 +384,22 @@ a{color:var(--azul)}
 }
 .cerrar.pulso{animation:pulso-salida .9s ease-in-out}
 .modal-cuerpo{padding:1.1rem 1.25rem 1.4rem}
+.velo-conf{z-index:1400; background:rgba(22,19,15,.55)}
+.modal-conf{max-width:420px}
+.modal-conf .modal-cab{gap:.7rem; border-bottom:none; padding-bottom:.35rem}
+.modal-conf .modal-cuerpo{padding-top:0}
+.conf-ico{flex:none; width:22px; height:22px; color:var(--rojo)}
+.conf-ico[hidden]{display:none}
+.conf-txt{margin:0 0 1.1rem; font-size:.95rem; color:var(--tenue)}
+.conf-acc{display:flex; flex-direction:column; gap:.5rem}
+.conf-acc .btn{width:100%; min-height:44px; padding:.7rem .9rem; font-size:.95rem}
+#conf-riesgo{color:var(--rojo)}
+#conf-riesgo:hover{background:var(--rojo-claro); border-color:var(--rojo)}
+@keyframes latido{
+  0%,100%{box-shadow:0 0 0 0 rgba(180,50,30,0)}
+  35%{box-shadow:0 0 0 5px rgba(180,50,30,.32)}
+}
+.btn.latido{animation:latido .7s ease-out}
 .campo{margin-bottom:1rem}
 .campo>label{display:block; font-weight:600; font-size:.88rem; margin-bottom:.32rem}
 .ayuda{font-size:.79rem; color:var(--tenue); margin:.25rem 0 0; font-weight:400}
@@ -563,7 +579,7 @@ body.pt-raiz .pt-pie{margin-top:.6rem; padding-top:.55rem}
 
 /* Quien pidió menos movimiento no ve ninguno: el contenido aparece y ya. */
 @media (prefers-reduced-motion:reduce){
-  .pt-intro > *, .op.entra, .pt-telon.corre, .cerrar.pulso{animation:none !important}
+  .pt-intro > *, .op.entra, .pt-telon.corre, .cerrar.pulso, .btn.latido{animation:none !important}
 }
 
 .ops{display:grid; grid-template-columns:1fr 1fr; gap:.6rem}
@@ -1597,6 +1613,26 @@ if (/^#\/mi\//.test(location.hash) || /[?&]ir=/.test(location.search))
       <button class="cerrar" data-cerrar aria-label="Cerrar">&times;</button>
     </div>
     <div class="modal-cuerpo" id="mis-cuerpo"></div>
+  </div>
+</div>
+
+<div class="velo-conf" id="velo-conf" hidden>
+  <div class="modal modal-conf" role="alertdialog" aria-modal="true"
+       aria-labelledby="conf-titulo" aria-describedby="conf-texto">
+    <div class="modal-cab">
+      <svg class="conf-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="9"/><path d="M12 7.6v5.2"/><path d="M12 16.4h.01"/>
+      </svg>
+      <div><h2 id="conf-titulo"></h2></div>
+    </div>
+    <div class="modal-cuerpo">
+      <p class="conf-txt" id="conf-texto"></p>
+      <div class="conf-acc">
+        <button type="button" class="btn btn-pri" id="conf-seguro"></button>
+        <button type="button" class="btn" id="conf-riesgo"></button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -4842,6 +4878,7 @@ function retrocederUno(){
   // persona cancela, se devuelve `true` igual: el `popstate` ya consumió la
   // entrada del historial y hay que volver a armarla, o el siguiente atrás se
   // llevaría la página entera con el formulario abierto.
+  if (cerrarDialogo) { cerrarDialogo(false); return true; }
   const velo = [...document.querySelectorAll('.velo')].find((v) => !v.hidden);
   if (velo) { cerrarConAviso(); return true; }
   if (!$('#puerta').hidden && S.pt) {
@@ -4919,6 +4956,16 @@ function hayBorrador(){
     });
 }
 
+const MS_LATIDO = 900;
+
+function latir(elemento, clase){
+  if (!elemento) return;
+  elemento.classList.remove(clase);
+  void elemento.offsetWidth;   // reinicia la animación si se hace clic seguido
+  elemento.classList.add(clase);
+  setTimeout(() => elemento.classList.remove(clase), MS_LATIDO);
+}
+
 /**
  * El fondo ya no cierra. Para que el clic no se sienta muerto —"¿se congeló
  * esto?"— se resalta un instante la equis, que es la salida real.
@@ -4926,15 +4973,66 @@ function hayBorrador(){
 function señalarSalida(velo){
   // La equis de la cabecera, no el "Volver" del final: es la que queda a la
   // vista sin bajar, que es donde está mirando quien acaba de tocar el fondo.
-  const x = velo.querySelector('.cerrar[data-cerrar]') || velo.querySelector('[data-cerrar]');
-  if (!x) return;
-  x.classList.remove('pulso');
-  void x.offsetWidth;          // reinicia la animación si se hace clic seguido
-  x.classList.add('pulso');
-  setTimeout(() => x.classList.remove('pulso'), 900);
+  latir(velo.querySelector('.cerrar[data-cerrar]') || velo.querySelector('[data-cerrar]'), 'pulso');
 }
 
-/** Cierre pedido por la persona (equis, botón volver, Escape, atrás). */
+const ENFOCABLES = 'a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])';
+
+let cerrarDialogo = null;
+
+function confirmar({titulo, texto, seguro, riesgo}){
+  if (cerrarDialogo) return Promise.resolve(false);
+  const velo = $('#velo-conf');
+  const botonSeguro = $('#conf-seguro');
+  const botonRiesgo = $('#conf-riesgo');
+  $('#conf-titulo').textContent = titulo;
+  $('#conf-texto').textContent = texto;
+  botonSeguro.textContent = seguro;
+  botonRiesgo.textContent = riesgo || '';
+  botonRiesgo.hidden = !riesgo;
+  velo.querySelector('.conf-ico').toggleAttribute('hidden', !riesgo);
+  const antes = document.activeElement;
+  velo.hidden = false;
+  botonSeguro.focus();
+
+  return new Promise((responder) => {
+    const terminar = (aceptaRiesgo) => {
+      if (cerrarDialogo !== terminar) return;
+      cerrarDialogo = null;
+      velo.hidden = true;
+      velo.removeEventListener('click', alClic);
+      document.removeEventListener('keydown', alTecla, true);
+      if (antes && antes.isConnected && !antes.closest('[hidden]')) antes.focus();
+      responder(aceptaRiesgo);
+    };
+    const alClic = (e) => {
+      e.stopPropagation();
+      if (e.target.closest('#conf-riesgo')) return terminar(true);
+      if (e.target.closest('#conf-seguro')) return terminar(false);
+      if (e.target !== velo) return;
+      latir(botonSeguro, 'latido');
+      botonSeguro.focus();
+    };
+    const alTecla = (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); return terminar(false); }
+      if (e.key !== 'Tab') return;
+      e.preventDefault();
+      const enfocables = [...velo.querySelectorAll(ENFOCABLES)]
+        .filter((el) => !el.hidden && !el.disabled);
+      if (!enfocables.length) return;
+      const desde = enfocables.indexOf(document.activeElement);
+      const paso = e.shiftKey ? -1 : 1;
+      const total = enfocables.length;
+      enfocables[desde < 0 ? 0 : (desde + paso + total) % total].focus();
+    };
+    cerrarDialogo = terminar;
+    velo.addEventListener('click', alClic);
+    document.addEventListener('keydown', alTecla, true);
+  });
+}
+
+const aviso = (titulo, texto) => confirmar({titulo, texto, seguro:'Entendido'});
+
 /**
  * Cierre pedido por la persona (equis, botón volver, Escape, atrás).
  *
@@ -4948,9 +5046,13 @@ function señalarSalida(velo){
  *                los de formulario vuelven al menú y el resto deja lo que haya
  *                detrás, que es de donde se abrieron.
  */
-function cerrarConAviso(destino){
-  if (hayBorrador()
-      && !confirm('¿Salir sin enviar?\n\nSe pierde lo que llevas escrito y no queda registrado.')) {
+async function cerrarConAviso(destino){
+  if (hayBorrador() && !(await confirmar({
+    titulo: '¿Salir sin enviar?',
+    texto: 'Se pierde lo que llevas escrito y no queda registrado.',
+    seguro: 'Seguir editando',
+    riesgo: 'Salir y perder lo escrito',
+  }))) {
     return false;
   }
   const velo = [...document.querySelectorAll('.velo')].find((v) => !v.hidden);
@@ -5773,12 +5875,17 @@ async function enviarContacto(e){
 }
 
 async function marcarAbuso(id){
-  if (!confirm('¿Marcar este reporte como falso o inapropiado para que lo revisemos?')) return;
+  if (!(await confirmar({
+    titulo: '¿Marcarlo para que lo revisemos?',
+    texto: 'Nos avisas que este reporte es falso o inapropiado. Lo revisamos y decidimos si lo quitamos.',
+    seguro: 'Mejor no',
+    riesgo: 'Sí, marcarlo',
+  }))) return;
   try {
     await fetch(`${CONFIG.API}/abuso`, {
       method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({reporte:id}),
     });
-    alert('Gracias. Lo vamos a revisar.');
+    await aviso('Gracias', 'Lo vamos a revisar.');
   } catch { /* no es una acción crítica para quien la hace */ }
 }
 
@@ -5836,16 +5943,21 @@ async function abrirMio(id, token){
 }
 
 async function resolver(id, token){
-  if (!confirm('¿Marcar como resuelto? Dejará de aparecer en el mapa.')) return;
+  if (!(await confirmar({
+    titulo: '¿Marcar como resuelto?',
+    texto: 'Deja de aparecer en el mapa.',
+    seguro: 'Todavía no',
+    riesgo: 'Sí, ya lo resolví',
+  }))) return;
   try {
     const r = await fetch(`${CONFIG.API}/reporte/${encodeURIComponent(id)}/estado`, {
       method:'POST', headers:{'Content-Type':'application/json'},
       body:JSON.stringify({estado:'resuelto', token}),
     });
     if (!(await r.json()).ok) throw new Error();
-    alert('Listo, ya no aparece en el mapa.');
+    await aviso('Listo', 'Ya no aparece en el mapa.');
     cerrarTodo(); cargar();
-  } catch { alert('No pudimos actualizarlo. Intenta otra vez.'); }
+  } catch { await aviso('No pudimos actualizarlo', 'Intenta otra vez.'); }
 }
 
 /* ══════════════════════════════ arranque ══════════════════════════════ */
@@ -6175,9 +6287,9 @@ async function iniciar(){
      el botón se veía, se pulsaba y la pantalla no se movía. Quien entró directo
      al formulario —"hay personas atrapadas" entra ahí de una— quedaba sin
      forma de devolverse. */
-  $('#fase-atras').addEventListener('click', () => {
+  $('#fase-atras').addEventListener('click', async () => {
     if (faseAct > 1) return irAFase(faseAct - 1, -1);
-    if (!cerrarConAviso()) return;                 // respeta lo ya escrito
+    if (!(await cerrarConAviso())) return;         // respeta lo ya escrito
     abrirPuerta(false, (famDe((S.pt.i || {}).k) || {}).k);
   });
 
@@ -6238,9 +6350,9 @@ async function iniciar(){
   /* Lleva al punto que se acaba de registrar. Ver dónde quedó es la forma de
      comprobar que la dirección estaba bien —y de darse cuenta a tiempo si no—,
      así que se avisa cuando el punto es el centro del municipio y no el sitio. */
-  $('#btn-ver-acopio').addEventListener('click', () => {
+  $('#btn-ver-acopio').addEventListener('click', async () => {
     const a = ultimoAcopio;
-    cerrarConAviso('mapa');
+    if (!(await cerrarConAviso('mapa'))) return;
     if (!a) return;
     // Sin animación y tras un respiro: el mapa estaba tapado y Leaflet necesita
     // que le confirmen su tamaño antes de encuadrar.
