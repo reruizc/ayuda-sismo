@@ -305,6 +305,71 @@ async function avisarPorCorreo(env, para, asunto, html) {
   } catch { return false; }
 }
 
+function unir(trozos) {
+  let n = 0;
+  for (const t of trozos) n += t.length;
+  const salida = new Uint8Array(n);
+  let i = 0;
+  for (const t of trozos) { salida.set(t, i); i += t.length; }
+  return salida;
+}
+
+function limpiarJpeg(b) {
+  if (b[0] !== 0xFF || b[1] !== 0xD8) return null;
+  const trozos = [b.subarray(0, 2)];
+  let i = 2;
+  while (i + 1 < b.length) {
+    if (b[i] !== 0xFF) return null;
+    let j = i + 1;
+    while (j < b.length && b[j] === 0xFF) j++;
+    if (j >= b.length) return null;
+    const marca = b[j];
+    if (marca === 0xDA || marca === 0xD9) { trozos.push(b.subarray(i)); return unir(trozos); }
+    if (marca === 0x01 || (marca >= 0xD0 && marca <= 0xD7)) {
+      trozos.push(b.subarray(i, j + 1));
+      i = j + 1;
+      continue;
+    }
+    if (j + 2 >= b.length) return null;
+    const largo = (b[j + 1] << 8) | b[j + 2];
+    const fin = j + 1 + largo;
+    if (largo < 2 || fin > b.length) return null;
+    if (!(marca === 0xFE || (marca >= 0xE1 && marca <= 0xEF))) trozos.push(b.subarray(i, fin));
+    i = fin;
+  }
+  return null;
+}
+
+function limpiarWebp(b) {
+  if (b.length < 12) return null;
+  const trozos = [];
+  let i = 12;
+  while (i + 8 <= b.length) {
+    const cc = String.fromCharCode(b[i], b[i + 1], b[i + 2], b[i + 3]);
+    const largo = ((b[i + 4] | (b[i + 5] << 8) | (b[i + 6] << 16) | (b[i + 7] << 24)) >>> 0);
+    const fin = i + 8 + largo + (largo % 2);
+    if (fin > b.length) return null;
+    if (cc !== 'EXIF' && cc !== 'XMP ' && cc !== 'ICCP') {
+      const t = b.slice(i, fin);
+      if (cc === 'VP8X' && t.length > 8) t[8] &= ~0x2C;
+      trozos.push(t);
+    }
+    i = fin;
+  }
+  if (!trozos.length) return null;
+  let cuerpo = 0;
+  for (const t of trozos) cuerpo += t.length;
+  const cab = new Uint8Array(12);
+  cab.set([0x52, 0x49, 0x46, 0x46], 0);
+  const total = cuerpo + 4;
+  cab[4] = total & 0xFF;
+  cab[5] = (total >>> 8) & 0xFF;
+  cab[6] = (total >>> 16) & 0xFF;
+  cab[7] = (total >>> 24) & 0xFF;
+  cab.set([0x57, 0x45, 0x42, 0x50], 8);
+  return unir([cab, ...trozos]);
+}
+
 /**
  * Decodifica y valida una foto que llegó en base64 dentro del reporte.
  *
@@ -332,7 +397,10 @@ function decodificarFoto(dataUrl) {
                  bytes[10] === 0x42 && bytes[11] === 0x50;
   if (!(esJpeg || esWebp)) return null;
 
-  return { bytes, ext, tipo: m[1] };
+  const limpio = ext === 'jpg' ? limpiarJpeg(bytes) : limpiarWebp(bytes);
+  if (!limpio) return null;
+
+  return { bytes: limpio, ext, tipo: m[1] };
 }
 
 async function servirFoto(clave, env, ctx, req) {
