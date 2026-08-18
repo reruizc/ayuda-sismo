@@ -300,6 +300,22 @@ const tokens = (s) => new Set(norm(s).replace(/[^a-z0-9ñ ]/g, ' ').split(/\s+/)
 const RANGO_ESTADO = { abierto: 1, lleno: 2, cerrado: 3 };
 const mandaMas = (candidato, actual) => (RANGO_ESTADO[candidato] || 0) > (RANGO_ESTADO[actual] || 0);
 
+const RADIO_SOLO_DISTANCIA_KM = 0.15;
+const RADIO_MISMO_PREDIO_KM = 0.3;
+const RADIO_MISMO_NOMBRE_KM = 1.2;
+
+function cruzaConRetirado(x, distintivosSuyos, retirados) {
+  for (const r of retirados) {
+    const d = km(x.la, x.lo, r.lat, r.lon);
+    if (d < RADIO_SOLO_DISTANCIA_KM) return true;
+    if (d > RADIO_MISMO_NOMBRE_KM) continue;
+    let comunes = 0;
+    for (const w of r.distintivos) if (distintivosSuyos.has(w)) comunes++;
+    if (comunes >= (d < RADIO_MISMO_PREDIO_KM ? 1 : 2)) return true;
+  }
+  return false;
+}
+
 /**
  * Cruza lo de RedAcopio con nuestra hoja.
  *
@@ -315,14 +331,17 @@ const mandaMas = (candidato, actual) => (RANGO_ESTADO[candidato] || 0) > (RANGO_
  * Lo que ya tenemos NO se reemplaza: se ENRIQUECE con lo que ellos saben y
  * nosotros no (si está abierto, cerrado o lleno). Nuestra dirección, horario y
  * contacto mandan, porque son los que la gente ya corrigió. Los que no
- * casan entran como puntos nuevos, marcados con su fuente.
+ * casan y la hoja no retiró entran como puntos nuevos.
  */
-export function fusionar(nuestros, suyos) {
-  const res = { enriquecidos: 0, nuevos: 0, candidatos: [], omitidos: 0 };
+export function fusionar(nuestros, suyos, retirados) {
+  const res = { enriquecidos: 0, nuevos: 0, candidatos: [], omitidos: 0, no_repuestos: 0 };
   if (!Array.isArray(suyos) || !suyos.length) return res;
 
   const conCoord = nuestros.filter((a) => a.la != null && !a.ap)
     .map((acopio) => ({ acopio, distintivos: tokens(acopio.n) }));
+  const cerradosEnLaHoja = (Array.isArray(retirados) ? retirados : [])
+    .filter((r) => r.lat != null && r.lon != null)
+    .map((r) => ({ lat: r.lat, lon: r.lon, distintivos: tokens(r.nombre) }));
   for (const x of suyos) {
     const tx = tokens(x.n);
     let par = null;
@@ -371,6 +390,8 @@ export function fusionar(nuestros, suyos) {
          "cerrado" no le sirve a quien está buscando a dónde llevar un mercado;
          es ruido en el mapa justo donde estorba. */
       res.omitidos++;
+    } else if (cruzaConRetirado(x, tx, cerradosEnLaHoja)) {
+      res.no_repuestos++;
     } else {
       nuestros.push({ ...x });
       res.nuevos++;

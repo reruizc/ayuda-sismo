@@ -908,12 +908,12 @@ async function acopiosFusionados(env) {
     const ra = await leerRedacopio(env);
     if (!ra || !ra.items || !ra.items.length) return d;
     const items = d.items.slice();
-    const f = fusionarRedacopio(items, ra.items);
+    const f = fusionarRedacopio(items, ra.items, d.retirados);
     return { ...d, items, total: items.length,
       horarios_vencidos: items.filter((i) => i.av).length, redacopio: {
       generado: ra.generado, fuente: ra.fuente, fuente_url: ra.fuente_url,
       enriquecidos: f.enriquecidos, nuevos: f.nuevos,
-      omitidos_cerrados: f.omitidos, candidatos_a_cerrar: f.candidatos.length,
+      omitidos_cerrados: f.omitidos, no_repuestos: f.no_repuestos, candidatos_a_cerrar: f.candidatos.length,
     } };
   } catch (e) {
     console.error('fusión con redacopio falló', e && e.message);
@@ -1249,11 +1249,11 @@ export default {
           const ra = await refrescarRedacopio(env);
           const base = await leerAcopios(env);
           const items = (base.items || []).slice();
-          const f = fusionarRedacopio(items, ra.items);
+          const f = fusionarRedacopio(items, ra.items, base.retirados);
           return json({ ok: true, leidos: ra.total, abiertos: ra.abiertos,
                         cerrados: ra.cerrados, llenos: ra.llenos,
                         enriquecidos: f.enriquecidos, nuevos: f.nuevos,
-                        omitidos_cerrados: f.omitidos,
+                        omitidos_cerrados: f.omitidos, no_repuestos: f.no_repuestos,
                         candidatos_a_cerrar: f.candidatos }, 200, origin);
         }
         if (ruta === '/admin/necesidades' && req.method === 'POST') {
