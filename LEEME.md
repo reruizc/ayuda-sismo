@@ -29,13 +29,20 @@ mantengan. Los aportes son bienvenidos; tres cosas antes de empezar:
 
 ```bash
 python3 - <<'EOF'
-import re
+import re, subprocess, sys
 h = open('public/index.html', encoding='utf-8').read()
-b = re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>', h, re.S)
-open('/tmp/js.js', 'w', encoding='utf-8').write('\n'.join(b))
+b = re.findall(r'<script(?![^>]*\bsrc=)(?![^>]*ld\+json)[^>]*>(.*?)</script>', h, re.S)
+r = subprocess.run(['node', '--input-type=commonjs', '--check'],
+                   input='\n'.join(b), text=True, encoding='utf-8')
+print('JS OK' if r.returncode == 0 else 'JS ROTO')
+sys.exit(r.returncode)
 EOF
-node -e "new Function(require('fs').readFileSync('/tmp/js.js','utf8')); console.log('JS OK')"
 ```
+
+El `(?![^>]*ld\+json)` excluye el bloque de datos estructurados, que es JSON y
+no JavaScript: sin él el chequeo revienta con `SyntaxError: Unexpected token
+':'` sobre una página sana. No pasa por `/tmp` (en Windows no existe) y sale con
+código 1 si el JS está roto, así que sirve tal cual en un hook.
 
 Para verlo en local basta un servidor estático; la página detecta `localhost` y
 apunta sola al Worker local para no escribir en la base de producción:
@@ -50,6 +57,8 @@ public/          la página (se despliega a Cloudflare Pages)
   inteligencia.html  informe de cobertura de prensa
   geo.json       33 deptos · 1.122 municipios con centro (44 KB)
   barrios.json   985 barrios de 4 ciudades (46 KB)
+  sitemap.xml    las dos páginas públicas, para los buscadores
+  favicon.svg    el ícono de la pestaña (SVG, se edita a mano)
   imagenes/      ilustraciones de las tarjetas (JPG de 240 px)
 worker/          el backend (Cloudflare Workers + D1 + R2)
   src/index.js       reportes, mensajes, moderación
