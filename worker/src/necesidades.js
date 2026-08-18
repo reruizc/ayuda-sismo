@@ -17,6 +17,11 @@
 import { CENTRO, norm, parsearCSV, LIMPIO, geocodificarNombre, coordenada } from './acopios.js';
 import { centroDe } from './centros.js';
 
+const TOPE_TEXTO_CLAVE = 300;
+const TOPE_CSV_BYTES = 5 * 1024 * 1024;
+const TOPE_ESPERA_MS = 15000;
+const TOPE_COLUMNAS_AVISADAS = 20;
+
 /* ─────────────────────────────── identidad ─────────────────────────────── */
 
 /**
@@ -48,7 +53,8 @@ import { centroDe } from './centros.js';
  * viajan en `dv` para poder auditarlas.
  */
 export function baseDireccion(d) {
-  const s = norm(d).replace(/[.,]/g, ' ').replace(/\s+/g, ' ').trim();
+  const acotada = String(d || '').slice(0, TOPE_TEXTO_CLAVE);
+  const s = norm(acotada).replace(/[.,]/g, ' ').replace(/\s+/g, ' ').trim();
   if (!s) return '';
   // Quita el número final y lo que lo separa ("- 27", "-94", " 34").
   const sinFinal = s.replace(/[\s\-–—]*\d+[a-z]?\s*$/, '').trim();
@@ -69,11 +75,27 @@ export const claveNec = (nombre, municipio, direccion) =>
  * no devuelve nada, y buscar "Hotel click clack" sí.
  */
 export function sitioDe(nombre) {
-  const m = String(nombre || '').match(/\(([^)]{3,})\)\s*$/);
-  return (m ? m[1] : nombre || '').trim();
+  const acotado = String(nombre || '').slice(0, TOPE_TEXTO_CLAVE);
+  const m = acotado.match(/\(([^)]{3,})\)\s*$/);
+  return (m ? m[1] : acotado).trim();
 }
 
 /* ──────────────────────────────── columnas ──────────────────────────────── */
+
+function contratoDeColumnas(cab, ix) {
+  const leidos = new Set(Object.values(ix).filter((i) => i >= 0));
+  const noLeidas = [];
+  cab.forEach((h, i) => {
+    const titulo = LIMPIO(h);
+    if (titulo && !leidos.has(i) && noLeidas.length < TOPE_COLUMNAS_AVISADAS) {
+      noLeidas.push(titulo.slice(0, 60));
+    }
+  });
+  return {
+    columnas_no_leidas: noLeidas,
+    columnas_faltantes: Object.keys(ix).filter((c) => ix[c] < 0),
+  };
+}
 
 function indices(cab) {
   const ix = {};
@@ -135,16 +157,23 @@ export function fechaDe(txt, ahora) {
 
 const BBOX = { latMin: -4.3, latMax: 13.6, lonMin: -82.0, lonMax: -66.8 };
 
+const enColombia = (la, lo) => Number.isFinite(la) && Number.isFinite(lo) &&
+  la >= BBOX.latMin && la <= BBOX.latMax && lo >= BBOX.lonMin && lo <= BBOX.lonMax;
+
+const enlaceDe = (u) => (/^https?:\/\//i.test(u) ? u : '');
+
 /**
  * Filas de la hoja → una entrada por SEDE, con sus necesidades juntas.
  */
 export function normalizarFilas(filas, ahora) {
   if (!filas.length) return { items: [], sin_ubicar: 0, fechas_descartadas: 0 };
   const ix = indices(filas[0]);
-  if (ix.nombre < 0) return { items: [], sin_ubicar: 0, error: 'sin_columna_nombre' };
+  const contrato = contratoDeColumnas(filas[0], ix);
+  if (ix.nombre < 0) return { items: [], sin_ubicar: 0, error: 'sin_columna_nombre', ...contrato };
 
   const g = (f, i) => (i >= 0 ? LIMPIO(f[i]) : '');
   const porClave = new Map();
+  const vistasPorClave = new Map();
   let fechasFuera = 0;
 
   for (let r = 1; r < filas.length; r++) {
@@ -192,7 +221,7 @@ export function normalizarFilas(filas, ahora) {
         f: fecha,
         c: g(f, ix.contacto),
         tel: g(f, ix.telefono),
-        url: g(f, ix.fuente),
+        url: enlaceDe(g(f, ix.fuente)),
         la, lo,
         ap: aprox ? 1 : 0,
       };
@@ -201,13 +230,16 @@ export function normalizarFilas(filas, ahora) {
 
     // Dedup por texto: la misma necesidad repetida en las 4 sedes de una
     // organización no tiene por qué aparecer cuatro veces en su ficha.
-    if (!it.nes.some((x) => norm(x) === norm(necesidad))) it.nes.push(necesidad);
-    if (dir && dir !== it.d && !it.dv.includes(dir)) it.dv.push(dir);
+    let vistas = vistasPorClave.get(clave);
+    if (!vistas) { vistas = { nes: new Set(), dv: new Set() }; vistasPorClave.set(clave, vistas); }
+    const huella = norm(necesidad);
+    if (!vistas.nes.has(huella)) { vistas.nes.add(huella); it.nes.push(necesidad); }
+    if (dir && dir !== it.d && !vistas.dv.has(dir)) { vistas.dv.add(dir); it.dv.push(dir); }
     // La fecha que manda es la más reciente que sea creíble.
     if (fecha && (!it.f || fecha > it.f)) it.f = fecha;
     if (!it.c) it.c = g(f, ix.contacto);
     if (!it.tel) it.tel = g(f, ix.telefono);
-    if (!it.url) it.url = g(f, ix.fuente);
+    if (!it.url) it.url = enlaceDe(g(f, ix.fuente));
     // Si UNA de las filas de la sede trajo coordenada, la sede deja de ser
     // aproximada: la hoja se llena de a poquitos y basta con que una la tenga.
     if (it.ap) {
@@ -237,14 +269,11 @@ export function normalizarFilas(filas, ahora) {
       it.sede = i; it.sedes = total;
     }
     it.ne = it.nes.join(' · ');       // texto plano, para búsqueda y filtros
-    if (it.la != null && (it.la < BBOX.latMin || it.la > BBOX.latMax ||
-                          it.lo < BBOX.lonMin || it.lo > BBOX.lonMax)) {
-      it.la = null; it.lo = null;
-    }
+    if (it.la != null && !enColombia(it.la, it.lo)) { it.la = null; it.lo = null; }
     if (it.la == null) sinUbicar++;
   }
 
-  return { items, sin_ubicar: sinUbicar, fechas_descartadas: fechasFuera };
+  return { items, sin_ubicar: sinUbicar, fechas_descartadas: fechasFuera, ...contrato };
 }
 
 /* ────────────────────────── ubicación por nombre ────────────────────────── */
@@ -282,7 +311,7 @@ async function geocodificarPendientes(env, items, max) {
     const fila = cache.get(clave);
 
     if (fila) {
-      if (fila.lat != null) {
+      if (enColombia(fila.lat, fila.lon)) {
         a.la = fila.lat; a.lo = fila.lon; a.ap = 0; a.geo = fila.fuente || 'osm';
       }
       continue;
@@ -306,7 +335,9 @@ async function geocodificarPendientes(env, items, max) {
     } catch { /* si no se puede cachear, igual se usa */ }
     cache.set(clave, { clave, lat: res ? res.la : null, lon: res ? res.lo : null,
                        fuente: res ? `osm:${res.tipo}` : null });
-    if (res) { a.la = res.la; a.lo = res.lo; a.ap = 0; a.geo = `osm:${res.tipo}`; }
+    if (res && enColombia(res.la, res.lo)) {
+      a.la = res.la; a.lo = res.lo; a.ap = 0; a.geo = `osm:${res.tipo}`;
+    }
 
     if (usados < max) await new Promise((r) => setTimeout(r, 1100));
   }
@@ -315,6 +346,28 @@ async function geocodificarPendientes(env, items, max) {
 
 /* ──────────────────────────────── lectura ──────────────────────────────── */
 
+async function textoAcotado(respuesta, tope) {
+  const lector = respuesta.body && respuesta.body.getReader();
+  if (!lector) return '';
+  const trozos = [];
+  let bytes = 0;
+  try {
+    for (;;) {
+      const { done, value } = await lector.read();
+      if (done) break;
+      bytes += value.byteLength;
+      if (bytes > tope) throw new Error(`hoja demasiado grande: más de ${tope} bytes`);
+      trozos.push(value);
+    }
+  } finally {
+    await lector.cancel().catch(() => {});
+  }
+  const todo = new Uint8Array(bytes);
+  let puesto = 0;
+  for (const t of trozos) { todo.set(t, puesto); puesto += t.byteLength; }
+  return new TextDecoder().decode(todo);
+}
+
 export async function refrescar(env, opciones = {}) {
   const url = env.NECESIDADES_CSV;
   if (!url) return null;
@@ -322,14 +375,15 @@ export async function refrescar(env, opciones = {}) {
   const r = await fetch(url, {
     headers: { 'User-Agent': 'MapaDeAyuda/1.0 (+https://reconstruyocolombia.com)' },
     redirect: 'follow',
+    signal: AbortSignal.timeout(TOPE_ESPERA_MS),
   });
   if (!r.ok) throw new Error(`hoja http ${r.status}`);
-  const txt = await r.text();
+  const txt = await textoAcotado(r, TOPE_CSV_BYTES);
   if (/^\s*<(!doctype|html)/i.test(txt)) throw new Error('la hoja no es pública');
 
-  const { items, sin_ubicar, fechas_descartadas, error } =
-    normalizarFilas(parsearCSV(txt));
-  if (error) throw new Error(error);
+  const { items, sin_ubicar, fechas_descartadas, error,
+          columnas_no_leidas, columnas_faltantes } = normalizarFilas(parsearCSV(txt));
+  if (error) throw new Error(`${error} · cabecera: ${columnas_no_leidas.join(' / ') || 'vacía'}`);
 
   let geocodificados = 0;
   try {
@@ -347,6 +401,8 @@ export async function refrescar(env, opciones = {}) {
     fechas_descartadas,
     con_punto_propio: items.filter((i) => !i.ap && i.la != null).length,
     geocodificados_ahora: geocodificados,
+    columnas_no_leidas,
+    columnas_faltantes,
     revisado: false,
     items,
   };
@@ -361,7 +417,7 @@ export async function refrescar(env, opciones = {}) {
  * Devuelve las necesidades, refrescando si la copia guardada ya envejeció.
  *
  * ⚠️ Misma regla que en acopios: si la hoja falla se sirve LA ÚLTIMA COPIA
- * BUENA. Una edición que la deje vacía no puede borrar el mapa.
+ * BUENA. Una hoja que quede VACÍA sin fallar sí borra el mapa.
  */
 export async function leer(env, maxEdadMs = 300000) {
   let guardado = null;
