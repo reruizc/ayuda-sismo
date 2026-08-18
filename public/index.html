@@ -2047,6 +2047,8 @@ const INTENCIONES = [
  * corresponda. Una intención que no esté en ninguna familia queda inalcanzable
  * desde el menú: `verificarFamilias()` lo avisa por consola en desarrollo.
  */
+const CLAVE_MIS_REPORTES = '__mis';
+
 const FAMILIAS = [
   {k:'ayudar', ico:'🤲', n:'Quiero ayudar', img:'fam-ayudar.jpg',
    col:'#0f766e', tint:'#e3f2f0',
@@ -3251,7 +3253,7 @@ function pintarOpciones(){
     let mios = [];
     try { mios = JSON.parse(localStorage.getItem('sismo-mis-reportes') || '[]'); } catch {}
     const tarjMis = mios.length ? tarjetaFam({
-      k:'__mis', ico:'📋', n:'Ver cómo va lo que publiqué',
+      k:CLAVE_MIS_REPORTES, ico:'📋', n:'Ver cómo va lo que publiqué',
       img:'fam-mis-reportes.jpg', col:'#5d574e', tint:'#f0ede8',
       d: mios.length === 1
         ? 'Tu reporte, los mensajes que te hayan dejado y cómo cerrarlo'
@@ -5806,7 +5808,15 @@ async function iniciar(){
     const f = e.target.closest('[data-f]');
     // `__mis` NO es una familia: comparte la pieza visual para verse igual a
     // las demás, pero abre la lista de lo propio en vez de un submenú.
-    if (f) return f.dataset.f === '__mis' ? verMisReportes() : abrirFamilia(f.dataset.f);
+    if (f) {
+      const claveTocada = f.dataset.f;
+      if (claveTocada === CLAVE_MIS_REPORTES) return verMisReportes();
+
+      const familia = FAMILIAS.find((x) => x.k === claveTocada);
+      const esBifurcacion = !familia || familia.ops.length > 1;
+      if (esBifurcacion) return abrirFamilia(claveTocada);
+      return elegirIntencion(familia.ops[0]);
+    }
     // Un reporte de la lista de urgentes: cierra la puerta y lo abre en el mapa.
     const u = e.target.closest('[data-urg]');
     if (u) {
