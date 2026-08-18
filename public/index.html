@@ -284,6 +284,11 @@ a{color:var(--azul)}
   display:inline-flex; align-items:center; gap:.32rem;
 }
 .chip[aria-pressed="true"]{background:var(--tinta); border-color:var(--tinta); color:#fff}
+.chip-todo{
+  margin-top:.4rem; border-style:dashed; color:var(--tinta);
+  background:transparent; cursor:pointer;
+}
+.chip-todo[hidden]{display:none}
 .punto{width:8px; height:8px; border-radius:50%; flex:none}
 .conteo{padding:.5rem 1rem; font-size:.82rem; color:var(--tenue); border-bottom:1px solid var(--linea)}
 /* Ficha del punto seleccionado. En pantalla grande el globo del mapa se queda
@@ -960,6 +965,8 @@ if (/^#\/mi\//.test(location.hash) || /[?&]ir=/.test(location.search))
       <input type="text" class="buscador" id="q" placeholder="Buscar por municipio, barrio o palabra…" aria-label="Buscar reportes">
       <div class="chips" id="chips-grupo" role="group" aria-label="Qué tipo de reporte"></div>
       <div class="chips" id="chips-fam" role="group" aria-label="Sobre qué"></div>
+      <button type="button" class="chip chip-todo" id="chips-todo" hidden
+              onclick="mostrarTodosLosFiltros()">Mostrar todo</button>
     </div>
     <div class="conteo" id="conteo">Cargando reportes…</div>
     <div class="detalle" id="detalle" hidden></div>
@@ -2261,7 +2268,19 @@ const BARRIOS_DE = {cali:'cali', pereira:'pereira', manizales:'manizales', quibd
 /* ══════════════════════════════ estado ══════════════════════════════ */
 const S = {
   items: [], barrios: null, geo: null, zona: '',
-  f: {grupo:new Set(), fam:new Set(), q:''},
+  /* ⚠️⚠️ Estos dos Sets son los filtros APAGADOS, no los encendidos.
+     Antes eran al revés y el Set vacío significaba "sin filtro, muestra todo",
+     así que la página mostraba los 11 tipos con los 11 chips pintados en gris:
+     parecía que nada estaba activo, y tocar uno REDUCÍA en vez de sumar.
+     Ahora se entra con todo encendido y uno quita lo que no le sirve.
+
+     Se guarda lo apagado y no lo encendido a propósito: si guardáramos los
+     encendidos habría que llenarlos con las claves del catálogo, y un reporte
+     con una categoría que el catálogo no conozca —una que se agregue después
+     en el worker, por ejemplo— quedaría fuera del mapa sin que nada lo dijera.
+     Con esta forma, lo desconocido nunca puede estar en la lista de apagados,
+     así que en el peor caso sobra un punto, nunca falta. */
+  f: {grupoOff:new Set(), famOff:new Set(), q:''},
   capas: new Map(),
   // Arranca en false a propósito: si el snapshot no responde, se prefiere no
   // ofrecer la foto antes que ofrecerla y perderla.
@@ -3946,9 +3965,21 @@ function irALugar(L){
 
 function sincronizarChips(){
   document.querySelectorAll('#chips-grupo .chip').forEach((b) =>
-    b.setAttribute('aria-pressed', S.f.grupo.has(b.dataset.k)));
+    b.setAttribute('aria-pressed', !S.f.grupoOff.has(b.dataset.k)));
   document.querySelectorAll('#chips-fam .chip').forEach((b) =>
-    b.setAttribute('aria-pressed', S.f.fam.has(b.dataset.k)));
+    b.setAttribute('aria-pressed', !S.f.famOff.has(b.dataset.k)));
+  /* Reversible de un toque. Quitando de a uno se pueden apagar catorce chips,
+     y volver a encenderlos uno por uno para ver el mapa completo es trabajo
+     que nadie va a hacer en una emergencia: se queda con el mapa recortado
+     creyendo que eso es todo lo que hay. */
+  const btn = $('#chips-todo');
+  if (btn) btn.hidden = !(S.f.grupoOff.size || S.f.famOff.size);
+}
+
+function mostrarTodosLosFiltros(){
+  S.f.grupoOff.clear(); S.f.famOff.clear();
+  sincronizarChips();
+  pintar();
 }
 
 /** Devuelve el panel a su estado normal. Se llama al empezar cada intención:
@@ -3957,7 +3988,7 @@ function limpiarModo(){
   S.listaModo = '';
   S.prensaSel = null;
   cerrarDetalle();
-  S.f.grupo.clear(); S.f.fam.clear(); S.f.q = '';
+  S.f.grupoOff.clear(); S.f.famOff.clear(); S.f.q = '';
   $('#q').value = '';
   sincronizarChips();
   $('#chips-grupo').hidden = false;
@@ -3967,7 +3998,7 @@ function limpiarModo(){
 
 async function modoAcopios(){
   S.listaModo = 'acopios';
-  S.f.grupo.clear(); S.f.fam.clear(); sincronizarChips();
+  S.f.grupoOff.clear(); S.f.famOff.clear(); sincronizarChips();
   $('#chips-grupo').hidden = true; $('#chips-fam').hidden = true;
   $('#q').placeholder = 'Buscar un punto de acopio…';
   $('#conteo').textContent = 'Cargando puntos de acopio…';
@@ -4143,8 +4174,8 @@ function filtrados(){
   const q = norm(S.f.q.trim());
   const dep = S.zona ? (S.geo || []).find((x) => x.c === S.zona) : null;
   return S.items.filter((r) => {
-    if (S.f.grupo.size && !S.f.grupo.has(r.p)) return false;
-    if (S.f.fam.size && !S.f.fam.has(r.c)) return false;
+    if (S.f.grupoOff.has(r.p)) return false;
+    if (S.f.famOff.has(r.c)) return false;
     if (dep && norm(r.dp) !== norm(dep.n)) return false;
     if (q) {
       const heno = norm(`${r.ti} ${r.d || ''} ${r.b || ''} ${r.mu || ''} ${r.dp || ''}`);
@@ -4172,8 +4203,12 @@ function pintar(){
     : 'Sin reportes con estos filtros';
 
   if (!vis.length) {
+    const hayApagados = S.f.grupoOff.size || S.f.famOff.size;
     $('#lista').innerHTML = `<div class="vacio">No hay reportes que coincidan.<br>
-      Prueba quitando filtros o sé la primera persona en registrar aquí.</div>`;
+      ${hayApagados
+        ? `Apagaste algunos filtros. <button type="button" class="chip chip-todo"
+             style="margin-top:.6rem" onclick="mostrarTodosLosFiltros()">Mostrar todo</button>`
+        : 'Prueba quitando filtros o sé la primera persona en registrar aquí.'}</div>`;
     return;
   }
 
@@ -4595,18 +4630,20 @@ function listaPrensa(){
 }
 
 function armarFiltros(){
+  // Nacen en `true`: se entra viendo todo. Ver el aviso en `S.f`.
   $('#chips-grupo').innerHTML = GRUPOS.map((g) =>
-    `<button type="button" class="chip" data-k="${g.k}" aria-pressed="false">${esc(g.n)}</button>`).join('');
+    `<button type="button" class="chip" data-k="${g.k}" aria-pressed="true">${esc(g.n)}</button>`).join('');
   $('#chips-fam').innerHTML = Object.entries(FAM).map(([k, v]) =>
-    `<button type="button" class="chip" data-k="${k}" aria-pressed="false">
+    `<button type="button" class="chip" data-k="${k}" aria-pressed="true">
       <span class="punto" style="background:${v.c}"></span>${esc(v.n)}</button>`).join('');
 
   document.querySelectorAll('.chips').forEach((c) => c.addEventListener('click', (e) => {
     const b = e.target.closest('.chip'); if (!b) return;
-    const set = c.id === 'chips-grupo' ? S.f.grupo : S.f.fam;
+    const off = c.id === 'chips-grupo' ? S.f.grupoOff : S.f.famOff;
     const k = b.dataset.k;
-    set.has(k) ? set.delete(k) : set.add(k);
-    b.setAttribute('aria-pressed', set.has(k));
+    off.has(k) ? off.delete(k) : off.add(k);
+    b.setAttribute('aria-pressed', !off.has(k));
+    sincronizarChips();
     pintar();
   }));
 }

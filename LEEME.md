@@ -250,6 +250,32 @@ desactualizado, la identidad **es** la señal.
   terminada, y cada foto que llega la mejora. Convención de nombres y tamaños
   en `public/imagenes/LEEME.txt`.
 
+## Los filtros se entra con TODOS encendidos, y uno quita
+
+Antes el estado era la lista de filtros **encendidos**, y arrancaba vacía. El
+filtro trataba el conjunto vacío como "sin filtro, muestra todo", así que
+funcionalmente se veía el mapa completo — pero los catorce chips se pintaban en
+gris. La página decía "no hay nada activo" mientras mostraba todo, y tocar un
+chip **reducía** en vez de sumar, que es lo contrario de lo que sugiere un chip
+apagado.
+
+Ahora se entra con los catorce encendidos y se quita lo que estorba.
+
+⚠️⚠️ **Lo que se guarda son los APAGADOS (`grupoOff` / `famOff`), no los
+encendidos.** Parece lo mismo y no lo es: si guardáramos los encendidos habría
+que llenarlos con las claves del catálogo del frontend, y un reporte con una
+categoría que ese catálogo no conozca —una que se agregue después en el worker,
+por ejemplo— quedaría fuera del mapa **sin que nada lo dijera**. Con esta forma
+lo desconocido nunca puede estar en la lista de apagados: en el peor caso sobra
+un punto, nunca falta. De regalo, `.clear()` sigue significando "todo visible",
+así que `limpiarModo()` y `modoAcopios()` no cambiaron de comportamiento.
+
+⚠️ Y por eso existe **"Mostrar todo"**, que aparece solo cuando hay algo
+apagado. Quitando de a uno se pueden apagar los catorce, y volver a encenderlos
+uno por uno no lo va a hacer nadie en una emergencia: se quedaría con el mapa
+recortado creyendo que eso es todo lo que hay. El mismo botón va dentro del
+mensaje de "no hay reportes que coincidan", que es donde de verdad se necesita.
+
 ## El catálogo de situaciones (y por qué no es una matriz)
 
 La primera versión combinaba **tipo** (necesito / ofrezco) × **categoría** (9).
