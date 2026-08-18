@@ -468,6 +468,54 @@ la capa dejaría de leerse como "acopios" y competiría con los colores de los
 reportes, que son el dato propio de la página. El símbolo lleva el tipo; el
 verde lleva la categoría.
 
+### ⚠️⚠️ La hoja cambió de columnas y el parser no se enteró
+
+La hoja pasó a 30 columnas y `ULTIMA REVISION` desapareció. Como **una columna
+que no está en `indices()` no da error —simplemente no existe—**, el sello de
+revisión se apagó entero: medido el 18 de agosto, **0 de 279 acopios de la hoja
+llevaban sello propio**, mientras alguien hacía el trabajo de verificarlos. Es
+exactamente el mismo modo de falla de `ESTADO REGISTRO`, que ya había pasado.
+
+**Al agregar o renombrar una columna en la hoja hay que agregarla en
+`acopios.js::indices()`.** No hay forma de que el código avise solo.
+
+⚠️⚠️ Y la columna que la reemplaza **no se puede usar tal cual**: `FECHA ULTIMA
+VERIFICACION` es igual a `FECHA REPORTE` en **300 de 311 filas** (283 dicen
+`8/14`, el día de la carga). Estamparla como sello diría que alguien verificó
+279 acopios que nadie tocó — peor que el bug que arregla. Por eso la fecha solo
+cuenta cuando **`VERIFICADO = si`** (hoy 35), y el sello dice **cómo** se
+verificó: los 35 lo están por `sitio_oficial`, que no es lo mismo que alguien
+parado en la puerta.
+
+Se leen además `ESTADO CUPO` (`lleno`/`con_cupo`, el mismo dato que valoramos de
+RedAcopio y que ya estaba en nuestra propia hoja), `FUENTE URL` y `ORGANIZACION
+RESPONSABLE`.
+
+### ⚠️⚠️ Un horario con fecha vence, y publicarlo vigente manda gente a una puerta cerrada
+
+`PARQUE LA COLINA` decía «Abierto hasta hoy Lunes 17 de agosto a las 7pm.
+Después suspende operación» y la ficha lo mostraba bajo el rótulo **Horario**,
+que se lee como «está abierto así». El propio texto avisaba que ya había
+cerrado. Eran 4 casos: dos de la hoja y dos de RedAcopio.
+
+`fechas.js` busca la fecha **más tardía** que menciona el texto y, si ya pasó,
+el horario sale del campo de horario y va a `av`, rotulado con su fecha
+(«Hasta el 17 de agosto · ya pasó»). **No se borra el punto**: el texto suele
+ser la mejor señal de que el sitio cerró, y borrar por inferencia sobre texto
+libre es demasiado poder para un parser — mismo criterio que rige para los
+«cerrado» de RedAcopio.
+
+⚠️ Lo delicado es **no confundir una fecha con un horario que se repite**:
+«Martes 11:00 a.m.» y «Lunes a viernes: 8:00 am» NO son fechas, y marcarlas
+vencidas borraría el horario de un acopio que opera. Si al número le sigue un
+reloj (`:`) o am/pm, no es un día del mes. Probado contra los 92 horarios
+reales: 4 vencidos, 88 intactos, cero falsos positivos.
+
+⚠️ Unir las dos columnas con `join(' a ')` también mentía. Cuando solo estaba
+llena la de CIERRE —12 de 58 filas— salía «Horario: 18:00», que se lee como la
+hora de **apertura**; ahora dice «hasta las 18:00». Y `0:00 a 23:59` es la forma
+más confusa posible de escribir «24 horas».
+
 ### Corregir un acopio desde el mapa
 
 Cualquiera puede abrir un acopio y decir **qué cambió**, que **ya cerró** o que

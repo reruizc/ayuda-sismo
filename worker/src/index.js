@@ -837,7 +837,8 @@ async function acopiosFusionados(env) {
     if (!ra || !ra.items || !ra.items.length) return d;
     const items = d.items.slice();
     const f = fusionarRedacopio(items, ra.items);
-    return { ...d, items, total: items.length, redacopio: {
+    return { ...d, items, total: items.length,
+      horarios_vencidos: items.filter((i) => i.av).length, redacopio: {
       generado: ra.generado, fuente: ra.fuente, fuente_url: ra.fuente_url,
       enriquecidos: f.enriquecidos, nuevos: f.nuevos,
       omitidos_cerrados: f.omitidos, candidatos_a_cerrar: f.candidatos.length,

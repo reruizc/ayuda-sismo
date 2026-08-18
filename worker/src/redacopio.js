@@ -23,6 +23,7 @@
  * Si esa conversación cambia, se apaga quitando `REDACOPIO_URL` del entorno.
  */
 import { norm } from './acopios.js';
+import { vencido, fechaTope, fechaCorta, hoyBogota } from './fechas.js';
 
 const UA = 'MapaDeAyuda/1.0 (+https://reconstruyocolombia.com; hola@ricardoruiz.co)';
 
@@ -107,7 +108,7 @@ const PARECE_HORA = /\d\s*(?:a\.?\s*m|p\.?\s*m|h(?:ora)?s?\b|:\s*\d)/i;
  */
 const RA_AUSENTE = /^(?:[.\-–—·]+|por confirmar|confirmar|consultar|n\/?a|sin dato)$/i;
 
-export function horarioDe(txt) {
+export function horarioDe(txt, hoy = hoyBogota()) {
   let t = String(txt || '').replace(/\s+/g, ' ').trim();
   if (!t || RA_AUSENTE.test(t)) return { h: '', nota: '', tel: '' };
   // Teléfono pegado al final: va al campo de teléfono, no al de horario.
@@ -121,7 +122,17 @@ export function horarioDe(txt) {
      ("Lunes festivo SOLO voluntarios", "YA NO RECIBE DONACIONES") sigue
      yéndose a nota, que es donde se entiende igual. */
   const esHora = PARECE_HORA.test(t) && t.length <= 120;
-  return { h: esHora ? t : '', nota: esHora ? '' : t, tel: tel ? tel[1] : '' };
+
+  /* ⚠️ Sus avisos también caducan, y con fecha explícita: "14, 15 y 16 de
+     agosto - Hasta las 8pm" seguía publicado como horario el 18. Lo vencido
+     sale del horario Y de la nota: "Lunes 17 Agosto - Se requieren voluntarios
+     para cargar camión" mandaría gente un día que ya pasó. */
+  if (vencido(t, hoy)) {
+    return { h: '', nota: '', av: t, av_fecha: fechaCorta(fechaTope(t, hoy)),
+             tel: tel ? tel[1] : '' };
+  }
+  return { h: esHora ? t : '', nota: esHora ? '' : t, av: '', av_fecha: '',
+           tel: tel ? tel[1] : '' };
 }
 
 /** Un registro suyo, en la forma que ya entiende el frontend de acopios. */
@@ -144,6 +155,8 @@ function aNuestraForma(o) {
     h: hor.h,
     // Lo que su campo de horario traía y no era una hora. Se muestra rotulado.
     nota_ra: hor.nota,
+    av: hor.av,
+    av_fecha: hor.av_fecha,
     vol: !!(vol && vol.need),
     vol_cupos: vol && Number.isFinite(vol.target)
       ? { objetivo: vol.target, actual: Number(vol.current) || 0 } : null,
@@ -200,6 +213,7 @@ export async function refrescar(env) {
     abiertos: items.filter((x) => x.estado === 'abierto').length,
     cerrados: items.filter((x) => x.estado === 'cerrado').length,
     llenos: items.filter((x) => x.estado === 'lleno').length,
+    vencidos: items.filter((x) => x.av).length,
     fuente: 'RedAcopio Bogotá',
     fuente_url: 'https://redacopiobogota.com',
     items,
@@ -283,6 +297,7 @@ export function fusionar(nuestros, suyos) {
       if (!par.ne && x.ne) { par.ne = x.ne; par.ne_fuente = 'redacopio'; }
       if (!par.tel && x.tel) par.tel = x.tel;
       if (x.nota_ra) par.nota_ra = x.nota_ra;
+      if (!par.av && x.av) { par.av = x.av; par.av_fecha = x.av_fecha; }
       res.enriquecidos++;
 
       /* ⚠️⚠️ Un punto NUESTRO que ellos dan por cerrado NO se borra acá.

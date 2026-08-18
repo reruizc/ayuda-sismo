@@ -188,6 +188,10 @@ a{color:var(--azul)}
   letter-spacing:.04em; background:#e7f4ed; color:#1d7a4c; border:1px solid #bfe3d0;
   padding:.1rem .38rem; border-radius:4px; margin-left:.35rem;
 }
+.campo-vencido{
+  background:#fff8ea; border-left:3px solid #e0b44a; padding-left:.5rem;
+}
+.campo-vencido b{color:#8a6410}
 .sinrev{
   display:inline-block; font-size:.66rem; font-weight:700; text-transform:uppercase;
   letter-spacing:.04em; background:#fff3d6; color:#8a6410; border:1px solid #f0dfae;
@@ -2186,14 +2190,40 @@ const urlFoto = (k) => `${CONFIG.API}/${k}`;
  * 291, y estamparles "última revisión: 14 de agosto" diría que alguien los
  * verificó ese día: la gente carga el carro, maneja dos horas y se encuentra
  * un sitio cerrado. El sello ámbar es incómodo a propósito — es la señal de que
- * falta el trabajo de terreno, y desaparece solo cuando alguien escribe la
- * fecha en la columna ULTIMA REVISION de la hoja.
+ * falta el trabajo de terreno, y desaparece solo cuando alguien marca
+ * VERIFICADO en la hoja.
+ *
+ * ⚠️⚠️ El sello NO puede decir más de lo que se hizo. Los 35 que hoy lo llevan
+ * están verificados con método `sitio_oficial` —se cotejó contra la página de
+ * la organización—, que no es lo mismo que alguien parado en la puerta. Se
+ * dice cuál de las dos cosas fue: un sello que promete terreno y entrega un
+ * cotejo web es la clase de exageración que hace que la gente maneje dos horas
+ * de más.
  */
 function selloRevision(a){
   // Sin fecha no se muestra nada. El sello ámbar salía en los 291 y convertía
   // la lista en una pared de advertencias; la verificación se lleva por dentro
   // y acá solo se muestra cuando ya está hecha.
-  return a.rev ? `<span class="revok">última revisión: ${esc(a.rev)}</span>` : '';
+  if (!a.rev) return '';
+  const como = a.rev_metodo === 'sitio_oficial' ? 'según su sitio oficial'
+             : (a.rev_metodo === 'terreno' ? 'en terreno' : '');
+  return `<span class="revok" title="Verificado ${esc(como || 'por el equipo')}">verificado ${
+    esc(a.rev)}${como ? ` · ${esc(como)}` : ''}</span>`;
+}
+
+/**
+ * Un horario que ya venció.
+ *
+ * ⚠️ No se borra: el texto suele ser la mejor señal de que el sitio cerró
+ * ("después suspende operación"). Lo que se quita es el rótulo "Horario", que
+ * lo hacía pasar por vigente. Va con su fecha adelante para que se lea como lo
+ * que es — lo último que se supo, no lo que rige hoy.
+ */
+function avisoVencido(a, clase){
+  if (!a || !a.av) return '';
+  const f = a.av_fecha ? `Hasta el ${esc(a.av_fecha)}` : 'Aviso vencido';
+  return `<div class="${clase}"><b>${f} · ya pasó</b>${esc(a.av)}
+    <span style="display:block;color:#8a8378">Confirma por teléfono antes de ir.</span></div>`;
 }
 
 /**
@@ -2617,6 +2647,9 @@ function pintarAcopios(){
       ${a.d ? `<p style="margin:.25rem 0"><strong>${esc(a.d)}</strong></p>` : ''}
       ${a.ne ? `<p style="margin:.25rem 0">Recibe: ${esc(a.ne)}</p>` : ''}
       ${a.h ? `<p style="margin:.25rem 0">Horario: ${esc(a.h)}${a.di ? ` · ${esc(a.di)}` : ''}</p>` : ''}
+      ${a.av ? `<p style="margin:.25rem 0;font-size:.82rem;color:#8a6410">
+        <b>${a.av_fecha ? `Hasta el ${esc(a.av_fecha)}` : 'Aviso vencido'} · ya pasó:</b>
+        ${esc(a.av)}</p>` : ''}
       ${a.nota_ra ? `<p style="margin:.25rem 0;font-size:.82rem">${esc(a.nota_ra)}
         <span style="color:#8a8378">· RedAcopio</span></p>` : ''}
       ${a.vol ? '<p style="margin:.25rem 0;color:#1d7a4c;font-weight:600">Necesita voluntarios</p>' : ''}
@@ -2823,9 +2856,16 @@ function pintarDetalle(){
       ${a.ne ? `<div class="campo-d"><b>Recibe</b>${esc(a.ne)}</div>` : ''}
       ${a.h ? `<div class="campo-d"><b>Horario</b>${esc(a.h)}${
         a.di ? ` · ${esc(a.di)}` : ''}</div>` : ''}
+      ${avisoVencido(a, 'campo-d campo-vencido')}
       ${a.nota_ra ? `<div class="campo-d"><b>Según RedAcopio</b>${esc(a.nota_ra)}</div>` : ''}
       ${a.vol ? '<p style="color:var(--verde);font-weight:700">Necesitan voluntarios</p>' : ''}
       ${a.c ? `<div class="campo-d"><b>Contacto</b>${esc(a.c)}</div>` : ''}
+      ${a.org ? `<div class="campo-d"><b>Quién responde</b>${esc(a.org)}</div>` : ''}
+      ${/* De dónde salió el dato. Es lo que deja comprobarlo antes de cargar un
+            camión, y ya se muestra igual en las fichas de quien pide. */
+        a.url && /^https?:\/\//i.test(a.url)
+          ? `<div class="campo-d"><b>De dónde salió</b><a href="${esc(a.url)}" target="_blank"
+              rel="noopener nofollow">Ver la fuente →</a></div>` : ''}
       <div class="pop-acc">
         ${ruta ? `<a href="${esc(ruta)}" target="_blank" rel="noopener">Cómo llegar →</a>` : ''}
         ${tel ? `<a href="tel:${esc(tel)}">Llamar ${esc(a.tel)}</a>` : ''}

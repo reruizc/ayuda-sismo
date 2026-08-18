@@ -14,6 +14,7 @@
  */
 import { MUNICIPIOS } from './municipios.js';
 import { centroDe } from './centros.js';
+import { vencido, fechaTope, fechaCorta, fechaISO, hoyBogota } from './fechas.js';
 
 // Centro de cada municipio, para ubicar un acopio que no traiga coordenada.
 export const CENTRO = new Map();
@@ -103,9 +104,30 @@ function indices(cab) {
     voluntarios: buscar('requiere voluntarios', 'voluntarios'),
     contacto: buscar('contacto'),
     telefono: buscar('telefono', 'telefono de contacto', 'tel'),
-    // "cuándo se confirmó que sigue abierto". Es la columna que separa un
-    // acopio vivo de uno que cerró hace tres días y nadie ha ido a mirar.
-    revision: buscar('ultima revision', 'ultima revisión', 'revisado'),
+    /* "cuándo se confirmó que sigue abierto": lo que separa un acopio vivo de
+       uno que cerró hace tres días y nadie ha ido a mirar.
+
+       ⚠️⚠️ La hoja se rediseñó y `ULTIMA REVISION` desapareció. Como una
+       columna que no está acá no da error —solo deja de existir— TODOS los
+       acopios salían "sin revisar" mientras alguien hacía el trabajo de
+       verificarlos. Es el mismo modo de falla de `ESTADO REGISTRO`.
+
+       ⚠️⚠️ Y la que la reemplaza NO se puede usar tal cual: medido, `FECHA
+       ULTIMA VERIFICACION` es igual a `FECHA REPORTE` en 300 de 311 filas (283
+       dicen 8/14, el día de la carga). Estamparla como sello diría que alguien
+       verificó 279 acopios que nadie tocó — peor que el bug que arregla. Por
+       eso la fecha SOLO cuenta cuando `VERIFICADO` dice que sí. */
+    revision: buscar('fecha ultima verificacion', 'ultima revision', 'ultima revisión', 'revisado'),
+    verificado: buscar('verificado'),
+    metodo: buscar('metodo verificacion', 'método verificación'),
+    // Si está lleno o tiene cupo. Es justo lo que valoramos de RedAcopio, y
+    // resulta que ya estaba en nuestra propia hoja sin que nadie lo leyera.
+    cupo: buscar('estado cupo', 'cupo'),
+    capacidad: buscar('capacidad'),
+    ocupacion: buscar('ocupacion', 'ocupación'),
+    // De dónde salió el dato: lo que deja verificar antes de cargar un camión.
+    url: buscar('fuente url', 'fuente', 'enlace'),
+    org: buscar('organizacion responsable', 'organización responsable'),
     tipo:     buscar('tipo de lugar', 'tipo'),
     // Opcionales: si algún día se agregan a la hoja, mandan sobre el centro
     // del municipio y el punto deja de ser aproximado.
@@ -182,6 +204,48 @@ export function coordenada(txt, cual) {
   return validos.length === 1 ? validos[0] : null;
 }
 
+/** Una hora suelta: "18:00", "9:00 AM", "3PM". Sin palabras alrededor. */
+const SOLO_HORA = /^\d{1,2}(?:[:.]\d{2})?\s*(?:a\.?\s*m|p\.?\s*m)?\.?$/i;
+const aMinutos = (t) => {
+  const m = String(t).match(/^(\d{1,2})(?:[:.](\d{2}))?\s*(a|p)?/i);
+  if (!m) return null;
+  let h = +m[1];
+  if (m[3] && /p/i.test(m[3]) && h < 12) h += 12;
+  if (m[3] && /a/i.test(m[3]) && h === 12) h = 0;
+  return h * 60 + (+m[2] || 0);
+};
+
+/**
+ * Arma el horario que se muestra, a partir de las dos columnas de la hoja.
+ *
+ * ⚠️ Unir con `filter(Boolean).join(' a ')` deja frases que mienten. Cuando
+ * solo está llena la columna de CIERRE —pasa en 12 de 58 filas con horario— el
+ * resultado era "Horario: 18:00", que se lee como la hora de APERTURA. Y
+ * "0:00 a 23:59" es la forma más confusa posible de escribir 24 horas.
+ *
+ * Si lo que queda ya venció, no se publica como horario: sale por `av`, con la
+ * fecha aparte, para que la ficha lo rotule como lo que es.
+ */
+export function horarioDeHoja(abre, cierra, hoy = hoyBogota()) {
+  const a = LIMPIO(abre), c = LIMPIO(cierra);
+  let h = '';
+  if (a && c) {
+    const ma = aMinutos(a), mc = aMinutos(c);
+    // Medianoche a un minuto de medianoche es "todo el día", escrito por una
+    // celda con formato de hora. Decirlo así se entiende; "0:00 a 23:59" no.
+    h = (SOLO_HORA.test(a) && SOLO_HORA.test(c) && ma === 0 && mc >= 1435)
+      ? '24 horas' : `${a} a ${c}`;
+  } else if (c) {
+    h = SOLO_HORA.test(c) ? `hasta las ${c}` : c;
+  } else if (a) {
+    h = SOLO_HORA.test(a) ? `desde las ${a}` : a;
+  }
+  if (h && vencido(h, hoy)) {
+    return { h: '', av: h, av_fecha: fechaCorta(fechaTope(h, hoy)), abre: a, cierra: c };
+  }
+  return { h, av: '', av_fecha: '', abre: a, cierra: c };
+}
+
 export function normalizarFilas(filas) {
   if (!filas.length) return { items: [], sin_ubicar: 0 };
   const ix = indices(filas[0]);
@@ -190,6 +254,8 @@ export function normalizarFilas(filas) {
   const items = [];
   let sinUbicar = 0;
   let ocultos = 0;
+  let vencidos = 0;
+  const hoy = hoyBogota();
   const g = (f, i) => (i >= 0 ? LIMPIO(f[i]) : '');
 
   for (let r = 1; r < filas.length; r++) {
@@ -227,7 +293,17 @@ export function normalizarFilas(filas) {
       la = null; lo = null; sinUbicar++;
     }
 
-    const abre = g(f, ix.abre), cierra = g(f, ix.cierra);
+    const { h, av, av_fecha, abre, cierra } = horarioDeHoja(g(f, ix.abre), g(f, ix.cierra), hoy);
+    if (av) vencidos++;
+
+    /* ⚠️ El sello de "revisado" SOLO sale con `VERIFICADO = si`. Ver el aviso
+       largo en `indices()`: la fecha viene llena en 279 de 280 filas porque es
+       la de carga, y sola diría que alguien confirmó lo que nadie confirmó.
+       El método viaja para poder rotularlo con honestidad: hoy los 35 que sí
+       están verificados lo están contra el sitio oficial, no en terreno. */
+    const verificado = /^(s[ií]|x|1|true)$/i.test(g(f, ix.verificado));
+    const cupo = norm(g(f, ix.cupo)).replace(/[_-]/g, ' ');
+
     items.push({
       // La llave viaja al navegador para que una corrección pueda decir a QUÉ
       // acopio se refiere. Se calcula acá y no en la página: si el cliente la
@@ -242,20 +318,32 @@ export function normalizarFilas(filas) {
       // `h` es lo que se muestra; `ab`/`ci` son las dos columnas de la hoja.
       // Se conservan separadas porque una corrección de horario tiene que
       // poder volver a la hoja sin adivinar dónde partir "8:00 am a 6:00 pm".
-      h: [abre, cierra].filter(Boolean).join(' a ') || '',
+      h,
+      // Horario que ya venció. Se conserva rotulado con su fecha porque dice
+      // algo ("después suspende operación"), pero fuera del campo de horario.
+      av: av || '',
+      av_fecha: av_fecha || '',
       ab: abre,
       ci: cierra,
       di: g(f, ix.dias),
       vol: /^(s[ií]|x|1|true)$/i.test(g(f, ix.voluntarios)),
       c: g(f, ix.contacto),
       tel: g(f, ix.telefono),
-      rev: g(f, ix.revision),
+      rev: verificado ? fechaISO(g(f, ix.revision)) : '',
+      rev_metodo: verificado ? g(f, ix.metodo) : '',
+      // `con_cupo`/`lleno` de la hoja, en el mismo vocabulario que RedAcopio.
+      estado: cupo === 'lleno' ? 'lleno' : (cupo === 'con cupo' ? 'abierto' : ''),
+      estado_fuente: (cupo === 'lleno' || cupo === 'con cupo') ? 'hoja' : '',
+      url: g(f, ix.url),
+      org: g(f, ix.org),
+      cap: g(f, ix.capacidad),
+      ocu: g(f, ix.ocupacion),
       tipo: g(f, ix.tipo),
       la, lo,
       ap: aprox ? 1 : 0,     // ubicación al centro del municipio, no exacta
     });
   }
-  return { items, sin_ubicar: sinUbicar, ocultos };
+  return { items, sin_ubicar: sinUbicar, ocultos, vencidos };
 }
 
 /* ─────────────────────────── geocodificación ─────────────────────────── */
@@ -515,7 +603,7 @@ export async function refrescar(env, opciones = {}) {
   // Guardar eso pisaría la última copia buena con basura.
   if (/^\s*<(!doctype|html)/i.test(txt)) throw new Error('la hoja no es pública');
 
-  const { items, sin_ubicar, ocultos, error } = normalizarFilas(parsearCSV(txt));
+  const { items, sin_ubicar, ocultos, vencidos, error } = normalizarFilas(parsearCSV(txt));
   if (error) throw new Error(error);
 
   // Las correcciones aprobadas van ANTES de geocodificar: si una corrigió la
@@ -538,7 +626,12 @@ export async function refrescar(env, opciones = {}) {
     // Cuántos sacó de la hoja la columna ESTADO REGISTRO. Se publica para que
     // se pueda ver desde afuera: ocultar en silencio es como no leer.
     ocultos_por_estado: ocultos || 0,
+    // Horarios con fecha ya pasada que dejaron de publicarse como vigentes.
+    // Se publica el conteo: si sube, hay acopios cuyo dato quedó congelado.
+    horarios_vencidos: vencidos || 0,
     con_punto_propio: items.filter((i) => !i.ap && i.la != null).length,
+    // Con sello real de verificación (VERIFICADO = si), no con la fecha de carga.
+    verificados: items.filter((i) => i.rev).length,
     geocodificados_ahora: geocodificados,
     corregidos: overlays.aplicados,
     cerrados: overlays.cerrados,
