@@ -2753,7 +2753,7 @@ function pintarPide(){
         esc([x.mu, x.dp].filter(Boolean).join(', '))}</div>` : `
       <h3>${esc(x.n)}</h3>
       <div style="margin-bottom:.3rem"><span class="ne-tag">PIDE</span>
-        ${x.sedes ? `<span style="font-size:.74rem;color:#5d574e">Sede ${x.sede} de ${x.sedes}</span>` : ''}</div>
+        ${x.sedes ? `<span style="font-size:.74rem;color:#5d574e">Sede ${esc(x.sede)} de ${esc(x.sedes)}</span>` : ''}</div>
       <div style="font-size:.8rem;color:#5d574e;margin-bottom:.3rem">
         ${esc([x.mu, x.dp].filter(Boolean).join(', '))}${x.org ? ` · ${esc(x.org)}` : ''}</div>
       ${x.d ? `<p style="margin:.25rem 0"><strong>${esc(x.d)}</strong></p>` : ''}
@@ -2918,7 +2918,7 @@ function pintarDetalle(){
         <button class="cerrar" data-cerrar-detalle aria-label="Cerrar">&times;</button>
       </div>
       <div><span class="ne-tag">PIDE</span>${x.sedes
-        ? ` <span class="ac-m" style="display:inline">Sede ${x.sede} de ${x.sedes}</span>` : ''}</div>
+        ? ` <span class="ac-m" style="display:inline">Sede ${esc(x.sede)} de ${esc(x.sedes)}</span>` : ''}</div>
       ${x.d ? `<div class="campo-d"><b>Dirección</b>${esc(x.d)}</div>` : ''}
       ${(x.nes || []).length ? `<div class="campo-d"><b>Necesita</b>
         <ul class="ne-li">${x.nes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul></div>` : ''}
@@ -4019,7 +4019,7 @@ function listaAcopios(){
           </div>
           <div class="ac-m">${esc([a.mu, a.dp].filter(Boolean).join(', '))}${
             a.org ? ` · ${esc(a.org)}` : ''}${
-            a.sedes ? ` · sede ${a.sede} de ${a.sedes}` : ''}</div>
+            a.sedes ? ` · sede ${esc(a.sede)} de ${esc(a.sedes)}` : ''}</div>
           ${a.d ? `<p class="ac-d"><strong>${esc(a.d)}</strong></p>` : ''}
           ${(a.nes || []).length ? `<ul class="ne-li">${
             a.nes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
