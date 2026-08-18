@@ -22,7 +22,9 @@
 <meta property="og:image:alt" content="Reconstruyo Colombia · mapa de ayuda">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://unpkg.com">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H"
+  crossorigin="anonymous">
 <style>
 /* Tipografía: TODO del sistema, cero descarga. Los títulos van en Arial con
    peso alto y tracking apretado; el cuerpo, en la fuente del aparato.
@@ -1480,7 +1482,9 @@ if (/^#\/mi\//.test(location.hash) || /[?&]ir=/.test(location.search))
   </div>
 </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH"
+  crossorigin="anonymous"></script>
 <script>
 /* ══════════════════════════════ configuración ══════════════════════════════ */
 const LOCAL = ['localhost', '127.0.0.1'].includes(location.hostname);
@@ -2168,6 +2172,10 @@ const S = {
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g,
   (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const urlSegura = (u) => {
+  const s = String(u == null ? '' : u).replace(/[\u0000-\u001F\u007F]/g, '').trim();
+  return /^https?:\/\//i.test(s) ? s : '';
+};
 // Búsqueda insensible a tildes: los nombres oficiales de municipio vienen sin
 // ellas ("Quibdo"), pero la gente escribe "Quibdó".
 const norm = (s) => String(s || '').toLowerCase()
@@ -2409,7 +2417,7 @@ function pintarDano(){
         ${t.bloqueos ? `<div class="fila"><span class="rombo"></span>
           Vía bloqueada: <b>${t.bloqueos}</b></div>` : ''}
         <div class="cred">© Unión Europea, Copernicus EMS
-          (<a href="${esc(d.fuente || '#')}" target="_blank" rel="noopener">EMSR916</a>)${
+          (<a href="${esc(urlSegura(d.fuente) || '#')}" target="_blank" rel="noopener">EMSR916</a>)${
           fecha ? ` · última entrega ${fecha}` : ''}</div>
       </details>
       <div class="ojo"><b>Solo ${t.zonas} zonas urbanas analizadas.</b>
@@ -2734,6 +2742,7 @@ function pintarPide(){
       ? `https://www.google.com/maps/search/?api=1&query=${
           encodeURIComponent([x.d, x.mu, x.dp, 'Colombia'].filter(Boolean).join(', '))}`
       : '';
+    const fuente = urlSegura(x.url);
 
     m.on('click', () => verDetalle('pide', x._ix));
     m.bindPopup(esEscritorio() ? `
@@ -2753,7 +2762,7 @@ function pintarPide(){
              <ul class="ne-li">${x.nes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul></div>`
         : ''}
       ${x.c ? `<p style="margin:.25rem 0">${esc(x.c)}</p>` : ''}
-      ${x.url ? `<p style="margin:.25rem 0;font-size:.8rem"><a href="${esc(x.url)}"
+      ${fuente ? `<p style="margin:.25rem 0;font-size:.8rem"><a href="${esc(fuente)}"
         target="_blank" rel="noopener">De dónde salió esta necesidad →</a></p>` : ''}
       ${tel ? `<p style="margin:.25rem 0"><a href="tel:${esc(tel)}">${esc(x.tel)}</a></p>` : ''}
       ${ruta ? `<p style="margin:.5rem 0 .1rem"><a href="${esc(ruta)}" target="_blank" rel="noopener"
@@ -2899,6 +2908,7 @@ function pintarDetalle(){
     const tel = (x.tel || '').replace(/[^\d+]/g, '');
     const ruta = x.d ? `https://www.google.com/maps/search/?api=1&query=${
       encodeURIComponent([x.d, x.mu, x.dp, 'Colombia'].filter(Boolean).join(', '))}` : '';
+    const fuente = urlSegura(x.url);
     caja.innerHTML = `
       <div class="detalle-cab">
         ${iconoPide(x, 40)}
@@ -2913,8 +2923,8 @@ function pintarDetalle(){
       ${(x.nes || []).length ? `<div class="campo-d"><b>Necesita</b>
         <ul class="ne-li">${x.nes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul></div>` : ''}
       ${x.c ? `<div class="campo-d"><b>Contacto</b>${esc(x.c)}</div>` : ''}
-      ${x.url ? `<div class="campo-d"><b>De dónde salió</b><a href="${esc(x.url)}"
-        target="_blank" rel="noopener">${esc(x.url.replace(/^https?:\/\//, '').slice(0, 46))}</a></div>` : ''}
+      ${fuente ? `<div class="campo-d"><b>De dónde salió</b><a href="${esc(fuente)}"
+        target="_blank" rel="noopener">${esc(fuente.replace(/^https?:\/\//, '').slice(0, 46))}</a></div>` : ''}
       <div class="pop-acc">
         ${ruta ? `<a href="${esc(ruta)}" target="_blank" rel="noopener">Cómo llegar →</a>` : ''}
         ${tel ? `<a href="tel:${esc(tel)}">Llamar ${esc(x.tel)}</a>` : ''}
@@ -3993,6 +4003,7 @@ function listaAcopios(){
       const aprox = a.ap
         ? '<p class="ac-m" style="color:#8a8378">El punto del mapa es el centro del municipio: guíate por la dirección.</p>'
         : '';
+      const fuente = urlSegura(a.url);
 
       /* Quien PIDE. Se lista la necesidad ENTERA y en viñetas, no recortada:
          es el único dato por el que alguien abre esta tarjeta, y la hoja trae
@@ -4013,7 +4024,7 @@ function listaAcopios(){
           ${(a.nes || []).length ? `<ul class="ne-li">${
             a.nes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
           ${a.c ? `<p class="ac-m">${esc(a.c)}</p>` : ''}
-          ${a.url ? `<p class="ac-m"><a href="${esc(a.url)}" target="_blank"
+          ${fuente ? `<p class="ac-m"><a href="${esc(fuente)}" target="_blank"
             rel="noopener">De dónde salió →</a></p>` : ''}
           ${acc}
           <p class="ac-m" style="color:#8a8378">${a.f
@@ -4296,7 +4307,9 @@ function listaPrensa(){
     <div class="conteo" style="font-weight:600;color:var(--tinta)">
       ${esc(m.n)} · ${m.notas} titular${m.notas === 1 ? '' : 'es'}</div>
     ${(m.tit || []).map((t) => `<div class="nt">
-      <a href="${esc(t.u)}" target="_blank" rel="noopener">${esc(t.t)}</a>
+      ${urlSegura(t.u)
+        ? `<a href="${esc(urlSegura(t.u))}" target="_blank" rel="noopener">${esc(t.t)}</a>`
+        : esc(t.t)}
       <div class="m">${esc(t.m || 'sin medio')}${t.ts ? ` · ${hace(t.ts)}` : ''}</div>
     </div>`).join('')}`).join('')
     + `<div class="vacio" style="padding:1.2rem">
@@ -5471,7 +5484,10 @@ async function abrirMio(id, token){
   cuerpo.innerHTML = '<div class="vacio">Cargando…</div>';
   abrir('#velo-mis');
   try {
-    const r = await fetch(`${CONFIG.API}/reporte/${encodeURIComponent(id)}?t=${encodeURIComponent(token)}`);
+    const r = await fetch(`${CONFIG.API}/reporte/${encodeURIComponent(id)}`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({token}),
+    });
     const d = await r.json();
     if (!d.ok) throw new Error(d.error);
     const ms = d.mensajes || [];

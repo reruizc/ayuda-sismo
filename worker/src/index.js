@@ -9,7 +9,7 @@
  *   GET  /snapshot.json           mapa público (coordenadas difuminadas ~100 m)
  *   GET  /fotos/:clave            imagen adjunta de un reporte (desde R2)
  *   POST /reporte                 crear reporte (la foto viaja adentro, en base64)
- *   GET  /reporte/:id?t=token     vista privada del reportante (+ sus mensajes)
+ *   POST /reporte/:id             vista privada del reportante (GET ?t= sigue viva)
  *   POST /reporte/:id/estado      cerrar/reabrir (requiere token)
  *   POST /contacto                mensaje intermediado hacia el reportante
  *   POST /abuso                   marcar un reporte para revisión
@@ -602,8 +602,12 @@ async function snapshot(req, env, ctx) {
   return res;
 }
 
-async function verReportePrivado(id, url, env, origin) {
-  const token = url.searchParams.get('t') || '';
+async function verReportePrivado(id, req, url, env, origin) {
+  let token = url.searchParams.get('t') || '';
+  if (req.method === 'POST') {
+    try { token = String((await req.json()).token || ''); }
+    catch { return json({ error: 'json_invalido' }, 400, origin); }
+  }
   const r = await env.DB.prepare('SELECT * FROM reportes WHERE id = ?').bind(id).first();
   if (!r) return json({ error: 'no_existe' }, 404, origin);
   if (!token || token !== r.token) return json({ error: 'token_invalido' }, 403, origin);
@@ -1219,7 +1223,9 @@ export default {
       if (ruta === '/sugerencia' && req.method === 'POST') return crearSugerencia(req, env, origin, ip);
 
       const mPriv = ruta.match(/^\/reporte\/([\w-]{4,40})$/);
-      if (mPriv && req.method === 'GET') return verReportePrivado(mPriv[1], url, env, origin);
+      if (mPriv && (req.method === 'GET' || req.method === 'POST')) {
+        return verReportePrivado(mPriv[1], req, url, env, origin);
+      }
 
       const mEstado = ruta.match(/^\/reporte\/([\w-]{4,40})\/estado$/);
       if (mEstado && req.method === 'POST') return cambiarEstado(mEstado[1], req, env, origin, ctx);

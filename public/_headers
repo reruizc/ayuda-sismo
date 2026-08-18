@@ -2,6 +2,7 @@
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: geolocation=(self)
+  Content-Security-Policy: base-uri 'none'; object-src 'none'; form-action 'self'; frame-src https://challenges.cloudflare.com; img-src 'self' data: https://unpkg.com https://*.basemaps.cartocdn.com https://ayuda-sismo.reruizc.workers.dev; connect-src 'self' https://ayuda-sismo.reruizc.workers.dev https://challenges.cloudflare.com https://*.challenges.cloudflare.com
 
 # A propósito NO se pone X-Frame-Options: que un medio regional pueda
 # embeber el mapa en su nota es justo lo que le da alcance. No hay sesión
