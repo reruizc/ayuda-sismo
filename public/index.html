@@ -555,6 +555,15 @@ body.pt-raiz .pt-pie{margin-top:.6rem; padding-top:.55rem}
 /* Tabular para que no se confundan 0/O ni 1/l al copiarla a mano. */
 .don-num{font-family:ui-monospace,'SF Mono',Menlo,monospace; font-size:1.35rem;
   letter-spacing:.04em; font-variant-numeric:tabular-nums; user-select:all}
+.don-fuente{
+  display:inline-block; margin-top:.5rem;
+  font-size:.95rem; font-weight:600; color:var(--azul);
+  text-decoration:underline; text-underline-offset:3px; text-decoration-thickness:1px;
+}
+.don-fuente:hover{text-decoration-thickness:2px}
+.don-fuente:focus-visible{outline:3px solid var(--azul); outline-offset:3px; border-radius:3px}
+.don-fuente-dom{white-space:nowrap}
+.don-fuente svg{display:inline-block; vertical-align:-.1em; margin-left:.3em; opacity:.8}
 .don-vig{margin:.5rem 0 0 !important; font-size:.95rem}
 .don-vig.vencida{color:var(--rojo); font-weight:600}
 .don-nota{font-size:.95rem; color:var(--tenue); line-height:1.5; margin:.2rem 0 0}
@@ -1170,9 +1179,8 @@ if (/^#\/mi\//.test(location.hash) || /[?&]ir=/.test(location.search))
      un fraude esperando a pasar, y además nadie tendría cómo auditarlo.
 
      ⚠️ Los datos son los que publicó cada entidad y se muestran TAL CUAL, sin
-     agregar nada que la fuente no diga (no dice tipo de cuenta, así que acá
-     tampoco). La cuenta de la Fundación Bancolombia tiene vigencia declarada
-     hasta el 30-ago-2026: pasada esa fecha el aviso cambia solo, porque una
+     agregar nada que la fuente no diga. La vigencia hasta el 30-ago-2026 NO
+     está en su página: pasada esa fecha el aviso cambia solo, porque una
      cuenta vencida en pantalla manda plata a un lado que ya no la espera. -->
 <div class="velo" id="velo-donar" hidden>
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="t-donar" style="max-width:560px">
@@ -1200,10 +1208,18 @@ if (/^#\/mi\//.test(location.hash) || /[?&]ir=/.test(location.search))
            ProPacífico, ProChocó, ProRisaralda, Corporación Presentes y las
            autoridades locales.</p>
         <div class="don-cta">
-          <span class="don-lbl">Cuenta para donaciones</span>
+          <span class="don-lbl">Cuenta de ahorros</span>
           <b class="don-num" id="don-cuenta">24542391932</b>
           <button type="button" class="btn btn-sm" id="don-copiar">Copiar</button>
         </div>
+        <a class="don-fuente" href="https://www.bancolombia.com/personas/unidos-colombia"
+           target="_blank" rel="noopener noreferrer">
+          Verifica esta cuenta en <span class="don-fuente-dom">bancolombia.com<svg
+            viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+            stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"
+            ><path d="M14 4h6v6M20 4l-8.5 8.5"/><path
+              d="M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"/></svg></span>
+        </a>
         <p class="don-vig" id="don-vigencia"></p>
       </div>
 
