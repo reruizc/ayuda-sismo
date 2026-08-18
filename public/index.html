@@ -109,7 +109,10 @@ a{color:var(--azul)}
 .zonas .rot{font-size:.78rem; color:var(--tenue); font-weight:600; flex:none}
 /* Cuando quedan pocos botones (vista de acopios) la fila se ve descolgada a la
    izquierda; centrada comparte eje con el resto de la página. */
-.zonas.centrada{justify-content:center}
+.zonas.centrada{justify-content:safe center}
+.zonas-seg{display:flex; gap:.4rem; flex:none}
+.zonas-mas{display:contents}
+.zona-mas{display:none}
 .zona{
   /* Cuadrados de verdad, sin esquina suavizada: con radio de píldora los
      rótulos cortos —"Salud", "Otro", "Tolima"— quedaban casi circulares y la
@@ -730,6 +733,21 @@ body.con-ctx .cuerpo{height:calc(100dvh - 196px)}
   body{padding-bottom:5.5rem}
   .top{padding-top:calc(.5rem + env(safe-area-inset-top))}
   .marca{flex-direction:column; gap:0}
+  .zonas .zona-sep{display:none}
+  .zonas .zona,.zonas .zona-sel{min-height:44px}
+  .zonas-seg{flex:1; min-width:0; gap:0}
+  .zonas-seg .zona{flex:1; min-width:0; padding:.3rem .5rem; text-align:center;
+    overflow:hidden; text-overflow:ellipsis}
+  .zonas-seg .zona + .zona{border-left:none}
+  .zona-mas{display:block; flex:none; padding:.3rem .5rem}
+  .zonas-mas{
+    display:none; position:fixed; left:0; right:0; bottom:0; z-index:1100;
+    background:var(--tarjeta); border-top:1px solid var(--linea);
+    padding:.75rem 1rem calc(.75rem + env(safe-area-inset-bottom));
+    box-shadow:0 -6px 20px rgba(20,16,12,.18);
+  }
+  .zonas-mas.abierta{display:flex; flex-direction:column; gap:.5rem}
+  .zonas-mas .zona,.zonas-mas .zona-sel{width:100%; max-width:none; text-align:left}
 }
 </style>
 <script>
@@ -2983,23 +3001,29 @@ function pintarZonas(){
   const opciones = deptos.map((d) => `<option value="${esc(d.c)}"${
     S.zona === d.c ? ' selected' : ''}>${esc(d.n)}${d.a ? ' ·' : ''}</option>`).join('');
 
-  $('#zonas').innerHTML =
-    `<span class="rot">Ir a:</span>
-     <button class="zona" data-z="" aria-pressed="${!S.zona}">Todo el país</button>
-     <select class="zona-sel" id="sel-depto" aria-label="Ir a un departamento">
-       <option value="">Un departamento…</option>${opciones}
-     </select>
-     <button class="zona" id="btn-todo-mapa">Ver todas las temáticas del mapa</button>
-     <span class="zona-sep"></span>
-     <button class="zona acopio" id="tgl-acopios" aria-pressed="${S.verAcopios}">
-       Acopios${S.acopios ? ` (${S.acopios.length})` : ''}</button>
-     <button class="zona pide" id="tgl-pide" aria-pressed="${S.verPide}"
-       title="Organizaciones que dicen qué les hace falta. Es lo contrario de un acopio: acá piden, no reciben.">
-       Piden ayuda${S.pide ? ` (${S.pide.length})` : ''}</button>` + capas;
+  const lugar = (!S.intencion || S.intencion.accion === 'mapa')
+    ? `<span class="zona-sep"></span>
+       <span class="rot">Ir a:</span>
+       <button class="zona" data-z="" aria-pressed="${!S.zona}">Todo el país</button>
+       <select class="zona-sel" id="sel-depto" aria-label="Ir a un departamento">
+         <option value="">Un departamento…</option>${opciones}
+       </select>` : '';
 
-  // Con pocos botones la fila se veía descolgada a la izquierda; centrada
-  // queda con el mismo eje que el resto de la página. Con la lista completa
-  // manda el scroll horizontal y el centrado no estorba.
+  $('#zonas').innerHTML =
+    `<div class="zonas-seg">
+       <button class="zona acopio" id="tgl-acopios" aria-pressed="${S.verAcopios}">
+         Acopios${S.acopios ? ` (${S.acopios.length})` : ''}</button>
+       <button class="zona pide" id="tgl-pide" aria-pressed="${S.verPide}"
+         title="Organizaciones que dicen qué les hace falta. Es lo contrario de un acopio: acá piden, no reciben.">
+         Piden ayuda${S.pide ? ` (${S.pide.length})` : ''}</button>
+     </div>
+     <button class="zona zona-mas" id="btn-mas" aria-expanded="false"
+       aria-controls="zonas-mas" aria-label="Más del mapa">Más</button>
+     <div class="zonas-mas" id="zonas-mas">${capas}${lugar}
+       <button class="zona" id="btn-todo-mapa">Ver todas las temáticas del mapa</button>
+     </div>`;
+
+  // Con pocos botones la fila se veía descolgada a la izquierda.
   $('#zonas').classList.toggle('centrada', soloPais);
 }
 
@@ -3062,11 +3086,7 @@ function saltarIntro(){
 }
 
 /**
- * Abre la puerta. `conIntro` solo la primera vez que se abre en esta carga:
- * al volver desde "Cambiar" la persona ya vio la pregunta y repetirle la
- * animación sería hacerle perder el tiempo.
- */
-/**
+ * Abre la puerta. `conIntro` solo la primera vez que se abre en esta carga.
  * @param conIntro  animar la cortinilla (solo la primera vez)
  * @param fam       familia a la que volver. Sin esto, salir de una opción
  *                  devuelve a la pantalla raíz y obliga a volver a entrar a la
@@ -3118,6 +3138,21 @@ function abrirPuerta(conIntro, fam){
     }, 2870),
     setTimeout(saltarIntro, 3400),
   ];
+}
+
+function cambiarLugar(){
+  const I = S.intencion;
+  const pasos = I ? pasosDe(I) : [];
+  const n = pasos.indexOf('lugar');
+  if (n < 0) return abrirPuerta();
+  S.pt.i = I; S.pt.pasos = pasos; S.pt.idx = n;
+  S.pt.fam = (famDe(I.k) || {}).k;
+  S.pt.lugarModo = null; S.pt.dep = null; S.pt.soloLugar = true;
+  document.documentElement.classList.remove('sin-puerta');
+  $('#puerta').hidden = false;
+  document.body.style.overflow = 'hidden';
+  saltarIntro();
+  mostrarPaso();
 }
 
 function cerrarPuerta(){
@@ -3335,14 +3370,14 @@ function elegirIntencion(k){
   mostrarPaso();
 }
 
-/** Un paso atrás. Desde el drill de departamentos vuelve a las dos tarjetas
- *  de lugar, y desde el primer paso, al menú. Es el botón que permite
- *  explorar sin miedo a quedarse encerrado en una rama. */
+/** Un paso atrás: del drill de departamentos a las dos tarjetas de lugar, y
+ *  del primer paso, al menú. Explorar sin quedar encerrado en una rama. */
 function atrasPaso(){
   if ((S.pt.pasos || [])[S.pt.idx] === 'lugar' && S.pt.lugarModo) {
     S.pt.lugarModo = null;
     return mostrarPaso();
   }
+  if (S.pt.soloLugar) { S.pt.soloLugar = false; return cerrarPuerta(); }
   // Desde el primer paso se vuelve al submenú por el que se entró, no a la
   // raíz: el botón deshace UN paso, no dos.
   if (!S.pt.idx) return abrirPuerta(false, (famDe((S.pt.i || {}).k) || {}).k);
@@ -3587,6 +3622,7 @@ const detDispo = () => (DISPO.find((d) => d.k === S.dispo) || {}).det || '';
 
 function elegirLugar(L){
   S.pt.l = L;
+  S.pt.soloLugar = false;
   siguientePaso();
 }
 
@@ -5644,6 +5680,11 @@ async function iniciar(){
 
   $('#q').addEventListener('input', (e) => { S.f.q = e.target.value; pintar(); });
   $('#zonas').addEventListener('click', async (e) => {
+    const ms = e.target.closest('#btn-mas');
+    if (ms) {
+      ms.setAttribute('aria-expanded', $('#zonas-mas').classList.toggle('abierta'));
+      return;
+    }
     const ac = e.target.closest('#tgl-acopios');
     if (ac) {
       S.verAcopios = !S.verAcopios;
@@ -5687,9 +5728,7 @@ async function iniciar(){
       return;
     }
     /* Lleva al mapa SIN intención: todas las capas y todos los filtros a la
-       vista. Bajó de la barra de arriba a esta fila, que es donde están las
-       demás decisiones sobre qué se ve en el mapa. Va DELEGADO porque
-       `pintarZonas` vuelve a crear el botón en cada repintado. */
+       vista. Va DELEGADO porque `pintarZonas` lo recrea en cada repintado. */
     if (e.target.closest('#btn-todo-mapa')) {
       cerrarTodo();
       S.pt = {i:EXPLORAR, l:null, pasos:[], idx:0};
@@ -5814,7 +5853,7 @@ async function iniciar(){
     if (mun) elegirLugar({dep, mun});
   });
   $('#ctx').addEventListener('click', (e) => {
-    if (e.target.closest('#ctx-cambiar')) return abrirPuerta();  // sin intro
+    if (e.target.closest('#ctx-cambiar')) return cambiarLugar();
     if (e.target.closest('#ctx-acc')) return accionContexto();
   });
 
