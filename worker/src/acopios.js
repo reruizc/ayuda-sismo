@@ -603,9 +603,39 @@ export async function aplicarOverlays(env, items) {
 const TOPE_ESPERA_HOJA_MS = 20000;
 const TOPE_TAMANO_HOJA = 8 * 1024 * 1024;
 
+export const GUARDA_ACOPIOS = {
+  minimoPublicable: 40,
+  fraccionDelAnterior: 0.5,
+  graciaAntesDeAceptarMs: 3 * 60 * 60 * 1000,
+};
+
+export async function copiaGuardada(env, id) {
+  try {
+    const row = await env.DB.prepare('SELECT datos FROM externos WHERE id = ?').bind(id).first();
+    return row?.datos ? JSON.parse(row.datos) : null;
+  } catch { return null; }
+}
+
+export function evaluarRefresco(traidos, publicadosAntes, umbrales, edadCopiaMs) {
+  const minimoExigido = publicadosAntes
+    ? Math.max(umbrales.minimoPublicable,
+               Math.ceil(publicadosAntes * umbrales.fraccionDelAnterior))
+    : 0;
+  if (traidos >= minimoExigido) return { conservar: false, aceptado_por_gracia: false };
+
+  const graciaVencida = traidos > 0 && edadCopiaMs > umbrales.graciaAntesDeAceptarMs;
+  return {
+    conservar: !graciaVencida,
+    aceptado_por_gracia: graciaVencida,
+    aviso: { traidos, minimo_exigido: minimoExigido, publicados_antes: publicadosAntes },
+  };
+}
+
 export async function refrescar(env, opciones = {}) {
   const url = env.ACOPIOS_CSV;
   if (!url) return null;
+
+  const guardado = await copiaGuardada(env, 'acopios');
 
   const r = await fetch(url, {
     headers: { 'User-Agent': 'MapaDeAyuda/1.0 (+https://reconstruyocolombia.com)' },
@@ -657,6 +687,14 @@ export async function refrescar(env, opciones = {}) {
     revisado: false,       // nadie los ha confirmado en terreno
     items,
   };
+  const guarda = evaluarRefresco(datos.total, guardado?.total || 0, GUARDA_ACOPIOS,
+                                 guardado?.generado ? Date.now() - guardado.generado : 0);
+  if (guarda.conservar) {
+    console.error('acopios: refresco descartado', JSON.stringify(guarda.aviso));
+    return { ...guardado, refresco_descartado: guarda.aviso };
+  }
+  if (guarda.aceptado_por_gracia) datos.encogimiento_aceptado = guarda.aviso;
+
   await env.DB.prepare(
     `INSERT INTO externos (id, ts, datos) VALUES ('acopios', ?, ?)
      ON CONFLICT(id) DO UPDATE SET ts = excluded.ts, datos = excluded.datos`
