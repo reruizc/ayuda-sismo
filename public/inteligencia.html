@@ -176,6 +176,10 @@ const DISC = {
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g,
   (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const urlSegura = (u) => {
+  const s = String(u == null ? '' : u).replace(/[\u0000-\u001F\u007F]/g, '').trim();
+  return /^https?:\/\//i.test(s) ? s : '';
+};
 const num = (n) => Number(n || 0).toLocaleString('es-CO');
 
 function hace(ts){
@@ -212,7 +216,9 @@ function render(d){
     <details>
       <summary>${esc(TEMAS[k] || k)} · ver titulares que lo sostienen</summary>
       ${arr.map((e) => `<div class="ej">
-        <a href="${esc(e.u)}" target="_blank" rel="noopener">${esc(e.t)}</a>
+        ${urlSegura(e.u)
+          ? `<a href="${esc(urlSegura(e.u))}" target="_blank" rel="noopener">${esc(e.t)}</a>`
+          : esc(e.t)}
         <div class="m">${esc(e.m)}</div></div>`).join('')}
     </details>`).join('');
 
