@@ -603,6 +603,23 @@ body.pt-raiz .pt-pie{margin-top:.6rem; padding-top:.55rem}
 .op-urg b{color:var(--rojo)}
 .op-sec{grid-column:1/-1; box-shadow:none; background:transparent; border-style:dashed;
   border-left-style:dashed; border-left-width:1px; margin-top:.2rem}
+.op:active{transform:translateY(0) scale(.99); box-shadow:var(--sombra)}
+.op[aria-busy="true"]{background:var(--papel); cursor:progress}
+.op[aria-busy="true"]:hover{transform:none; box-shadow:var(--sombra)}
+.op-txt .op-d.op-est{display:flex; align-items:center; gap:.42rem;
+  color:var(--tinta); font-weight:600}
+.cargando{width:15px; height:15px; flex:none; box-sizing:border-box; border-radius:50%;
+  border:2px solid var(--linea); border-top-color:var(--acc, var(--rojo));
+  animation:girar .8s linear infinite}
+@keyframes girar{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){
+  .cargando{animation:none; border-color:var(--acc, var(--rojo)); border-right-color:transparent}
+}
+#pt-est{font-size:.92rem; line-height:1.45; max-width:56ch}
+#pt-est:empty{margin:0}
+#pt-est.ubi-mal{color:var(--rojo); font-weight:600}
+#pt-gps-acciones{margin:.6rem 0 0}
+#pt-gps-acciones:empty{display:none}
 .credito{display:block; margin-top:.35rem; opacity:.85}
 .pt-pie{margin-top:1.3rem; padding-top:.9rem; border-top:1px solid var(--linea);
   font-size:1.15rem; color:var(--tenue); text-align:center; line-height:1.45}
@@ -817,7 +834,6 @@ if (/^#\/mi\//.test(location.hash) || /[?&]ir=/.test(location.search))
 
     <div id="pt-paso2" hidden>
       <div class="pt-elegido" id="pt-elegido"></div>
-      <p class="ubi-est" id="pt-est"></p>
       <h2 class="pt-nivel" id="pt-nivel">O elige un departamento</h2>
       <input type="text" class="buscador" id="pt-q" placeholder="Buscar…" autocomplete="off">
       <div class="mun-lista" id="pt-muns"></div>
@@ -831,6 +847,8 @@ if (/^#\/mi\//.test(location.hash) || /[?&]ir=/.test(location.search))
     <div id="pt-paso3" hidden>
       <div class="pt-elegido" id="pt-elegido3"></div>
       <div class="dispo" id="pt-dispo"></div>
+      <p class="ubi-est" id="pt-est" role="status" aria-live="polite"></p>
+      <div class="ubi-acc" id="pt-gps-acciones"></div>
       <button type="button" class="pt-volver" data-pt-atras>← Atrás</button>
     </div>
 
@@ -3508,6 +3526,7 @@ function preguntaDeLugar(I){
 
 function mostrarPaso(){
   armarHistorial();
+  reiniciarGps();
   const I = S.pt.i, paso = (S.pt.pasos || [])[S.pt.idx || 0];
   $('#pt-paso1').hidden = true;
   $('#pt-paso2').hidden = true;
@@ -3530,16 +3549,14 @@ function mostrarPaso(){
           style="--acc:${o.col};--tint:${o.tint}">
           <span class="op-img" aria-hidden="true">${o.ico}<img
             src="imagenes/${esc(o.img)}" alt="" loading="lazy" onerror="this.remove()"></span>
-          <span class="op-txt"><b>${esc(o.n)}</b><span>${esc(o.d)}</span></span>
+          <span class="op-txt"><b>${esc(o.n)}</b><span class="op-d">${esc(o.d)}</span></span>
         </button>`).join('');
-      $('#pt-est').textContent = '';
       return;
     }
     $('#pt-paso2').hidden = false;
     $('#pt-paso3').hidden = true;
     $('#pt-elegido').innerHTML = encabezadoPaso();
     $('#pt-q').value = '';
-    $('#pt-est').textContent = '';
     pintarNivel('');
     // El foco NO se pone en el buscador a propósito: en móvil abriría el
     // teclado encima de la lista, que es el camino más rápido.
@@ -3624,14 +3641,158 @@ function pintarNivel(q){
           ${esc(m[1])}</button>`).join('');
 }
 
-/** Ubica a la persona en el municipio cuyo centro le queda más cerca. */
-function ubicarme(){
-  if (!navigator.geolocation) {
-    $('#pt-est').textContent = 'Tu navegador no permite ubicación. Elige el municipio en la lista.';
+const GPS_LIMITE_NAVEGADOR_MS = 10000;
+const GPS_MARGEN_DE_GRACIA_MS = 2500;
+const GPS_LIMITE_BUSQUEDA_MS = GPS_LIMITE_NAVEGADOR_MS + GPS_MARGEN_DE_GRACIA_MS;
+const GPS_ESPERA_PERMISO_MS = 20000;
+const GPS_ESPERA_SIN_API_PERMISOS_MS = 1500;
+const GPS_EDAD_MAXIMA_MS = 60000;
+
+const GPS_PERMISO_NEGADO = 1;
+const GPS_SIN_SENAL = 2;
+const GPS_TIEMPO_AGOTADO = 3;
+const GPS_PERMISO_SIN_RESPUESTA = 'permiso-sin-respuesta';
+
+const GPS_FALLAS = {
+  [GPS_PERMISO_NEGADO]:{tarjeta:'No diste el permiso',
+     aviso:'Este navegador tiene bloqueada la ubicación. Actívala en el ícono que está '
+       + 'junto a la dirección de la página, o elige tu departamento acá abajo.',
+     reintento:'Ya la activé, intentar otra vez'},
+  [GPS_SIN_SENAL]:{tarjeta:'No se pudo calcular',
+     aviso:'Tu teléfono no logró calcular dónde estás. Revisa que la ubicación esté '
+       + 'encendida y vuelve a intentarlo, o elige tu departamento.',
+     reintento:'Intentar otra vez'},
+  [GPS_TIEMPO_AGOTADO]:{tarjeta:'El GPS no respondió',
+     aviso:'El GPS se demoró más de la cuenta. Sal a un lugar despejado y vuelve a '
+       + 'intentarlo, o elige tu departamento.',
+     reintento:'Intentar otra vez'},
+  [GPS_PERMISO_SIN_RESPUESTA]:{tarjeta:'Sin respuesta al permiso',
+     aviso:'No recibimos tu respuesta al permiso de ubicación. Vuelve a intentarlo y '
+       + 'toca "Permitir", o elige tu departamento.',
+     reintento:'Intentar otra vez'},
+};
+
+const GPS_ACCION_REINTENTAR = 'reintentar';
+const GPS_BOTON_ELEGIR_DEPARTAMENTO = {accion:'lista', texto:'Elegir un departamento'};
+
+let intentoGpsActual = 0;
+let temporizadoresGps = [];
+
+function cancelarTemporizadoresGps(){
+  temporizadoresGps.forEach(clearTimeout);
+  temporizadoresGps = [];
+}
+
+function programarTemporizadorGps(hacer, ms){ temporizadoresGps.push(setTimeout(hacer, ms)); }
+
+function cerrarIntentoGps(){
+  cancelarTemporizadoresGps();
+  intentoGpsActual++;
+}
+
+function descripcionInicialGps(){
+  return (OPCIONES_LUGAR.find((opcion) => opcion.k === 'gps') || {}).d || '';
+}
+
+function tarjetaOcupada(tarjeta){ return tarjeta.getAttribute('aria-disabled') === 'true'; }
+
+function pintarTarjetaGps(estado, cargando){
+  const tarjeta = $('#pt-dispo [data-lugar="gps"]');
+  if (!tarjeta) return;
+  if (cargando) {
+    tarjeta.setAttribute('aria-busy', 'true');
+    tarjeta.setAttribute('aria-disabled', 'true');
+  } else {
+    tarjeta.removeAttribute('aria-busy');
+    tarjeta.removeAttribute('aria-disabled');
+  }
+  const descripcion = tarjeta.querySelector('.op-d');
+  if (!descripcion) return;
+  if (!estado) {
+    descripcion.className = 'op-d';
+    descripcion.textContent = descripcionInicialGps();
     return;
   }
-  $('#pt-est').textContent = 'Buscando tu ubicación…';
+  descripcion.className = 'op-d op-est';
+  descripcion.innerHTML = (cargando ? '<span class="cargando" aria-hidden="true"></span>' : '')
+    + `<span>${esc(estado)}</span>`;
+}
+
+function pintarAvisoGps(texto, esFalla, acciones){
+  const aviso = $('#pt-est'), botones = $('#pt-gps-acciones');
+  if (!aviso || !botones) return;
+  aviso.className = esFalla ? 'ubi-est ubi-mal' : 'ubi-est';
+  aviso.textContent = texto || '';
+  botones.innerHTML = (acciones || []).map((boton) =>
+    `<button type="button" class="btn btn-sm" data-gps="${esc(boton.accion)}">${esc(boton.texto)}</button>`)
+    .join('');
+}
+
+function reiniciarGps(){
+  cerrarIntentoGps();
+  pintarAvisoGps('');
+}
+
+/** Ubica a la persona en el municipio cuyo centro le queda más cerca. */
+function ubicarme(){
+  cerrarIntentoGps();
+  const intento = intentoGpsActual;
+  const sigueVigente = () => intento === intentoGpsActual;
+
+  if (!navigator.geolocation) {
+    pintarTarjetaGps('Acá no se puede', false);
+    pintarAvisoGps('Este navegador no puede darnos tu ubicación. Elige tu departamento y seguimos.',
+      true, [GPS_BOTON_ELEGIR_DEPARTAMENTO]);
+    return;
+  }
+
+  let yaEstaBuscando = false;
+
+  const fallar = (codigo) => {
+    if (!sigueVigente()) return;
+    cerrarIntentoGps();
+    const nuncaRespondioElPermiso = codigo === GPS_TIEMPO_AGOTADO && !yaEstaBuscando;
+    const falla = nuncaRespondioElPermiso
+      ? GPS_FALLAS[GPS_PERMISO_SIN_RESPUESTA]
+      : (GPS_FALLAS[codigo] || GPS_FALLAS[GPS_SIN_SENAL]);
+    pintarTarjetaGps(falla.tarjeta, false);
+    pintarAvisoGps(falla.aviso, true,
+      [{accion:GPS_ACCION_REINTENTAR, texto:falla.reintento}, GPS_BOTON_ELEGIR_DEPARTAMENTO]);
+  };
+
+  const empezarBusqueda = () => {
+    if (!sigueVigente()) return;
+    yaEstaBuscando = true;
+    cancelarTemporizadoresGps();
+    pintarTarjetaGps('Buscando la señal…', true);
+    pintarAvisoGps('Buscando tu ubicación. Puede demorar unos segundos si estás bajo techo o con mala señal.');
+    programarTemporizadorGps(() => fallar(GPS_TIEMPO_AGOTADO), GPS_LIMITE_BUSQUEDA_MS);
+  };
+
+  pintarTarjetaGps('Esperando tu permiso…', true);
+  pintarAvisoGps('Tu navegador te va a preguntar si compartes la ubicación. Toca "Permitir".');
+  programarTemporizadorGps(() => {
+    if (!sigueVigente()) return;
+    pintarAvisoGps('Seguimos esperando el permiso. Si no ves el aviso del navegador, elige tu departamento.',
+      false, [GPS_BOTON_ELEGIR_DEPARTAMENTO]);
+  }, GPS_ESPERA_PERMISO_MS);
+
+  if (navigator.permissions && navigator.permissions.query) {
+    navigator.permissions.query({name:'geolocation'}).then((permiso) => {
+      if (!sigueVigente()) return;
+      if (permiso.state === 'granted') return empezarBusqueda();
+      if (permiso.state === 'denied') return fallar(GPS_PERMISO_NEGADO);
+      permiso.addEventListener('change', () => {
+        if (permiso.state === 'granted') empezarBusqueda();
+      }, {once:true});
+    }).catch(() => programarTemporizadorGps(empezarBusqueda, GPS_ESPERA_SIN_API_PERMISOS_MS));
+  } else {
+    programarTemporizadorGps(empezarBusqueda, GPS_ESPERA_SIN_API_PERMISOS_MS);
+  }
+
   navigator.geolocation.getCurrentPosition((p) => {
+    if (!sigueVigente()) return;
+    cerrarIntentoGps();
     const {latitude:la, longitude:lo} = p.coords;
     let mejor = null, dmin = Infinity;
     indiceMun().forEach((x) => {
@@ -3642,13 +3803,17 @@ function ubicarme(){
       const d = dy * dy + dx * dx;
       if (d < dmin) { dmin = d; mejor = x; }
     });
-    if (!mejor) { $('#pt-est').textContent = 'No pudimos ubicarte. Elige el municipio en la lista.'; return; }
+    if (!mejor) {
+      pintarTarjetaGps('Sin municipio cerca', false);
+      pintarAvisoGps('Te ubicamos, pero no dimos con un municipio cercano. Elige tu departamento.',
+        true, [GPS_BOTON_ELEGIR_DEPARTAMENTO]);
+      return;
+    }
     // Se guarda el punto EXACTO además del municipio: es lo que permite
     // ordenar por cercanía real y no por distancia al centro del pueblo.
     elegirLugar({dep:mejor.d, mun:mejor.m, punto:[la, lo]});
-  }, () => {
-    $('#pt-est').textContent = 'No pudimos obtener tu ubicación. Elige el municipio en la lista.';
-  }, {enableHighAccuracy:true, timeout:10000, maximumAge:60000});
+  }, (error) => fallar(error && error.code),
+     {enableHighAccuracy:true, timeout:GPS_LIMITE_NAVEGADOR_MS, maximumAge:GPS_EDAD_MAXIMA_MS});
 }
 
 /* Disponibilidad del voluntario. `dias` dice contra qué se compara la columna
@@ -5924,6 +6089,7 @@ async function iniciar(){
   $('#pt-dispo').addEventListener('click', (e) => {
     const lu = e.target.closest('[data-lugar]');
     if (lu) {
+      if (tarjetaOcupada(lu)) return;
       if (lu.dataset.lugar === 'gps') return ubicarme();
       if (lu.dataset.lugar === 'pais') return elegirLugar(null);   // sin filtro
       S.pt.lugarModo = 'lista'; S.pt.dep = null;
@@ -5938,6 +6104,13 @@ async function iniciar(){
       S.pt.resp[n] = op || null;
     } else S.dispo = b.dataset.d;
     siguientePaso();
+  });
+  $('#pt-gps-acciones').addEventListener('click', (evento) => {
+    const boton = evento.target.closest('[data-gps]'); if (!boton) return;
+    if (boton.dataset.gps === GPS_ACCION_REINTENTAR) return ubicarme();
+    reiniciarGps();
+    S.pt.lugarModo = 'lista'; S.pt.dep = null;
+    mostrarPaso();
   });
   $('#pt-muns').addEventListener('click', (e) => {
     const b = e.target.closest('[data-l]'); if (!b) return;
