@@ -39,6 +39,11 @@ import sys
 import urllib.request
 from pathlib import Path
 
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+
 LIBRO = '1dj1fNYuwGMW0zLit4I6w_5abJGxuGVZttwA1QMbvQts'
 GID = '0'
 UA = ('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 '
