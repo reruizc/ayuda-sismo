@@ -228,10 +228,29 @@ function consultas() {
   return out;
 }
 
+const MAX_CUERPO_FEED = 4_000_000;
+const MAX_BLOQUES_FEED = 600;
+const ABRE_ITEM = /<(item)[\s>]/g;
+const ABRE_ITEM_ENTRY = /<(item|entry)[\s>]/g;
+
+function bloquesDeFeed(xml, abre) {
+  const bloques = [];
+  abre.lastIndex = 0;
+  let m;
+  while (bloques.length < MAX_BLOQUES_FEED && (m = abre.exec(xml)) !== null) {
+    const cierre = xml.indexOf(`</${m[1]}>`, m.index);
+    if (cierre === -1) break;
+    const fin = cierre + m[1].length + 3;
+    bloques.push(xml.slice(m.index, fin));
+    abre.lastIndex = fin;
+  }
+  return bloques;
+}
+
 /** Parseo del RSS por expresiones regulares: en Workers no hay DOMParser. */
 function parsearRSS(xml) {
   const items = [];
-  const bloques = xml.match(/<item>[\s\S]*?<\/item>/g) || [];
+  const bloques = bloquesDeFeed(xml, ABRE_ITEM);
   for (const b of bloques) {
     const g = (re) => { const m = b.match(re); return m ? m[1] : ''; };
     const crudo = g(/<title>([\s\S]*?)<\/title>/);
@@ -251,7 +270,7 @@ function parsearRSS(xml) {
     items.push({
       titulo: limpio.trim(),
       medio: m || 'sin medio',
-      url: desescapar(link),
+      url: enlaceSeguro(desescapar(link)),
       ts: Number.isFinite(ts) ? ts : null,
     });
   }
@@ -269,15 +288,15 @@ function parsearRSS(xml) {
  */
 function parsearFeed(xml, medio, regional) {
   const items = [];
-  const bloques = xml.match(/<(?:item|entry)[\s>][\s\S]*?<\/(?:item|entry)>/g) || [];
+  const bloques = bloquesDeFeed(xml, ABRE_ITEM_ENTRY);
   for (const b of bloques) {
     const g = (re) => { const m = b.match(re); return m ? m[1] : ''; };
     const crudo = g(/<title[^>]*>([\s\S]*?)<\/title>/);
     if (!crudo) continue;
 
     // Atom pone la URL en un atributo; RSS, en el texto del nodo.
-    const link = desescapar(g(/<link[^>]*>([\s\S]*?)<\/link>/))
-      || g(/<link[^>]+href=["']([^"']+)["']/);
+    const link = enlaceSeguro(desescapar(g(/<link[^>]*>([\s\S]*?)<\/link>/))
+      || g(/<link[^>]+href=["']([^"']+)["']/));
 
     const fechaTxt = g(/<pubDate>([\s\S]*?)<\/pubDate>/)
       || g(/<updated>([\s\S]*?)<\/updated>/)
@@ -309,7 +328,8 @@ async function traerMedio(m) {
       redirect: 'follow',
       signal: AbortSignal.timeout(15000),
     });
-    const txt = await r.text();
+    const cuerpo = await r.text();
+    const txt = cuerpo.slice(0, MAX_CUERPO_FEED);
     const ok = r.ok && ES_FEED.test(txt);
     const todos = ok ? parsearFeed(txt, m.n, m.reg) : [];
     // El recorte temático se hace acá, no en el agregado: así el diagnóstico
@@ -318,8 +338,8 @@ async function traerMedio(m) {
     const items = todos.filter((it) => esDelSismo(it.titulo));
     return {
       id: m.id, ok, http: r.status, ms: Date.now() - t0,
-      n: items.length, del_feed: todos.length, bytes: txt.length,
-      muestra: ok ? undefined : txt.slice(0, 300),
+      n: items.length, del_feed: todos.length, bytes: cuerpo.length,
+      tipo: ok ? undefined : (r.headers.get('content-type') || 'sin tipo'),
       items,
     };
   } catch (e) {
@@ -329,6 +349,14 @@ async function traerMedio(m) {
       items: [],
     };
   }
+}
+
+function enlaceSeguro(crudo) {
+  const texto = String(crudo || '').trim();
+  if (!texto) return '';
+  try {
+    return new URL(texto).protocol === 'https:' ? texto : '';
+  } catch { return ''; }
 }
 
 function desescapar(s) {
@@ -358,7 +386,8 @@ async function unIntento(c) {
       // dejar ni siquiera constancia de que corrió. Pasó, y por eso está.
       signal: AbortSignal.timeout(15000),
     });
-    const txt = await r.text();
+    const cuerpo = await r.text();
+    const txt = cuerpo.slice(0, MAX_CUERPO_FEED);
     // ⚠️ "Fallida" es que la petición no sirvió, NO que no haya noticias. Una
     // consulta por un municipio pequeño puede devolver un feed legítimo y
     // vacío; tratarlo como fallo dispararía reintentos inútiles y podría
@@ -367,10 +396,8 @@ async function unIntento(c) {
     const items = ok ? parsearRSS(txt) : [];
     return {
       ok, http: r.status, ms: Date.now() - t0,
-      n: items.length, bytes: txt.length,
-      // Solo cuando algo salió mal: si el cuerpo no es RSS, los primeros
-      // caracteres suelen decir exactamente qué respondió el otro lado.
-      muestra: ok ? undefined : txt.slice(0, 300),
+      n: items.length, bytes: cuerpo.length,
+      tipo: ok ? undefined : (r.headers.get('content-type') || 'sin tipo'),
       items,
     };
   } catch (e) {
@@ -659,6 +686,8 @@ const CIFRAS = {
 // cifra de víctimas. Se exige el patrón de miles de 3 dígitos.
 const NUM = /(\d{1,3}(?:\.\d{3})+|\d{1,3}(?:,\d{3})+|\d{2,6})/g;
 
+const MAX_CANDIDATOS_CIFRA = 5000;
+
 /**
  * Normalización PROPIA del extractor de cifras: minúsculas y sin tildes, pero
  * CONSERVANDO la puntuación.
@@ -697,7 +726,7 @@ function extraerCifras(notas) {
     for (const [k, def] of Object.entries(CIFRAS)) {
       def.rx.lastIndex = 0;
       let m;
-      while ((m = def.rx.exec(t)) !== null) {
+      while (cand[k].length < MAX_CANDIDATOS_CIFRA && (m = def.rx.exec(t)) !== null) {
         const v = Number(m[1].replace(/[.,]/g, ''));
         if (!Number.isFinite(v) || v < 2 || v > def.max) continue;
         cand[k].push({ v, ts: n.ts, medio: n.medio, url: n.url, tit: n.titulo });
@@ -712,7 +741,7 @@ function extraerCifras(notas) {
 
     // Ventana de 24 h desde la nota más reciente: una cifra de hace tres días
     // ya no la sostiene nadie y solo ensancharía el rango.
-    const ultimo = Math.max(...lista.map((x) => x.ts));
+    const ultimo = lista.reduce((mayor, x) => (x.ts > mayor ? x.ts : mayor), -Infinity);
     const ventana = lista.filter((x) => ultimo - x.ts < 86400000);
 
     // Se agrupa por valor y se cuentan MEDIOS DISTINTOS, no notas: un mismo
@@ -766,6 +795,8 @@ Reglas duras:
 - No uses vocativos ni empieces con "En resumen".
 Devuelve solo el párrafo, sin comillas ni encabezado.`;
 
+const MAX_LECTURA = 1200;
+
 export async function lecturaAutomatica(env, ag) {
   if (!env.DEEPSEEK_API_KEY) return null;
   const resumen = {
@@ -803,13 +834,32 @@ export async function lecturaAutomatica(env, ag) {
     if (!r.ok) return null;
     const d = await r.json();
     const txt = (d.choices?.[0]?.message?.content || '').trim();
-    return txt ? txt.replace(/^["“]|["”]$/g, '') : null;
+    if (!txt || txt.length > MAX_LECTURA || /[<>]/.test(txt)) return null;
+    return txt.replace(/^["“]|["”]$/g, '');
   } catch {
     return null;   // la página se publica igual, sin el párrafo
   }
 }
 
 /* ─────────────────────────── orquestación ─────────────────────────── */
+
+const MAX_DETALLE_BITACORA = 20000;
+
+function detalleParaBitacora(detalle) {
+  if (!detalle) return null;
+  const completo = JSON.stringify(detalle);
+  if (completo.length <= MAX_DETALLE_BITACORA) return completo;
+
+  const soloFallidos = Array.isArray(detalle.medios)
+    ? detalle.medios.filter((d) => !d.ok)
+      .map((d) => ({ id: d.id, http: d.http, err: String(d.err || '').slice(0, 200) }))
+    : undefined;
+  const recortado = JSON.stringify({
+    razon: detalle.razon, medios: soloFallidos, recortado: true,
+  });
+  return recortado.length <= MAX_DETALLE_BITACORA ? recortado
+    : JSON.stringify({ razon: String(detalle.razon || '').slice(0, 500), recortado: true });
+}
 
 /**
  * Deja constancia de una corrida, salga bien o mal.
@@ -831,7 +881,7 @@ export async function anotarCorrida(env, fila) {
       Date.now(), fila.tarea, fila.origen || 'desconocido',
       fila.ok ? 1 : 0, fila.publicado ? 1 : 0,
       fila.ms ?? null, fila.notas ?? null, fila.medios ?? null,
-      fila.detalle ? JSON.stringify(fila.detalle).slice(0, 20000) : null
+      detalleParaBitacora(fila.detalle)
     ).run();
     // Se retienen ~30 días de corridas: es una bitácora de operación, no un
     // archivo histórico, y la base es la misma que sirve el mapa.
@@ -946,7 +996,7 @@ export async function recolectar(env, opciones = {}) {
   const ag = agregar(notas);
   ag.cifras = extraerCifras(notas);
   ag.lectura = await lecturaAutomatica(env, ag);
-  ag.lectura_automatica = true;
+  ag.lectura_automatica = ag.lectura != null;
   // Va DENTRO del agregado que consume la página: cuántos medios respondieron.
   // Una corrida a medias tiene que poder verse desde afuera.
   ag.recoleccion = {
