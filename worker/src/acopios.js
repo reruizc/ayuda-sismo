@@ -52,7 +52,7 @@ export const claveDe = (nombre, municipio) => `${norm(nombre)}|${norm(municipio)
  */
 export function parsearCSV(txt) {
   const filas = [];
-  let fila = [], campo = '', enComillas = false;
+  let fila = [], campo = '', enComillas = false, campoEnBlanco = true;
   const s = txt.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
   for (let i = 0; i < s.length; i++) {
@@ -62,10 +62,10 @@ export function parsearCSV(txt) {
         if (s[i + 1] === '"') { campo += '"'; i++; }   // comilla escapada
         else enComillas = false;
       } else campo += c;
-    } else if (c === '"') enComillas = true;
-    else if (c === ',') { fila.push(campo); campo = ''; }
-    else if (c === '\n') { fila.push(campo); filas.push(fila); fila = []; campo = ''; }
-    else campo += c;
+    } else if (c === '"' && campoEnBlanco) { enComillas = true; campoEnBlanco = false; campo = ''; }
+    else if (c === ',') { fila.push(campo); campo = ''; campoEnBlanco = true; }
+    else if (c === '\n') { fila.push(campo); filas.push(fila); fila = []; campo = ''; campoEnBlanco = true; }
+    else { campo += c; if (c !== ' ') campoEnBlanco = false; }
   }
   if (campo !== '' || fila.length) { fila.push(campo); filas.push(fila); }
   return filas;
@@ -156,6 +156,8 @@ const ESTADO_OCULTA = new Set(['cerrado', 'cerrada', 'descartado', 'descartada',
   'duplicado', 'duplicada', 'no aplica', 'no existe', 'eliminado', 'eliminada']);
 
 const BBOX = { latMin: -4.3, latMax: 13.6, lonMin: -82.0, lonMax: -66.8 };
+const enColombia = (la, lo) => Number.isFinite(la) && Number.isFinite(lo)
+  && la >= BBOX.latMin && la <= BBOX.latMax && lo >= BBOX.lonMin && lo <= BBOX.lonMax;
 
 /**
  * Lee una coordenada de la hoja, aunque venga con el punto donde no va.
@@ -204,6 +206,31 @@ export function coordenada(txt, cual) {
   return validos.length === 1 ? validos[0] : null;
 }
 
+function ubicacionDe(latCruda, lonCruda, muni, depto) {
+  let la = coordenada(latCruda, 'lat');
+  let lo = coordenada(lonCruda, 'lon');
+  let aprox = false;
+  let dep = depto;
+
+  if (la == null || lo == null) {
+    const c = CENTRO.get(norm(muni));
+    if (c) { la = c[2]; lo = c[3]; aprox = true; if (!dep) dep = c[1]; }
+    else {
+      /* ⚠️ `CENTRO` sale de `municipios.js`, que solo trae 118 nombres —los
+         que el detector de prensa vigila—. Mosquera, Popayán e Ibagué no
+         están, y sus acopios quedaban INVISIBLES: ni coordenada propia ni
+         centro, o sea fuera del mapa sin que nada lo dijera. `centros.js`
+         tiene los 1.125 del país y solo se usa para ubicar. */
+      const t = centroDe(muni, depto);
+      if (t) { la = t[1]; lo = t[2]; aprox = true; if (!dep) dep = t[0]; }
+      else { la = null; lo = null; }
+    }
+  }
+  // Un punto fuera de Colombia es un error de digitación, no una ubicación.
+  if (!enColombia(la, lo)) { la = null; lo = null; }
+  return { la, lo, aprox, dep };
+}
+
 /** Una hora suelta: "18:00", "9:00 AM", "3PM". Sin palabras alrededor. */
 const SOLO_HORA = /^\d{1,2}(?:[:.]\d{2})?\s*(?:a\.?\s*m|p\.?\s*m)?\.?$/i;
 const aMinutos = (t) => {
@@ -247,11 +274,12 @@ export function horarioDeHoja(abre, cierra, hoy = hoyBogota()) {
 }
 
 export function normalizarFilas(filas) {
-  if (!filas.length) return { items: [], sin_ubicar: 0 };
+  if (!filas.length) return { items: [], sin_ubicar: 0, retirados: [] };
   const ix = indices(filas[0]);
-  if (ix.nombre < 0) return { items: [], sin_ubicar: 0, error: 'sin_columna_nombre' };
+  if (ix.nombre < 0) return { items: [], sin_ubicar: 0, retirados: [], error: 'sin_columna_nombre' };
 
   const items = [];
+  const retirados = [];
   let sinUbicar = 0;
   let ocultos = 0;
   let vencidos = 0;
@@ -265,33 +293,17 @@ export function normalizarFilas(filas) {
 
     // Lo que alguien ya revisó y descartó no vuelve al mapa. Se cuenta, para
     // que se pueda ver desde afuera cuántos se están ocultando.
-    if (ESTADO_OCULTA.has(norm(g(f, ix.estado)).replace(/[_-]/g, ' '))) { ocultos++; continue; }
+    if (ESTADO_OCULTA.has(norm(g(f, ix.estado)).replace(/[_-]/g, ' '))) {
+      const u = ubicacionDe(g(f, ix.lat), g(f, ix.lon), g(f, ix.municipio), g(f, ix.depto));
+      retirados.push({ nombre, lat: u.la, lon: u.lo });
+      ocultos++;
+      continue;
+    }
 
     const muni = g(f, ix.municipio);
-    let la = coordenada(g(f, ix.lat), 'lat');
-    let lo = coordenada(g(f, ix.lon), 'lon');
-    let aprox = false;
-    let dep = g(f, ix.depto);
-
-    if (la == null || lo == null) {
-      const c = CENTRO.get(norm(muni));
-      if (c) { la = c[2]; lo = c[3]; aprox = true; if (!dep) dep = c[1]; }
-      else {
-        /* ⚠️ `CENTRO` sale de `municipios.js`, que solo trae 118 nombres —los
-           que el detector de prensa vigila—. Mosquera, Popayán e Ibagué no
-           están, y sus acopios quedaban INVISIBLES: ni coordenada propia ni
-           centro, o sea fuera del mapa sin que nada lo dijera. `centros.js`
-           tiene los 1.125 del país y solo se usa para ubicar. */
-        const t = centroDe(muni, dep);
-        if (t) { la = t[1]; lo = t[2]; aprox = true; if (!dep) dep = t[0]; }
-        else { la = null; lo = null; sinUbicar++; }
-      }
-    }
-    // Un punto fuera de Colombia es un error de digitación, no una ubicación.
-    if (la != null && (la < BBOX.latMin || la > BBOX.latMax ||
-                       lo < BBOX.lonMin || lo > BBOX.lonMax)) {
-      la = null; lo = null; sinUbicar++;
-    }
+    const { la, lo, aprox, dep } =
+      ubicacionDe(g(f, ix.lat), g(f, ix.lon), muni, g(f, ix.depto));
+    if (la == null) sinUbicar++;
 
     const { h, av, av_fecha, abre, cierra } = horarioDeHoja(g(f, ix.abre), g(f, ix.cierra), hoy);
     if (av) vencidos++;
@@ -343,13 +355,15 @@ export function normalizarFilas(filas) {
       ap: aprox ? 1 : 0,     // ubicación al centro del municipio, no exacta
     });
   }
-  return { items, sin_ubicar: sinUbicar, ocultos, vencidos };
+  return { items, sin_ubicar: sinUbicar, ocultos, vencidos, retirados,
+           columnas_ausentes: Object.keys(ix).filter((k) => ix[k] < 0) };
 }
 
 /* ─────────────────────────── geocodificación ─────────────────────────── */
 
 const NOMINATIM = 'https://nominatim.openstreetmap.org/search';
 const UA_GEO = 'MapaDeAyudaSismo/1.0 (contacto: hola@ricardoruiz.co)';
+const TOPE_ESPERA_GEO_MS = 10000;
 
 // Un resultado a más de 30 km del centro del municipio es otro sitio con el
 // mismo nombre en otra ciudad. Bogotá mide ~40 km de norte a sur, así que el
@@ -377,7 +391,10 @@ function km(la1, lo1, la2, lo2) {
 export async function geocodificarNombre(nombre, municipio, centro) {
   const q = [nombre, municipio, 'Colombia'].filter(Boolean).join(', ');
   const url = `${NOMINATIM}?q=${encodeURIComponent(q)}&format=json&countrycodes=co&limit=1`;
-  const r = await fetch(url, { headers: { 'User-Agent': UA_GEO } });
+  const r = await fetch(url, {
+    headers: { 'User-Agent': UA_GEO },
+    signal: AbortSignal.timeout(TOPE_ESPERA_GEO_MS),
+  });
   if (!r.ok) throw new Error(`nominatim http ${r.status}`);
   const d = await r.json();
   if (!Array.isArray(d) || !d.length) return null;
@@ -450,7 +467,7 @@ async function geocodificarPendientes(env, items, max) {
 
     if (fila) {
       // lat NULL = ya se buscó y no se encontró. No se vuelve a preguntar.
-      if (fila.lat != null) {
+      if (fila.lat != null && enColombia(fila.lat, fila.lon)) {
         a.la = fila.lat; a.lo = fila.lon; a.ap = 0; a.geo = fila.fuente || 'osm';
       }
       continue;
@@ -517,7 +534,7 @@ const CAMPOS_OVERLAY = ['d', 'ne', 'ab', 'ci', 'di', 'tel', 'c', 'rev', 'tipo', 
  * fila desaparece un rato, el overlay tiene que sobrevivir.
  */
 export async function aplicarOverlays(env, items) {
-  const res = { aplicados: 0, cerrados: 0, huerfanos: 0 };
+  const res = { aplicados: 0, cerrados: 0, huerfanos: 0, retirados: [] };
   let filas = [];
   try {
     const r = await env.DB.prepare('SELECT clave, campos FROM acopio_overlay').all();
@@ -533,7 +550,12 @@ export async function aplicarOverlays(env, items) {
 
   const porClave = new Map();
   for (const f of filas) {
-    try { porClave.set(f.clave, JSON.parse(f.campos) || {}); } catch { /* fila rota */ }
+    try {
+      const campos = JSON.parse(f.campos);
+      if (campos && typeof campos === 'object' && !Array.isArray(campos)) {
+        porClave.set(f.clave, campos);
+      }
+    } catch { /* fila rota */ }
   }
 
   const vistos = new Set();
@@ -547,7 +569,10 @@ export async function aplicarOverlays(env, items) {
 
     // Cerrado: sale del mapa entero. No basta con marcarlo — quien mira el
     // mapa a las 6 a.m. no lee etiquetas, ve un pin y arranca para allá.
-    if (ov.cerrado) { items.splice(i, 1); res.cerrados++; continue; }
+    if (ov.cerrado) {
+      res.retirados.push({ nombre: a.n, lat: a.la, lon: a.lo });
+      items.splice(i, 1); res.cerrados++; continue;
+    }
 
     let cambio = false;
     const iguales = [];
@@ -588,27 +613,64 @@ export async function aplicarOverlays(env, items) {
   return res;
 }
 
+const TOPE_ESPERA_HOJA_MS = 20000;
+const TOPE_TAMANO_HOJA = 8 * 1024 * 1024;
+
+export const GUARDA_ACOPIOS = {
+  minimoPublicable: 40,
+  fraccionDelAnterior: 0.5,
+  graciaAntesDeAceptarMs: 3 * 60 * 60 * 1000,
+};
+
+export async function copiaGuardada(env, id) {
+  try {
+    const row = await env.DB.prepare('SELECT datos FROM externos WHERE id = ?').bind(id).first();
+    return row?.datos ? JSON.parse(row.datos) : null;
+  } catch { return null; }
+}
+
+export function evaluarRefresco(traidos, publicadosAntes, umbrales, edadCopiaMs) {
+  const minimoExigido = publicadosAntes
+    ? Math.max(umbrales.minimoPublicable,
+               Math.ceil(publicadosAntes * umbrales.fraccionDelAnterior))
+    : 0;
+  if (traidos >= minimoExigido) return { conservar: false, aceptado_por_gracia: false };
+
+  const graciaVencida = traidos > 0 && edadCopiaMs > umbrales.graciaAntesDeAceptarMs;
+  return {
+    conservar: !graciaVencida,
+    aceptado_por_gracia: graciaVencida,
+    aviso: { traidos, minimo_exigido: minimoExigido, publicados_antes: publicadosAntes },
+  };
+}
+
 export async function refrescar(env, opciones = {}) {
   const url = env.ACOPIOS_CSV;
   if (!url) return null;
 
+  const guardado = await copiaGuardada(env, 'acopios');
+
   const r = await fetch(url, {
     headers: { 'User-Agent': 'MapaDeAyuda/1.0 (+https://reconstruyocolombia.com)' },
     redirect: 'follow',
+    signal: AbortSignal.timeout(TOPE_ESPERA_HOJA_MS),
   });
   if (!r.ok) throw new Error(`hoja http ${r.status}`);
   const txt = await r.text();
+  if (txt.length > TOPE_TAMANO_HOJA) throw new Error(`hoja demasiado grande: ${txt.length}`);
 
   // Si Google devuelve una página de login o de error, llega HTML y no CSV.
   // Guardar eso pisaría la última copia buena con basura.
   if (/^\s*<(!doctype|html)/i.test(txt)) throw new Error('la hoja no es pública');
 
-  const { items, sin_ubicar, ocultos, vencidos, error } = normalizarFilas(parsearCSV(txt));
+  const { items, sin_ubicar, ocultos, vencidos, retirados, columnas_ausentes, error } =
+    normalizarFilas(parsearCSV(txt));
   if (error) throw new Error(error);
 
   // Las correcciones aprobadas van ANTES de geocodificar: si una corrigió la
   // dirección, el geocodificador tiene que ver la buena.
   const overlays = await aplicarOverlays(env, items);
+  retirados.push(...overlays.retirados);
 
   // La caché se aplica siempre (es instantánea); las búsquedas nuevas solo
   // cuando quien llama las pide, porque cuestan ~1 s cada una.
@@ -629,6 +691,7 @@ export async function refrescar(env, opciones = {}) {
     // Horarios con fecha ya pasada que dejaron de publicarse como vigentes.
     // Se publica el conteo: si sube, hay acopios cuyo dato quedó congelado.
     horarios_vencidos: vencidos || 0,
+    columnas_ausentes: columnas_ausentes || [],
     con_punto_propio: items.filter((i) => !i.ap && i.la != null).length,
     // Con sello real de verificación (VERIFICADO = si), no con la fecha de carga.
     verificados: items.filter((i) => i.rev).length,
@@ -636,8 +699,17 @@ export async function refrescar(env, opciones = {}) {
     corregidos: overlays.aplicados,
     cerrados: overlays.cerrados,
     revisado: false,       // nadie los ha confirmado en terreno
+    retirados,
     items,
   };
+  const guarda = evaluarRefresco(datos.total, guardado?.total || 0, GUARDA_ACOPIOS,
+                                 guardado?.generado ? Date.now() - guardado.generado : 0);
+  if (guarda.conservar) {
+    console.error('acopios: refresco descartado', JSON.stringify(guarda.aviso));
+    return { ...guardado, refresco_descartado: guarda.aviso };
+  }
+  if (guarda.aceptado_por_gracia) datos.encogimiento_aceptado = guarda.aviso;
+
   await env.DB.prepare(
     `INSERT INTO externos (id, ts, datos) VALUES ('acopios', ?, ?)
      ON CONFLICT(id) DO UPDATE SET ts = excluded.ts, datos = excluded.datos`

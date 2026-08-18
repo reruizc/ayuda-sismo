@@ -104,17 +104,35 @@ export function fechaCorta(f) {
 /**
  * Fecha de la hoja a ISO.
  *
- * Google exporta `8/14/2026` (mes primero). Cuando el primer número pasa de 12
- * no puede ser un mes, así que se invierte: `14/8/2026` también entra.
+ * Google exporta `8/14/2026` (mes primero) y a veces el número de serie de la
+ * hoja. Lo que no se lea como fecha cierta no se publica: `13/8/2026` sale vacío.
  */
+const EPOCA_SHEETS = Date.UTC(1899, 11, 30);
+const DIA_MS = 86400000;
+const ANIO_MIN = 2000;
+const ANIO_MAX = 2100;
+
+const armarISO = (a, m, d) => {
+  if (!(a >= ANIO_MIN && a <= ANIO_MAX)) return '';
+  const t = new Date(Date.UTC(a, m - 1, d));
+  if (t.getUTCFullYear() !== a || t.getUTCMonth() !== m - 1 || t.getUTCDate() !== d) return '';
+  return `${a}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+};
+
 export function fechaISO(txt) {
-  const s = String(txt || '').trim();
-  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
-  if (m) return `${m[1]}-${String(+m[2]).padStart(2, '0')}-${String(+m[3]).padStart(2, '0')}`;
-  m = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
-  if (!m) return '';
-  let mes = +m[1], dia = +m[2];
-  if (mes > 12) { const t = mes; mes = dia; dia = t; }
-  if (mes < 1 || mes > 12 || dia < 1 || dia > 31) return '';
-  return `${m[3]}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+  const s = String(txt ?? '').replace(/\s+/g, ' ').trim();
+  if (!s) return '';
+
+  const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(s);
+  if (iso) return armarISO(+iso[1], +iso[2], +iso[3]);
+
+  const mesPrimero = /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/.exec(s);
+  if (mesPrimero) return armarISO(+mesPrimero[3], +mesPrimero[1], +mesPrimero[2]);
+
+  if (/^\d+(?:\.\d+)?$/.test(s)) {
+    const f = new Date(EPOCA_SHEETS + Math.floor(Number(s)) * DIA_MS);
+    if (!Number.isFinite(f.getTime())) return '';
+    return armarISO(f.getUTCFullYear(), f.getUTCMonth() + 1, f.getUTCDate());
+  }
+  return '';
 }
