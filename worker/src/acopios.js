@@ -486,6 +486,147 @@ async function geocodificarPendientes(env, items, max) {
   return usados;
 }
 
+const DECIMALES_MINIMOS_DE_DIRECCION = 3;
+const RANGO_MINIMO_DE_SITIO = 30;
+const TIMEOUT_GEO_MS = 15000;
+const MAX_DIRECCIONES_POR_CORRIDA = 8;
+
+const ABREVIATURAS_DE_VIA = [
+  [/\b(kr|kra|cra|cr)\b/g, 'carrera'],
+  [/\b(cll|cl|clle)\b/g, 'calle'],
+  [/\b(av|avda|avd)\b/g, 'avenida'],
+  [/\b(dg|diag)\b/g, 'diagonal'],
+  [/\b(tv|trv|trans)\b/g, 'transversal'],
+];
+const VIA_Y_NUMERO = /\b(calle|carrera|avenida|diagonal|transversal|circular|autopista)\s+([0-9]+[a-z]?)/;
+const PLACA = /\b([0-9]+[a-z]?)\s*-\s*[0-9]+/;
+
+function decimalesDe(n) {
+  const s = String(n);
+  const p = s.indexOf('.');
+  return p < 0 ? 0 : s.length - p - 1;
+}
+
+export function coordenadaDeRelleno(la, lo) {
+  if (!Number.isFinite(la) || !Number.isFinite(lo)) return true;
+  return decimalesDe(la) < DECIMALES_MINIMOS_DE_DIRECCION
+    || decimalesDe(lo) < DECIMALES_MINIMOS_DE_DIRECCION;
+}
+
+function enLetra(texto) {
+  let s = norm(texto).replace(/[#.,]/g, ' ');
+  for (const [abreviatura, via] of ABREVIATURAS_DE_VIA) s = s.replace(abreviatura, via);
+  return s.replace(/\s+/g, ' ').trim();
+}
+
+function cruceDe(texto) {
+  const m = enLetra(texto).match(PLACA);
+  return m ? m[1] : '';
+}
+
+export function direccionColombiana(texto) {
+  const s = enLetra(texto);
+  const v = s.match(VIA_Y_NUMERO);
+  if (!v) return null;
+  return { via: `${v[1]} ${v[2]}`, cruce: cruceDe(s.slice(v.index + v[0].length)) };
+}
+
+const municipioOsm = (d) => d.city || d.town || d.municipality || d.county || '';
+
+export async function geocodificarNombreConfirmandoDireccion(nombre, municipio, direccion, centro) {
+  const dir = direccionColombiana(direccion);
+  if (!dir || !centro || !nombre) return null;
+
+  const q = [nombre, municipio, 'Colombia'].filter(Boolean).join(', ');
+  const url = `${NOMINATIM}?q=${encodeURIComponent(q)}`
+    + '&format=jsonv2&addressdetails=1&countrycodes=co&limit=1';
+  const r = await fetch(url, {
+    headers: { 'User-Agent': UA_GEO },
+    signal: AbortSignal.timeout(TIMEOUT_GEO_MS),
+  });
+  if (!r.ok) throw new Error(`nominatim http ${r.status}`);
+  const d = await r.json();
+  if (!Array.isArray(d) || !d.length) return null;
+
+  const s = d[0];
+  const la = Number(s.lat), lo = Number(s.lon);
+  if (coordenadaDeRelleno(la, lo)) return null;
+  if (!(Number(s.place_rank) >= RANGO_MINIMO_DE_SITIO)) return null;
+  if (km(centro[0], centro[1], la, lo) > MAX_KM_DEL_CENTRO) return null;
+
+  const osm = s.address || {};
+  if (norm(osm.country_code) !== 'co') return null;
+  if (!norm(municipioOsm(osm)).includes(norm(municipio))) return null;
+
+  const viaOsm = direccionColombiana(osm.road || '');
+  if (!viaOsm || viaOsm.via !== dir.via) return null;
+  const cruceOsm = cruceDe(osm.house_number || '');
+  if (cruceOsm && dir.cruce && cruceOsm !== dir.cruce) return null;
+
+  return {
+    la, lo, tipo: s.type || '',
+    localidad: osm.suburb || osm.city_district || osm.borough || '',
+  };
+}
+
+export async function conCoordenadaConfiable(env, items, max = MAX_DIRECCIONES_POR_CORRIDA) {
+  const cache = new Map();
+  try {
+    const r = await env.DB.prepare('SELECT clave, lat, lon, fuente FROM geocache').all();
+    for (const f of r.results || []) cache.set(f.clave, f);
+  } catch (e) {
+    console.error('geocache ilegible', e && e.message);
+  }
+
+  let usados = 0;
+  const publicables = [];
+  for (const a of items) {
+    if (!coordenadaDeRelleno(a.la, a.lo)) { publicables.push(a); continue; }
+    a.la = null; a.lo = null;
+    if (!a.n || !a.d) continue;
+
+    const clave = a.k || claveDe(a.n, a.mu);
+    const fila = cache.get(clave);
+    if (fila) {
+      if (fila.lat != null) {
+        a.la = fila.lat; a.lo = fila.lon; a.ap = 0; a.geo = fila.fuente || 'osm';
+        publicables.push(a);
+      }
+      continue;
+    }
+    if (usados >= max) continue;
+    usados++;
+
+    const centro = CENTRO.get(norm(a.mu));
+    let hallazgo = null;
+    try {
+      hallazgo = await geocodificarNombreConfirmandoDireccion(
+        a.n, a.mu, a.d, centro ? [centro[2], centro[3]] : null);
+    } catch (e) {
+      console.error('geocode por dirección falló', a.n, e && e.message);
+      continue;
+    }
+
+    try {
+      await env.DB.prepare(
+        'INSERT OR REPLACE INTO geocache (clave, lat, lon, fuente, ts) VALUES (?,?,?,?,?)'
+      ).bind(clave, hallazgo ? hallazgo.la : null, hallazgo ? hallazgo.lo : null,
+             hallazgo ? `osm:${hallazgo.tipo}` : null, Date.now()).run();
+    } catch {}
+    cache.set(clave, {
+      clave, lat: hallazgo ? hallazgo.la : null, lon: hallazgo ? hallazgo.lo : null,
+      fuente: hallazgo ? `osm:${hallazgo.tipo}` : null,
+    });
+
+    if (hallazgo) {
+      a.la = hallazgo.la; a.lo = hallazgo.lo; a.ap = 0; a.geo = `osm:${hallazgo.tipo}`;
+      publicables.push(a);
+    }
+    if (usados < max) await new Promise((r) => setTimeout(r, 1100));
+  }
+  return publicables;
+}
+
 /* ───────────────────── correcciones aprobadas (overlay) ───────────────────── */
 
 /**

@@ -22,7 +22,7 @@
  * ⚠️ Se lee con permiso: ellos propusieron integrar sus datos con los nuestros.
  * Si esa conversación cambia, se apaga quitando `REDACOPIO_URL` del entorno.
  */
-import { norm } from './acopios.js';
+import { norm, conCoordenadaConfiable } from './acopios.js';
 import { vencido, fechaTope, fechaCorta, hoyBogota } from './fechas.js';
 
 const UA = 'MapaDeAyuda/1.0 (+https://reconstruyocolombia.com; hola@ricardoruiz.co)';
@@ -220,7 +220,7 @@ export async function refrescar(env) {
     throw new Error(`parseo sospechoso: ${crudos.length} registros (antes ${antes})`);
   }
 
-  const items = crudos.map(aNuestraForma).filter((x) => x.la != null);
+  const items = await conCoordenadaConfiable(env, crudos.map(aNuestraForma));
   const datos = {
     generado: Date.now(),
     total: items.length,
