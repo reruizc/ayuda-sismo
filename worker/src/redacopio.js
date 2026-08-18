@@ -135,9 +135,20 @@ export function horarioDe(txt, hoy = hoyBogota()) {
            tel: tel ? tel[1] : '' };
 }
 
+/**
+ * ⚠️⚠️ Su campo `needs` NO es una lista de textos: cada elemento es un objeto
+ * `{lvl:'urgente', item:'Agua potable'}`. Medido sobre sus 103 registros: los
+ * 103 vienen así. Con `join(', ')` eso produce literalmente "[object Object],
+ * [object Object]" — y estuvo publicado en 26 fichas, bajo el rótulo "Recibe",
+ * que es justo el dato por el que un donante abre la ficha.
+ * Hallazgo de Santiago (PR #16).
+ */
+const textoNecesidad = (n) => (typeof n === 'string' ? n
+  : (n && typeof n === 'object' ? String(n.item ?? '') : '')).trim();
+
 /** Un registro suyo, en la forma que ya entiende el frontend de acopios. */
 function aNuestraForma(o) {
-  const needs = Array.isArray(o.needs) ? o.needs.filter(Boolean) : [];
+  const needs = Array.isArray(o.needs) ? o.needs.map(textoNecesidad).filter(Boolean) : [];
   const vol = o.vol && typeof o.vol === 'object' ? o.vol : null;
   const c = o.contact && typeof o.contact === 'object' ? o.contact : {};
   const hor = horarioDe(o.hours);
@@ -173,6 +184,11 @@ function aNuestraForma(o) {
     ap: 0,                              // ellos sí traen coordenada del sitio
     // Lo que ellos aportan y nuestra hoja no tiene.
     estado: estadoDe(o),
+    /* ⚠️ Sin esto el sello de estado sale sin decir de dónde viene: `estado_fuente`
+       solo se ponía en la rama de fusión, o sea en NUESTROS puntos enriquecidos,
+       nunca en los suyos. Medido: 46 de 47 puntos de RedAcopio no lo mencionaban
+       en ninguna parte visible. Es su dato y es un compromiso con ellos. */
+    estado_fuente: estadoDe(o) ? 'redacopio' : '',
     flujo: norm(o.flow) || '',
     oficial: norm(o.source) === 'oficial' ? 1 : 0,
     rev: String(o.verified_at || '').slice(0, 10),

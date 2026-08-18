@@ -2652,6 +2652,10 @@ function pintarAcopios(){
         ${esc(a.av)}</p>` : ''}
       ${a.nota_ra ? `<p style="margin:.25rem 0;font-size:.82rem">${esc(a.nota_ra)}
         <span style="color:#8a8378">· RedAcopio</span></p>` : ''}
+      ${a.fuente === 'redacopio' && !a.nota_ra
+        ? `<p style="margin:.25rem 0;font-size:.75rem;color:#8a8378">Publicado por
+            <a href="https://redacopiobogota.com" target="_blank" rel="noopener"
+               style="color:#8a8378">RedAcopio Bogotá</a></p>` : ''}
       ${a.vol ? '<p style="margin:.25rem 0;color:#1d7a4c;font-weight:600">Necesita voluntarios</p>' : ''}
       ${a.c ? `<p style="margin:.25rem 0">${esc(a.c)}</p>` : ''}
       ${tel ? `<p style="margin:.25rem 0"><a href="tel:${esc(tel)}">${esc(a.tel)}</a></p>` : ''}
@@ -2858,6 +2862,13 @@ function pintarDetalle(){
         a.di ? ` · ${esc(a.di)}` : ''}</div>` : ''}
       ${avisoVencido(a, 'campo-d campo-vencido')}
       ${a.nota_ra ? `<div class="campo-d"><b>Según RedAcopio</b>${esc(a.nota_ra)}</div>` : ''}
+      ${/* ⚠️ El crédito tiene que verse, no vivir en un `title`. Medido: 46 de
+            47 puntos que salen de ellos no los mencionaban en ninguna parte
+            visible. Es su trabajo de terreno y es lo que acordamos al integrar. */
+        a.fuente === 'redacopio'
+          ? `<div class="campo-d"><b>De dónde salió</b>Verificado y publicado por
+              <a href="https://redacopiobogota.com" target="_blank"
+                 rel="noopener">RedAcopio Bogotá</a></div>` : ''}
       ${a.vol ? '<p style="color:var(--verde);font-weight:700">Necesitan voluntarios</p>' : ''}
       ${a.c ? `<div class="campo-d"><b>Contacto</b>${esc(a.c)}</div>` : ''}
       ${a.org ? `<div class="campo-d"><b>Quién responde</b>${esc(a.org)}</div>` : ''}
