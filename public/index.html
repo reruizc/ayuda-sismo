@@ -4445,6 +4445,10 @@ document.addEventListener('click', (e) => {
  * rutas que no existen.
  */
 let histArmado = false;
+const histSesion = Math.random().toString(36).slice(2);
+const HIST_BASE = 0;
+const HIST_CENTINELA = 1;
+history.replaceState({ nivel: HIST_BASE, sesion: histSesion }, '');
 
 /* ⚠️ Decide por lo que se está VIENDO, no por `S.pt.i`. Una intención sin
    pasos —donar— deja `S.pt.i` puesta aunque la pantalla ya volvió al submenú
@@ -4474,11 +4478,15 @@ function armarHistorial(){
   const dentro = velo
     || (!$('#puerta').hidden && S.pt && (S.pt.fam || enPasoDePreguntas()));
   if (!dentro) return;
-  history.pushState({ rr: 1 }, '');
+  history.pushState({ nivel: HIST_CENTINELA, sesion: histSesion }, '');
   histArmado = true;
 }
 
-window.addEventListener('popstate', () => {
+window.addEventListener('popstate', (e) => {
+  const estado = e.state;
+  const esNuestro = !!estado && estado.sesion === histSesion;
+  const volvimosALaBase = esNuestro && estado.nivel === HIST_BASE;
+  if (!histArmado || !volvimosALaBase) return;
   histArmado = false;
   if (retrocederUno()) armarHistorial();
 });
