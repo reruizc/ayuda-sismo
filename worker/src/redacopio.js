@@ -31,6 +31,11 @@ const UA = 'MapaDeAyuda/1.0 (+https://reconstruyocolombia.com; hola@ricardoruiz.
 const GUARDA_MINIMA = 0.6;
 /** Piso absoluto: por debajo de esto el parseo está roto, no es que cerraran. */
 const MINIMO_ABSOLUTO = 20;
+const MAXIMO_ABSOLUTO = 2000;
+const MAX_BYTES_CUERPO = 8 * 1024 * 1024;
+const TIMEOUT_MS = 15000;
+const TOPE_REGISTRO = 6000;
+const TOPE_CANDIDATOS = 10000;
 
 /**
  * Saca los registros del documento.
@@ -46,12 +51,15 @@ export function extraer(html) {
   const vistos = new Set();
   const items = [];
 
+  let candidatos = 0;
   for (const m of s.matchAll(/"authorizing_entity"/g)) {
+    if (++candidatos > TOPE_CANDIDATOS) break;
     let i = m.index;
-    while (i > 0 && s[i] !== '{') i--;
+    const piso = Math.max(0, m.index - TOPE_REGISTRO);
+    while (i > piso && s[i] !== '{') i--;
     if (s[i] !== '{') continue;
     let prof = 0, fin = -1;
-    for (let j = i; j < Math.min(s.length, i + 6000); j++) {
+    for (let j = i; j < Math.min(s.length, i + TOPE_REGISTRO); j++) {
       if (s[j] === '{') prof++;
       else if (s[j] === '}') { prof--; if (prof === 0) { fin = j; break; } }
     }
@@ -71,6 +79,11 @@ const enColombia = (la, lo) =>
   Number.isFinite(la) && Number.isFinite(lo)
   && la >= BBOX.latMin && la <= BBOX.latMax
   && lo >= BBOX.lonMin && lo <= BBOX.lonMax;
+
+const DECIMALES_MINIMOS = 3;
+const decimalesDe = (n) => { const t = String(n); const i = t.indexOf('.'); return i < 0 ? 0 : t.length - i - 1; };
+const puntoUtil = (la, lo) => enColombia(la, lo)
+  && decimalesDe(la) >= DECIMALES_MINIMOS && decimalesDe(lo) >= DECIMALES_MINIMOS;
 
 /** Su vocabulario de estado → el nuestro. */
 function estadoDe(o) {
@@ -121,7 +134,7 @@ export function horarioDe(txt, hoy = hoyBogota()) {
      mandaba a nota, escondiendo justo la hora. Lo que NO trae una hora
      ("Lunes festivo SOLO voluntarios", "YA NO RECIBE DONACIONES") sigue
      yéndose a nota, que es donde se entiende igual. */
-  const esHora = PARECE_HORA.test(t) && t.length <= 120;
+  const esHora = t.length <= 120 && PARECE_HORA.test(t);
 
   /* ⚠️ Sus avisos también caducan, y con fecha explícita: "14, 15 y 16 de
      agosto - Hasta las 8pm" seguía publicado como horario el 18. Lo vencido
@@ -179,8 +192,8 @@ function aNuestraForma(o) {
        Guinea. Es la misma trampa que `coordenada()` ya cuida del lado de la
        hoja: un cero es una celda vacía con formato de número, no la isla nula.
        Se valida contra el recuadro de Colombia, no solo contra "es finito". */
-    la: enColombia(o.lat, o.lng) ? o.lat : null,
-    lo: enColombia(o.lat, o.lng) ? o.lng : null,
+    la: puntoUtil(o.lat, o.lng) ? o.lat : null,
+    lo: puntoUtil(o.lat, o.lng) ? o.lng : null,
     ap: 0,                              // ellos sí traen coordenada del sitio
     // Lo que ellos aportan y nuestra hoja no tiene.
     estado: estadoDe(o),
@@ -196,6 +209,22 @@ function aNuestraForma(o) {
   };
 }
 
+async function leerAcotado(respuesta, maxBytes) {
+  const lector = respuesta.body && respuesta.body.getReader ? respuesta.body.getReader() : null;
+  if (!lector) return String(await respuesta.text()).slice(0, maxBytes);
+  const decodificador = new TextDecoder();
+  let texto = '';
+  let bytesLeidos = 0;
+  for (;;) {
+    const { done, value } = await lector.read();
+    if (done) break;
+    bytesLeidos += value.byteLength;
+    texto += decodificador.decode(value, { stream: true });
+    if (bytesLeidos >= maxBytes) { try { await lector.cancel(); } catch {} break; }
+  }
+  return texto;
+}
+
 export async function refrescar(env) {
   const url = env.REDACOPIO_URL;
   if (!url) return null;
@@ -206,17 +235,22 @@ export async function refrescar(env) {
     if (row?.datos) guardado = JSON.parse(row.datos);
   } catch { /* primera corrida */ }
 
-  const r = await fetch(url, { headers: { 'User-Agent': UA }, redirect: 'follow' });
+  const r = await fetch(url, {
+    headers: { 'User-Agent': UA },
+    redirect: 'follow',
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
   if (!r.ok) throw new Error(`redacopio http ${r.status}`);
-  const crudos = extraer(await r.text());
+  const crudos = extraer(await leerAcotado(r, MAX_BYTES_CUERPO));
 
   /* ⚠️⚠️ La guarda es la razón de ser de este bloque. Leer el HTML de otro
      sitio se rompe CALLADO: un cambio en su build no da error, simplemente
      deja de encontrar registros, y sin esto publicaríamos cero puntos como si
      hubieran cerrado todos. Se conserva la última copia buena y queda anotado
      en `corridas` para poder verlo desde afuera. */
-  const antes = guardado?.total || 0;
-  if (crudos.length < MINIMO_ABSOLUTO || (antes && crudos.length < antes * GUARDA_MINIMA)) {
+  const antes = guardado?.crudos ?? guardado?.total ?? 0;
+  if (crudos.length < MINIMO_ABSOLUTO || crudos.length > MAXIMO_ABSOLUTO
+      || (antes && crudos.length < antes * GUARDA_MINIMA)) {
     throw new Error(`parseo sospechoso: ${crudos.length} registros (antes ${antes})`);
   }
 
@@ -263,6 +297,9 @@ const VACIAS = new Set(['centro', 'punto', 'acopio', 'sede', 'casa', 'de', 'del'
 const tokens = (s) => new Set(norm(s).replace(/[^a-z0-9ñ ]/g, ' ').split(/\s+/)
   .filter((w) => w.length > 3 && !VACIAS.has(w)));
 
+const RANGO_ESTADO = { abierto: 1, lleno: 2, cerrado: 3 };
+const mandaMas = (candidato, actual) => (RANGO_ESTADO[candidato] || 0) > (RANGO_ESTADO[actual] || 0);
+
 /**
  * Cruza lo de RedAcopio con nuestra hoja.
  *
@@ -284,22 +321,24 @@ export function fusionar(nuestros, suyos) {
   const res = { enriquecidos: 0, nuevos: 0, candidatos: [], omitidos: 0 };
   if (!Array.isArray(suyos) || !suyos.length) return res;
 
-  const conCoord = nuestros.filter((a) => a.la != null && !a.ap);
+  const conCoord = nuestros.filter((a) => a.la != null && !a.ap)
+    .map((acopio) => ({ acopio, distintivos: tokens(acopio.n) }));
   for (const x of suyos) {
     const tx = tokens(x.n);
     let par = null;
-    for (const a of conCoord) {
-      const d = km(x.la, x.lo, a.la, a.lo);
-      if (d > 1.2) continue;
-      if (d < 0.12) { par = a; break; }
+    for (const { acopio, distintivos } of conCoord) {
+      const distanciaKm = km(x.la, x.lo, acopio.la, acopio.lo);
+      if (distanciaKm > 1.2) continue;
+      if (distanciaKm < 0.12) { par = acopio; break; }
       let comunes = 0;
-      for (const w of tokens(a.n)) if (tx.has(w)) comunes++;
-      if (comunes >= 2) { par = a; break; }
+      for (const w of distintivos) if (tx.has(w)) comunes++;
+      if (comunes >= 2) { par = acopio; break; }
     }
 
     if (par) {
       // Solo lo que ellos saben y nosotros no. Nada de pisar la dirección.
-      if (x.estado) { par.estado = x.estado; par.estado_fuente = 'redacopio'; }
+      const suyoManda = par.estado_fuente === 'redacopio' && mandaMas(x.estado, par.estado);
+      if (x.estado && (!par.estado || suyoManda)) { par.estado = x.estado; par.estado_fuente = 'redacopio'; }
       if (x.flujo) par.flujo = x.flujo;
       if (x.vol_cupos) par.vol_cupos = x.vol_cupos;
       if (!par.rev && x.rev) { par.rev = x.rev; par.rev_fuente = 'redacopio'; }
