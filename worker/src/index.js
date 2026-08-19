@@ -1101,8 +1101,7 @@ async function adminSugerencia(req, env, origin, ctx) {
   if (s.tipo === 'cierre') {
     nuevo.cerrado = 1;
   } else if (s.tipo === 'confirmacion') {
-    // Confirmar es lo que llena la columna de revisión, que está vacía en casi
-    // toda la hoja: el sello pasa de "sin revisar" a "revisado {fecha}".
+    // Confirmar sella la revisión: pasa de "sin revisar" a "revisado {fecha}".
     nuevo.rev = new Date().toISOString().slice(0, 10);
   } else {
     for (const [c, v] of Object.entries(campos)) {
