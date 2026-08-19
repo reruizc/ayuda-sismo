@@ -14,7 +14,8 @@
  * ⚠️⚠️ SIN VERIFICAR, igual que los acopios. Acá el riesgo es simétrico: una
  * necesidad vieja o mal anotada hace que llegue lo que ya no falta.
  */
-import { CENTRO, norm, parsearCSV, LIMPIO, geocodificarNombre, coordenada } from './acopios.js';
+import { CENTRO, norm, parsearCSV, LIMPIO, geocodificarNombre, coordenada,
+         copiaGuardada, evaluarRefresco } from './acopios.js';
 import { centroDe } from './centros.js';
 
 const TOPE_TEXTO_CLAVE = 300;
@@ -368,9 +369,17 @@ async function textoAcotado(respuesta, tope) {
   return new TextDecoder().decode(todo);
 }
 
+export const GUARDA_NECESIDADES = {
+  minimoPublicable: 4,
+  fraccionDelAnterior: 0.35,
+  graciaAntesDeAceptarMs: 3 * 60 * 60 * 1000,
+};
+
 export async function refrescar(env, opciones = {}) {
   const url = env.NECESIDADES_CSV;
   if (!url) return null;
+
+  const guardado = await copiaGuardada(env, 'necesidades');
 
   const r = await fetch(url, {
     headers: { 'User-Agent': 'MapaDeAyuda/1.0 (+https://reconstruyocolombia.com)' },
@@ -406,6 +415,14 @@ export async function refrescar(env, opciones = {}) {
     revisado: false,
     items,
   };
+  const guarda = evaluarRefresco(datos.total, guardado?.total || 0, GUARDA_NECESIDADES,
+                                 guardado?.generado ? Date.now() - guardado.generado : 0);
+  if (guarda.conservar) {
+    console.error('necesidades: refresco descartado', JSON.stringify(guarda.aviso));
+    return { ...guardado, refresco_descartado: guarda.aviso };
+  }
+  if (guarda.aceptado_por_gracia) datos.encogimiento_aceptado = guarda.aviso;
+
   await env.DB.prepare(
     `INSERT INTO externos (id, ts, datos) VALUES ('necesidades', ?, ?)
      ON CONFLICT(id) DO UPDATE SET ts = excluded.ts, datos = excluded.datos`
