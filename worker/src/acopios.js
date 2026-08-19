@@ -52,7 +52,7 @@ export const claveDe = (nombre, municipio) => `${norm(nombre)}|${norm(municipio)
  */
 export function parsearCSV(txt) {
   const filas = [];
-  let fila = [], campo = '', enComillas = false;
+  let fila = [], campo = '', enComillas = false, campoEnBlanco = true;
   const s = txt.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
   for (let i = 0; i < s.length; i++) {
@@ -62,10 +62,10 @@ export function parsearCSV(txt) {
         if (s[i + 1] === '"') { campo += '"'; i++; }   // comilla escapada
         else enComillas = false;
       } else campo += c;
-    } else if (c === '"') enComillas = true;
-    else if (c === ',') { fila.push(campo); campo = ''; }
-    else if (c === '\n') { fila.push(campo); filas.push(fila); fila = []; campo = ''; }
-    else campo += c;
+    } else if (c === '"' && campoEnBlanco) { enComillas = true; campoEnBlanco = false; campo = ''; }
+    else if (c === ',') { fila.push(campo); campo = ''; campoEnBlanco = true; }
+    else if (c === '\n') { fila.push(campo); filas.push(fila); fila = []; campo = ''; campoEnBlanco = true; }
+    else { campo += c; if (c !== ' ') campoEnBlanco = false; }
   }
   if (campo !== '' || fila.length) { fila.push(campo); filas.push(fila); }
   return filas;
@@ -156,6 +156,8 @@ const ESTADO_OCULTA = new Set(['cerrado', 'cerrada', 'descartado', 'descartada',
   'duplicado', 'duplicada', 'no aplica', 'no existe', 'eliminado', 'eliminada']);
 
 const BBOX = { latMin: -4.3, latMax: 13.6, lonMin: -82.0, lonMax: -66.8 };
+const enColombia = (la, lo) => Number.isFinite(la) && Number.isFinite(lo)
+  && la >= BBOX.latMin && la <= BBOX.latMax && lo >= BBOX.lonMin && lo <= BBOX.lonMax;
 
 /**
  * Lee una coordenada de la hoja, aunque venga con el punto donde no va.
@@ -343,13 +345,15 @@ export function normalizarFilas(filas) {
       ap: aprox ? 1 : 0,     // ubicación al centro del municipio, no exacta
     });
   }
-  return { items, sin_ubicar: sinUbicar, ocultos, vencidos };
+  return { items, sin_ubicar: sinUbicar, ocultos, vencidos,
+           columnas_ausentes: Object.keys(ix).filter((k) => ix[k] < 0) };
 }
 
 /* ─────────────────────────── geocodificación ─────────────────────────── */
 
 const NOMINATIM = 'https://nominatim.openstreetmap.org/search';
 const UA_GEO = 'MapaDeAyudaSismo/1.0 (contacto: hola@ricardoruiz.co)';
+const TOPE_ESPERA_GEO_MS = 10000;
 
 // Un resultado a más de 30 km del centro del municipio es otro sitio con el
 // mismo nombre en otra ciudad. Bogotá mide ~40 km de norte a sur, así que el
@@ -377,7 +381,10 @@ function km(la1, lo1, la2, lo2) {
 export async function geocodificarNombre(nombre, municipio, centro) {
   const q = [nombre, municipio, 'Colombia'].filter(Boolean).join(', ');
   const url = `${NOMINATIM}?q=${encodeURIComponent(q)}&format=json&countrycodes=co&limit=1`;
-  const r = await fetch(url, { headers: { 'User-Agent': UA_GEO } });
+  const r = await fetch(url, {
+    headers: { 'User-Agent': UA_GEO },
+    signal: AbortSignal.timeout(TOPE_ESPERA_GEO_MS),
+  });
   if (!r.ok) throw new Error(`nominatim http ${r.status}`);
   const d = await r.json();
   if (!Array.isArray(d) || !d.length) return null;
@@ -450,7 +457,7 @@ async function geocodificarPendientes(env, items, max) {
 
     if (fila) {
       // lat NULL = ya se buscó y no se encontró. No se vuelve a preguntar.
-      if (fila.lat != null) {
+      if (fila.lat != null && enColombia(fila.lat, fila.lon)) {
         a.la = fila.lat; a.lo = fila.lon; a.ap = 0; a.geo = fila.fuente || 'osm';
       }
       continue;
@@ -533,7 +540,12 @@ export async function aplicarOverlays(env, items) {
 
   const porClave = new Map();
   for (const f of filas) {
-    try { porClave.set(f.clave, JSON.parse(f.campos) || {}); } catch { /* fila rota */ }
+    try {
+      const campos = JSON.parse(f.campos);
+      if (campos && typeof campos === 'object' && !Array.isArray(campos)) {
+        porClave.set(f.clave, campos);
+      }
+    } catch { /* fila rota */ }
   }
 
   const vistos = new Set();
@@ -588,6 +600,9 @@ export async function aplicarOverlays(env, items) {
   return res;
 }
 
+const TOPE_ESPERA_HOJA_MS = 20000;
+const TOPE_TAMANO_HOJA = 8 * 1024 * 1024;
+
 export async function refrescar(env, opciones = {}) {
   const url = env.ACOPIOS_CSV;
   if (!url) return null;
@@ -595,15 +610,18 @@ export async function refrescar(env, opciones = {}) {
   const r = await fetch(url, {
     headers: { 'User-Agent': 'MapaDeAyuda/1.0 (+https://reconstruyocolombia.com)' },
     redirect: 'follow',
+    signal: AbortSignal.timeout(TOPE_ESPERA_HOJA_MS),
   });
   if (!r.ok) throw new Error(`hoja http ${r.status}`);
   const txt = await r.text();
+  if (txt.length > TOPE_TAMANO_HOJA) throw new Error(`hoja demasiado grande: ${txt.length}`);
 
   // Si Google devuelve una página de login o de error, llega HTML y no CSV.
   // Guardar eso pisaría la última copia buena con basura.
   if (/^\s*<(!doctype|html)/i.test(txt)) throw new Error('la hoja no es pública');
 
-  const { items, sin_ubicar, ocultos, vencidos, error } = normalizarFilas(parsearCSV(txt));
+  const { items, sin_ubicar, ocultos, vencidos, columnas_ausentes, error } =
+    normalizarFilas(parsearCSV(txt));
   if (error) throw new Error(error);
 
   // Las correcciones aprobadas van ANTES de geocodificar: si una corrigió la
@@ -629,6 +647,7 @@ export async function refrescar(env, opciones = {}) {
     // Horarios con fecha ya pasada que dejaron de publicarse como vigentes.
     // Se publica el conteo: si sube, hay acopios cuyo dato quedó congelado.
     horarios_vencidos: vencidos || 0,
+    columnas_ausentes: columnas_ausentes || [],
     con_punto_propio: items.filter((i) => !i.ap && i.la != null).length,
     // Con sello real de verificación (VERIFICADO = si), no con la fecha de carga.
     verificados: items.filter((i) => i.rev).length,
